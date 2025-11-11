@@ -1,14 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.schemas import SwitchRequest, SwitchResponse, SwitchChanged, ProviderSwitchRequest, MessageResponse
+import asyncio
+import copy
+import uuid
+from datetime import datetime
+
 from app.database import get_current_user, get_db
 from app.models import Spec, Iteration
+from app.schemas import (
+    SwitchRequest,
+    SwitchResponse,
+    SwitchChanged,
+    ProviderSwitchRequest,
+    MessageResponse,
+)
 from app.storage import upload_to_bucket, get_signed_url
 from app.utils import create_iter_id, generate_glb_from_spec
-from datetime import datetime
-import copy
-import asyncio
-import uuid
 
 router = APIRouter()
 
@@ -90,7 +97,8 @@ async def switch(
     
     # 5. Save iteration diff
     iter_id = create_iter_id()
-    feedback = request.note or f"Updated {target_object_id}: {', '.join([f'{c["field"]} changed from {c["before"]} to {c["after"]}' for c in changes])}"
+    change_descriptions = [f"{c['field']} changed from {c['before']} to {c['after']}" for c in changes]
+    feedback = request.note or f"Updated {target_object_id}: {', '.join(change_descriptions)}"
     
     iteration = Iteration(
         iter_id=iter_id,

@@ -44,7 +44,7 @@ async def metrics():
     # Return Prometheus metrics in text format
     try:
         return instrumentator.registry.generate_latest().decode('utf-8')
-    except:
+    except Exception:
         # Fallback metrics if instrumentator not properly initialized
         uptime = get_uptime()
         return f"""# HELP app_uptime_seconds Application uptime in seconds
@@ -63,7 +63,7 @@ async def test_error():
     # Capture the error in Sentry
     try:
         # Intentionally cause an error
-        result = 1 / 0
+        1 / 0
     except Exception as e:
         # Send to Sentry
         sentry_sdk.capture_exception(e)
