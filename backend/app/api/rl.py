@@ -2,19 +2,16 @@ import logging
 import os
 
 import torch
-from app.database import get_current_user, get_db
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
-logger = logging.getLogger(__name__)
 from app.compute_routing import route, run_yotta
+from app.database import get_current_user, get_db
 from app.opt_rl.env_spec import SpecEditEnv
 from app.opt_rl.train_ppo import train_opt_ppo
 from app.rlhf.build_dataset import build_preferences_from_db
 from app.rlhf.reward_model import SimpleRewardModel, score_spec
-from app.rlhf.train_rlhf import rlhf_train
-from app.rlhf.train_rm import train_reward_model
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -25,7 +22,6 @@ async def rl_feedback(
     """Submit RL feedback for training"""
     # Validate spec IDs exist before saving
     from app.models import RLHFFeedback, Spec
-    from app.utils import create_new_eval_id
 
     spec_a = db.query(Spec).filter(Spec.spec_id == feedback.get("spec_a_id")).first()
     spec_b = db.query(Spec).filter(Spec.spec_id == feedback.get("spec_b_id")).first()
@@ -92,7 +88,7 @@ async def train_rlhf_ep(
             raise HTTPException(500, "Yotta RLHF failed")
         return {"ok": True, "artifact": res.get("artifact")}
     else:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        # device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"Training reward model with {len(pairs)} preference pairs")
 
         # Mock training for testing
@@ -179,7 +175,7 @@ async def suggest_iterate(req: dict, user=Depends(get_current_user)):
                 cand_score = score_spec(rm, "Improve design", cand, device=device)
                 if cand_score > best_score:
                     best_spec, best_score = cand, cand_score
-            except Exception as e:
+            except Exception:
                 # PPO failed, continue with base spec
                 pass
 
