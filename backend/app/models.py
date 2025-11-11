@@ -1,18 +1,30 @@
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, JSON, Text, Boolean
+import datetime
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-import datetime
 
 Base = declarative_base()
 
+
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 
 class Spec(Base):
     __tablename__ = "specs"
@@ -23,7 +35,10 @@ class Spec(Base):
     spec_json = Column(JSON)
     spec_version = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
+
 
 class Evaluation(Base):
     __tablename__ = "evaluations"
@@ -34,6 +49,7 @@ class Evaluation(Base):
     notes = Column(Text)
     ts = Column(DateTime, default=datetime.datetime.utcnow)
 
+
 class Iteration(Base):
     __tablename__ = "iterations"
     iter_id = Column(String, primary_key=True)
@@ -43,12 +59,14 @@ class Iteration(Base):
     feedback = Column(Text)
     ts = Column(DateTime, default=datetime.datetime.utcnow)
 
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id = Column(Integer, primary_key=True, autoincrement=True)
     event = Column(String)
     user_id = Column(String)
     ts = Column(DateTime, default=datetime.datetime.utcnow)
+
 
 class RLHFFeedback(Base):
     __tablename__ = "rlhf_feedback"
@@ -61,6 +79,7 @@ class RLHFFeedback(Base):
     rating_a = Column(Integer)  # 1-5 rating for design A
     rating_b = Column(Integer)  # 1-5 rating for design B
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 
 class RLHFPreferences(Base):
     __tablename__ = "rlhf_preferences"

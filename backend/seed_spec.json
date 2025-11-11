@@ -8,7 +8,7 @@
       "texture": "oak"
     },
     {
-      "id": "sofa_1", 
+      "id": "sofa_1",
       "type": "sofa",
       "material": "fabric",
       "color": "grey",
@@ -16,7 +16,7 @@
     },
     {
       "id": "cushion_1",
-      "type": "cushion", 
+      "type": "cushion",
       "material": "fabric",
       "color": "blue",
       "pattern": "solid"

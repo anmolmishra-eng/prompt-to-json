@@ -97,7 +97,7 @@ python quick_test_all.py
 **Purpose**: Generate new designs from natural language prompts
 - **Input**: `{"prompt": "Create a modern kitchen with island", "style": "modern", "budget": 50000}`
 - **Output**: Complete design specification with components, materials, and 3D geometry
-- **What it does**: 
+- **What it does**:
   - Parses natural language design requirements
   - Extracts dimensions automatically (supports meters, feet, cm)
   - Generates detailed design specifications

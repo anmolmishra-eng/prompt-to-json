@@ -34,7 +34,7 @@
    ```bash
    # Update .env file
    sed -i "s/JWT_SECRET_KEY=.*/JWT_SECRET_KEY=$NEW_SECRET/" .env
-   
+
    # Or update in secrets manager
    aws secretsmanager update-secret \
      --secret-id "design-engine/jwt-secret" \
@@ -98,10 +98,10 @@ curl -H "Authorization: Bearer $COMPLIANCE_API_KEY" \
    ```bash
    # Generate emergency secret
    EMERGENCY_SECRET=$(openssl rand -hex 32)
-   
+
    # Update all instances immediately
    kubectl set env deployment/design-engine JWT_SECRET_KEY="$EMERGENCY_SECRET"
-   
+
    # Force all users to re-authenticate
    kubectl rollout restart deployment/design-engine
    ```
@@ -110,7 +110,7 @@ curl -H "Authorization: Bearer $COMPLIANCE_API_KEY" \
    ```bash
    # Check recent token usage
    grep "JWT" /var/log/design-engine/audit.log | tail -100
-   
+
    # Review Sentry for suspicious activity
    # Check access logs for unusual patterns
    ```

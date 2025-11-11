@@ -1,10 +1,10 @@
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt
 from app.config import settings
 from app.models import Base
-import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
 
 engine = create_engine(settings.DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -23,6 +23,7 @@ Base.metadata.create_all(bind=engine)
 
 security = HTTPBearer()
 
+
 def get_db():
     db = SessionLocal()
     try:
@@ -30,9 +31,14 @@ def get_db():
     finally:
         db.close()
 
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
         username = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")

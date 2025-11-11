@@ -14,12 +14,12 @@ const login = async (username, password) => {
   const formData = new FormData();
   formData.append('username', username);
   formData.append('password', password);
-  
+
   const response = await fetch('https://api.designengine.com/api/v1/auth/login', {
     method: 'POST',
     body: formData,
   });
-  
+
   const data = await response.json();
   return data.access_token;
 };
@@ -32,7 +32,7 @@ const login = async (username, password) => {
 Mobile apps can use dedicated endpoints with the same functionality:
 
 - `POST /api/v1/mobile/generate` - Generate design specs
-- `POST /api/v1/mobile/evaluate` - Rate designs  
+- `POST /api/v1/mobile/evaluate` - Rate designs
 - `POST /api/v1/mobile/iterate` - Improve designs
 - `POST /api/v1/mobile/switch` - Change materials
 - `GET /api/v1/mobile/health` - Mobile health check
@@ -57,7 +57,7 @@ const generateDesign = async (token, prompt) => {
       project_id: 'mobile_project'
     }),
   });
-  
+
   return await response.json();
 };
 ```
@@ -89,14 +89,14 @@ export default function DesignApp() {
       const formData = new FormData();
       formData.append('username', 'user');
       formData.append('password', 'pass');
-      
+
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         body: formData,
       });
-      
+
       const data = await response.json();
-      
+
       if (data.access_token) {
         setToken(data.access_token);
         await AsyncStorage.setItem('auth_token', data.access_token);
@@ -110,7 +110,7 @@ export default function DesignApp() {
   // Generate design
   const generateDesign = async () => {
     if (!token || !prompt) return;
-    
+
     try {
       const response = await fetch(`${API_BASE}/mobile/generate`, {
         method: 'POST',
@@ -121,14 +121,14 @@ export default function DesignApp() {
         body: JSON.stringify({
           user_id: 'mobile_user',
           prompt: prompt,
-          context: { 
+          context: {
             platform: 'mobile',
-            device: 'smartphone' 
+            device: 'smartphone'
           },
           project_id: 'mobile_project'
         }),
       });
-      
+
       const result = await response.json();
       setDesign(result);
       Alert.alert('Success', `Generated spec: ${result.spec_id}`);
@@ -140,7 +140,7 @@ export default function DesignApp() {
   // Evaluate design
   const evaluateDesign = async (rating) => {
     if (!token || !design) return;
-    
+
     try {
       await fetch(`${API_BASE}/mobile/evaluate`, {
         method: 'POST',
@@ -155,7 +155,7 @@ export default function DesignApp() {
           notes: 'Mobile app evaluation'
         }),
       });
-      
+
       Alert.alert('Success', 'Design rated successfully');
     } catch (error) {
       Alert.alert('Error', 'Rating failed');
@@ -174,14 +174,14 @@ export default function DesignApp() {
             onChangeText={setPrompt}
             style={{ borderWidth: 1, padding: 10, marginBottom: 10 }}
           />
-          
+
           <Button title="Generate Design" onPress={generateDesign} />
-          
+
           {design && (
             <View style={{ marginTop: 20 }}>
               <Text>Spec ID: {design.spec_id}</Text>
               <Text>Preview: {design.preview_url}</Text>
-              
+
               <View style={{ flexDirection: 'row', marginTop: 10 }}>
                 <Button title="Rate 1⭐" onPress={() => evaluateDesign(1)} />
                 <Button title="Rate 5⭐" onPress={() => evaluateDesign(5)} />
@@ -216,7 +216,7 @@ Mobile endpoints return optimized data structures:
 const handleApiCall = async (apiCall) => {
   try {
     const response = await apiCall();
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         // Token expired, redirect to login
@@ -225,7 +225,7 @@ const handleApiCall = async (apiCall) => {
       }
       throw new Error(`API Error: ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     Alert.alert('Error', error.message);
@@ -241,12 +241,12 @@ import NetInfo from '@react-native-netinfo/netinfo';
 
 const checkConnectivity = async () => {
   const netInfo = await NetInfo.fetch();
-  
+
   if (!netInfo.isConnected) {
     Alert.alert('Offline', 'Please check your internet connection');
     return false;
   }
-  
+
   return true;
 };
 ```

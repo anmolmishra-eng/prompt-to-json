@@ -1,4 +1,5 @@
 import os
+
 import httpx
 from dotenv import load_dotenv
 
@@ -8,13 +9,14 @@ load_dotenv()
 YOTTA_URL = os.getenv("YOTTA_URL")
 YOTTA_API_KEY = os.getenv("YOTTA_API_KEY")
 
+
 async def test_yotta():
     if not YOTTA_URL or not YOTTA_API_KEY:
         print("❌ YOTTA_URL or YOTTA_API_KEY not configured")
         return
-    
+
     headers = {"Authorization": f"Bearer {YOTTA_API_KEY}"}
-    
+
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             # Test connection
@@ -27,6 +29,8 @@ async def test_yotta():
     except Exception as e:
         print(f"❌ Yotta connection error: {e}")
 
+
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(test_yotta())
