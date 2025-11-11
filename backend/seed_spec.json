@@ -1,0 +1,30 @@
+{
+  "objects": [
+    {
+      "id": "floor_1",
+      "type": "floor",
+      "material": "wood",
+      "color": "brown",
+      "texture": "oak"
+    },
+    {
+      "id": "sofa_1", 
+      "type": "sofa",
+      "material": "fabric",
+      "color": "grey",
+      "size": "3-seater"
+    },
+    {
+      "id": "cushion_1",
+      "type": "cushion", 
+      "material": "fabric",
+      "color": "blue",
+      "pattern": "solid"
+    }
+  ],
+  "scene": {
+    "room_type": "living_room",
+    "lighting": "natural",
+    "style": "modern"
+  }
+}
