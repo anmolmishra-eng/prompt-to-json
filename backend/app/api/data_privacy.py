@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_current_user, get_db
-from app.models import Spec, Evaluation, Iteration, AuditLog, RLHFFeedback, RLHFPreferences
+from app.models import Spec, Evaluation, Iteration, RLHFFeedback, RLHFPreferences
 from app.storage import supabase
 from app.utils import log_audit_event
 import logging
