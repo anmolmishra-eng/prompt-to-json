@@ -39,9 +39,11 @@ async def detailed_health():
         "components": {
             "database": "connected",
             "storage": "connected",
-            "gpu": "available"
-            if __import__("torch").cuda.is_available()
-            else "unavailable",
+            "gpu": (
+                "available"
+                if __import__("torch").cuda.is_available()
+                else "unavailable"
+            ),
         },
     }
 
