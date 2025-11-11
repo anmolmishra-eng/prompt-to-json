@@ -41,9 +41,7 @@ class BackendDemo:
             "project_id": "demo_project_001",
         }
 
-        response = requests.post(
-            f"{self.base_url}/api/v1/generate", json=gen_req, headers=self.headers
-        )
+        response = requests.post(f"{self.base_url}/api/v1/generate", json=gen_req, headers=self.headers)
 
         if response.status_code != 200:
             raise Exception(f"Generate failed: {response.text}")
@@ -54,17 +52,13 @@ class BackendDemo:
 
         return result
 
-    def switch_material(
-        self, spec_id: str, target: str = "floor_1", material: str = "marble_white"
-    ) -> Dict[str, Any]:
+    def switch_material(self, spec_id: str, target: str = "floor_1", material: str = "marble_white") -> Dict[str, Any]:
         """Switch material of an object in the spec"""
         print(f"\n3. Switching material of {target} to {material}...")
 
         switch_req = {"spec_id": spec_id, "target": target, "material": material}
 
-        response = requests.post(
-            f"{self.base_url}/api/v1/switch", json=switch_req, headers=self.headers
-        )
+        response = requests.post(f"{self.base_url}/api/v1/switch", json=switch_req, headers=self.headers)
 
         if response.status_code != 200:
             raise Exception(f"Switch failed: {response.text}")
@@ -92,9 +86,7 @@ class BackendDemo:
             "notes": notes,
         }
 
-        response = requests.post(
-            f"{self.base_url}/api/v1/evaluate", json=eval_req, headers=self.headers
-        )
+        response = requests.post(f"{self.base_url}/api/v1/evaluate", json=eval_req, headers=self.headers)
 
         if response.status_code != 200:
             raise Exception(f"Evaluate failed: {response.text}")
@@ -115,9 +107,7 @@ class BackendDemo:
 
         iter_req = {"spec_id": spec_id, "strategy": strategy, "user_id": user_id}
 
-        response = requests.post(
-            f"{self.base_url}/api/v1/iterate", json=iter_req, headers=self.headers
-        )
+        response = requests.post(f"{self.base_url}/api/v1/iterate", json=iter_req, headers=self.headers)
 
         if response.status_code != 200:
             raise Exception(f"Iterate failed: {response.text}")
@@ -163,9 +153,7 @@ class BackendDemo:
         """Get full spec history report"""
         print(f"\n7. Getting full report for spec {spec_id}...")
 
-        response = requests.get(
-            f"{self.base_url}/api/v1/reports/{spec_id}", headers=self.headers
-        )
+        response = requests.get(f"{self.base_url}/api/v1/reports/{spec_id}", headers=self.headers)
 
         if response.status_code != 200:
             raise Exception(f"Get report failed: {response.text}")
@@ -187,9 +175,7 @@ class BackendDemo:
 def main():
     """Run complete end-to-end demo workflow"""
     print("=== Backend Integration Demo ===")
-    print(
-        "Testing complete generate → switch → evaluate → iterate → compliance → report flow"
-    )
+    print("Testing complete generate → switch → evaluate → iterate → compliance → report flow")
 
     demo = BackendDemo()
 
@@ -203,18 +189,14 @@ def main():
         demo.login()
 
         # 2. Generate spec
-        gen_result = demo.generate_spec(
-            "A modern living room with comfortable seating and natural lighting"
-        )
+        gen_result = demo.generate_spec("A modern living room with comfortable seating and natural lighting")
         spec_id = gen_result["spec_id"]
 
         # 3. Switch material
         switch_result = demo.switch_material(spec_id, "sofa_1", "leather_brown")
 
         # 4. Evaluate
-        eval_result = demo.evaluate_spec(
-            spec_id, 5, "Excellent design after material change"
-        )
+        eval_result = demo.evaluate_spec(spec_id, 5, "Excellent design after material change")
 
         # 5. Iterate
         iter_result = demo.iterate_spec(spec_id, "optimize_lighting")
@@ -226,9 +208,7 @@ def main():
         report = demo.get_report(spec_id)
 
         print("\n=== Demo Completed Successfully ===")
-        print(
-            f"Final spec has {len(report['iterations'])} iterations and {len(report['evaluations'])} evaluations"
-        )
+        print(f"Final spec has {len(report['iterations'])} iterations and {len(report['evaluations'])} evaluations")
         print(f"Spec ID: {spec_id}")
 
         # Save demo results

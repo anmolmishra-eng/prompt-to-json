@@ -14,12 +14,8 @@ def _jsonify(txt: str):
 
 
 def build_prompts(db, limit=200):
-    rows = db.execute(
-        "SELECT prompt FROM specs ORDER BY created_at DESC LIMIT :n", {"n": limit}
-    ).fetchall()
-    return [r[0] for r in rows] or [
-        "Design a living room with marble floor and grey sofa"
-    ]
+    rows = db.execute("SELECT prompt FROM specs ORDER BY created_at DESC LIMIT :n", {"n": limit}).fetchall()
+    return [r[0] for r in rows] or ["Design a living room with marble floor and grey sofa"]
 
 
 def rlhf_train(db, base_model_name="gpt2", steps=500, device="cpu"):
@@ -33,9 +29,7 @@ def rlhf_train(db, base_model_name="gpt2", steps=500, device="cpu"):
     rm.load_state_dict(torch.load("models_ckpt/rm.pt", map_location=device))
     rm.to(device).eval()
 
-    cfg = PPOConfig(
-        batch_size=2, mini_batch_size=2, num_ppo_epochs=4, learning_rate=1e-5
-    )
+    cfg = PPOConfig(batch_size=2, mini_batch_size=2, num_ppo_epochs=4, learning_rate=1e-5)
     ppo = PPOTrainer(cfg, policy, tok)
 
     prompts = build_prompts(db)
@@ -45,9 +39,7 @@ def rlhf_train(db, base_model_name="gpt2", steps=500, device="cpu"):
         gen = policy.generate(**inputs, max_new_tokens=256)
         out = tok.batch_decode(gen, skip_special_tokens=True)
 
-        responses = [
-            t[len(p) :] if t.startswith(p) else t for t, p in zip(out, batch_prompts)
-        ]
+        responses = [t[len(p) :] if t.startswith(p) else t for t, p in zip(out, batch_prompts)]
         rewards = []
         for p, r in zip(batch_prompts, responses):
             spec = _jsonify(r)

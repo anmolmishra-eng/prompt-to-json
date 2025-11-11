@@ -1,13 +1,7 @@
 from app.database import get_current_user, get_db
 from app.models import Evaluation, Iteration, Spec
 from app.schemas import Report
-from app.storage import (
-    get_signed_url,
-    storage_manager,
-    upload_compliance,
-    upload_geometry,
-    upload_preview,
-)
+from app.storage import get_signed_url, storage_manager, upload_compliance, upload_geometry, upload_preview
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -60,9 +54,7 @@ async def create_report(request: dict, current_user: str = Depends(get_current_u
 
 
 @router.post("/upload")
-async def upload_report_file(
-    file: UploadFile = File(...), current_user: str = Depends(get_current_user)
-):
+async def upload_report_file(file: UploadFile = File(...), current_user: str = Depends(get_current_user)):
     file_content = await file.read()
     file_path = await storage_manager.upload_file(file_content, file.filename)
     signed_url = await storage_manager.get_signed_url(file_path)

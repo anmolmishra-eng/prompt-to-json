@@ -16,9 +16,7 @@ router = APIRouter()
 
 
 @router.post("/rl/feedback")
-async def rl_feedback(
-    feedback: dict, user=Depends(get_current_user), db: Session = Depends(get_db)
-):
+async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Submit RL feedback for training"""
     # Validate spec IDs exist before saving
     from app.models import RLHFFeedback, Spec
@@ -46,9 +44,7 @@ async def rl_feedback(
 
 
 @router.post("/rl/train/rlhf")
-async def train_rlhf_ep(
-    params: dict, user=Depends(get_current_user), db: Session = Depends(get_db)
-):
+async def train_rlhf_ep(params: dict, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Trains Reward Model (local or Yotta) + runs PPO RLHF on your LM.
     params: {"steps": 1000, "rm_epochs": 5}
@@ -158,9 +154,7 @@ async def suggest_iterate(req: dict, user=Depends(get_current_user)):
         best_spec, best_score = spec, base_score
 
         # try PPO if present
-        use_opt = strategy == "auto_optimize" and os.path.exists(
-            "models_ckpt/opt_ppo/policy.zip"
-        )
+        use_opt = strategy == "auto_optimize" and os.path.exists("models_ckpt/opt_ppo/policy.zip")
         if use_opt:
             try:
                 from stable_baselines3 import PPO

@@ -17,6 +17,4 @@ try:
     raise Exception("BACKEND API PROJECT IDENTIFICATION ERROR")
 except Exception as e:
     sentry_sdk.capture_exception(e)
-    print(
-        "Tagged error sent! Check which Sentry project shows this error with tag 'BACKEND_API_PROJECT'"
-    )
+    print("Tagged error sent! Check which Sentry project shows this error with tag 'BACKEND_API_PROJECT'")

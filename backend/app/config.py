@@ -42,8 +42,7 @@ class Settings(BaseSettings):
 
     # Sentry
     SENTRY_DSN: Optional[str] = (
-        "https://4465443c7756d19300022e0d12f400e2@"
-        "o4510289261887488.ingest.us.sentry.io/4510322463670272"
+        "https://4465443c7756d19300022e0d12f400e2@" "o4510289261887488.ingest.us.sentry.io/4510322463670272"
     )
 
     # Compliance Service

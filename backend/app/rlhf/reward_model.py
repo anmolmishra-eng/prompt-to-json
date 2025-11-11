@@ -24,9 +24,7 @@ class SimpleRewardModel(nn.Module):
     def __init__(self, vocab=50000, hidden=768):
         super().__init__()
         self.emb = nn.Embedding(vocab, 64)
-        self.head = nn.Sequential(
-            nn.Linear(64, hidden), nn.ReLU(), nn.Linear(hidden, 1)
-        )
+        self.head = nn.Sequential(nn.Linear(64, hidden), nn.ReLU(), nn.Linear(hidden, 1))
 
     def forward(self, ids):
         x = self.emb(ids).mean(dim=1)

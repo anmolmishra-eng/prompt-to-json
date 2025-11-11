@@ -128,8 +128,7 @@ async def log_requests(request: Request, call_next):
 
     # Log incoming request
     logger.info(
-        f"Request: {request.method} {request.url.path} "
-        f"from {request.client.host if request.client else 'unknown'}"
+        f"Request: {request.method} {request.url.path} " f"from {request.client.host if request.client else 'unknown'}"
     )
 
     response = await call_next(request)
@@ -137,8 +136,7 @@ async def log_requests(request: Request, call_next):
     # Log response with timing
     process_time = time.time() - start_time
     logger.info(
-        f"Response: {request.method} {request.url.path} "
-        f"status={response.status_code} duration={process_time:.3f}s"
+        f"Response: {request.method} {request.url.path} " f"status={response.status_code} duration={process_time:.3f}s"
     )
 
     return response
@@ -151,9 +149,7 @@ app.include_router(data_privacy.router, prefix="/api/v1", tags=["🔐 Data Priva
 
 # 2. System Health & Monitoring
 app.include_router(health.router, prefix="/api/v1", tags=["📊 Monitoring & Health"])
-app.include_router(
-    health.router, prefix="", tags=["📊 Monitoring & Health"]
-)  # For /metrics
+app.include_router(health.router, prefix="", tags=["📊 Monitoring & Health"])  # For /metrics
 
 # 3. Core Design Engine (Main Workflow)
 app.include_router(generate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
@@ -166,14 +162,10 @@ app.include_router(history.router, prefix="/api/v1", tags=["🎨 Core Design Eng
 app.include_router(core.router, prefix="/api/v1", tags=["⚙️ Core Operations"])
 
 # 5. Compliance & Validation
-app.include_router(
-    compliance.router, prefix="/api/v1/compliance", tags=["✅ Compliance & Validation"]
-)
+app.include_router(compliance.router, prefix="/api/v1/compliance", tags=["✅ Compliance & Validation"])
 
 # 6. File Management & Reports
-app.include_router(
-    reports.router, prefix="/api/v1", tags=["📁 File Management & Reports"]
-)
+app.include_router(reports.router, prefix="/api/v1", tags=["📁 File Management & Reports"])
 
 # 7. Platform Integrations
 app.include_router(mobile.router, prefix="/api/v1", tags=["📱 Mobile Integration"])

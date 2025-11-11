@@ -24,9 +24,7 @@ class SpecEditEnv(gym.Env):
             ("cushion_1", "material", "fabric_orange"),
         ]
         self.action_space = gym.spaces.Discrete(len(self.actions))
-        self.observation_space = gym.spaces.Box(
-            low=-1, high=1, shape=(512,), dtype=np.float32
-        )
+        self.observation_space = gym.spaces.Box(low=-1, high=1, shape=(512,), dtype=np.float32)
 
     def _embed(self, spec_json):
         txt = json.dumps(spec_json, sort_keys=True)

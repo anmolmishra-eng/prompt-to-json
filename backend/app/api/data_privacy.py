@@ -28,9 +28,7 @@ async def export_user_data(
     evaluations = db.query(Evaluation).filter(Evaluation.user_id == user_id).all()
     iterations = db.query(Iteration).join(Spec).filter(Spec.user_id == user_id).all()
     rlhf_feedback = db.query(RLHFFeedback).filter(RLHFFeedback.user_id == user_id).all()
-    rlhf_preferences = (
-        db.query(RLHFPreferences).filter(RLHFPreferences.user_id == user_id).all()
-    )
+    rlhf_preferences = db.query(RLHFPreferences).filter(RLHFPreferences.user_id == user_id).all()
 
     # Format export data
     export_data = {

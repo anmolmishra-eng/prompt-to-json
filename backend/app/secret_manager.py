@@ -36,9 +36,7 @@ def get_azure_secret(vault_url: str, secret_name: str) -> Optional[str]:
         secret = client.get_secret(secret_name)
         return secret.value
     except ImportError:
-        print(
-            "Azure SDK not installed. Install with: pip install azure-keyvault-secrets azure-identity"
-        )
+        print("Azure SDK not installed. Install with: pip install azure-keyvault-secrets azure-identity")
         return None
     except Exception as e:
         print(f"Azure Key Vault error: {e}")
