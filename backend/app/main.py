@@ -149,7 +149,6 @@ app.include_router(data_privacy.router, prefix="/api/v1", tags=["🔐 Data Priva
 
 # 2. System Health & Monitoring
 app.include_router(health.router, prefix="/api/v1", tags=["📊 Monitoring & Health"])
-app.include_router(health.router, prefix="", tags=["📊 Monitoring & Health"])  # For /metrics
 
 # 3. Core Design Engine (Main Workflow)
 app.include_router(generate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
