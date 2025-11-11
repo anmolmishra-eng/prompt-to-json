@@ -1,5 +1,3 @@
-import uuid
-
 from app.database import get_current_user, get_db
 from app.models import Evaluation, Iteration, Spec
 from app.schemas import Report
@@ -36,7 +34,7 @@ async def get_report(
         try:
             signed = await get_signed_url("previews", path, expires=600)
             previews.append(signed)
-        except:
+        except Exception:
             # Skip if preview doesn't exist
             continue
 

@@ -19,7 +19,7 @@ async def vr_preview(spec_id: str, current_user: str = Depends(get_current_user)
             "expires_in": 600,
             "vr_optimized": True,
         }
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=404, detail="Preview not found")
 
 
