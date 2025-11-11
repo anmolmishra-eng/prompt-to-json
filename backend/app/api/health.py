@@ -15,12 +15,12 @@ instrumentator = Instrumentator()
 
 
 @router.get("/", response_model=MessageResponse, name="Service Status")
-async def health_check():
+async def service_status():
     return MessageResponse(message="Service is healthy")
 
 
-@router.get("/health", name="Detailed Health")
-async def health():
+@router.get("/health", name="Health Check")
+async def health_check():
     return {
         "status": "ok",
         "uptime": get_uptime(),
@@ -29,7 +29,7 @@ async def health():
     }
 
 
-@router.get("/health/detailed")
+@router.get("/health/detailed", name="Detailed Health")
 async def detailed_health():
     return {
         "status": "healthy",
@@ -44,8 +44,8 @@ async def detailed_health():
     }
 
 
-@router.get("/metrics", response_class=PlainTextResponse)
-async def metrics():
+@router.get("/metrics", response_class=PlainTextResponse, name="Prometheus Metrics")
+async def get_metrics():
     # Return Prometheus metrics in text format
     try:
         return instrumentator.registry.generate_latest().decode("utf-8")
@@ -61,8 +61,8 @@ app_info{{version="1.0.0",service="design_engine_api"}} 1
 """
 
 
-@router.get("/test-error")
-async def test_error():
+@router.get("/test-error", name="Test Sentry Error")
+async def test_sentry_error():
     """Test endpoint to verify Sentry error tracking"""
     import sentry_sdk
 
