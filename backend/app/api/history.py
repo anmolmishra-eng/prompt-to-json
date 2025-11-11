@@ -13,9 +13,7 @@ async def get_spec_history(
     spec_id: str,
     current_user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
-    limit: Optional[int] = Query(
-        50, description="Maximum number of iterations to return"
-    ),
+    limit: Optional[int] = Query(50, description="Maximum number of iterations to return"),
 ):
     """Get complete history for a specific spec including iterations and evaluations"""
 
@@ -26,20 +24,12 @@ async def get_spec_history(
 
     # Get iterations
     iterations = (
-        db.query(Iteration)
-        .filter(Iteration.spec_id == spec_id)
-        .order_by(Iteration.ts.desc())
-        .limit(limit)
-        .all()
+        db.query(Iteration).filter(Iteration.spec_id == spec_id).order_by(Iteration.ts.desc()).limit(limit).all()
     )
 
     # Get evaluations
     evaluations = (
-        db.query(Evaluation)
-        .filter(Evaluation.spec_id == spec_id)
-        .order_by(Evaluation.ts.desc())
-        .limit(limit)
-        .all()
+        db.query(Evaluation).filter(Evaluation.spec_id == spec_id).order_by(Evaluation.ts.desc()).limit(limit).all()
     )
 
     return {

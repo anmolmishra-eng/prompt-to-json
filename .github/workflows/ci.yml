@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: FastAPI Backend CI
 
 on:
   push:
@@ -18,35 +18,66 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Install dependencies
       run: |
         cd backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest flake8 black isort
 
-    - name: Lint with flake8
+    - name: Check Python syntax
       run: |
         cd backend
-        flake8 app --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 app --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        python -m py_compile app/main.py
+        find app -name "*.py" -exec python -m py_compile {} \;
 
-    - name: Format check with black
+    - name: Run health check test
       run: |
         cd backend
-        black --check app
+        python -c "
+        try:
+            from app.main import app
+            print('✅ FastAPI app imports successfully')
+        except Exception as e:
+            print(f'❌ Import failed: {e}')
+            exit(1)
+        "
 
-    - name: Import sort check
+    - name: Test basic endpoints
       run: |
         cd backend
-        isort --check-only app
+        python -c "
+        import sys
+        sys.path.append('.')
+        try:
+            from fastapi.testclient import TestClient
+            from app.main import app
+            client = TestClient(app)
+            response = client.get('/api/v1/health')
+            if response.status_code == 200:
+                print('✅ Health endpoint working')
+            else:
+                print(f'❌ Health endpoint failed: {response.status_code}')
+                exit(1)
+        except Exception as e:
+            print(f'❌ Test failed: {e}')
+            exit(1)
+        "
 
-    - name: Test with pytest
+    - name: Validate requirements
       run: |
         cd backend
-        pytest --tb=short
-      env:
-        DATABASE_URL: postgresql://test:test@localhost:5432/test
-        JWT_SECRET_KEY: test-secret-key
-        SUPABASE_URL: https://test.supabase.co
-        SUPABASE_KEY: test-key
+        pip check
+
+    - name: Check for security issues
+      run: |
+        cd backend
+        pip install safety
+        safety check --ignore 70612

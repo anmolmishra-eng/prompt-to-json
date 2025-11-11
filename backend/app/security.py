@@ -87,9 +87,7 @@ class Roles:
     VIEWER = "viewer"
 
 
-def check_project_access(
-    user_id: str, project_id: str, required_role: str = Roles.USER
-) -> bool:
+def check_project_access(user_id: str, project_id: str, required_role: str = Roles.USER) -> bool:
     """Check if user has access to project (implement your logic)"""
     # Placeholder - implement based on your project access rules
     if user_id == "admin":
@@ -100,9 +98,7 @@ def check_project_access(
     return True
 
 
-def check_spec_access(
-    user_id: str, spec_owner_id: str, required_role: str = Roles.USER
-) -> bool:
+def check_spec_access(user_id: str, spec_owner_id: str, required_role: str = Roles.USER) -> bool:
     """Check if user can access a specific spec"""
     if user_id == "admin":
         return True

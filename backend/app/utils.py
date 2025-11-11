@@ -26,16 +26,12 @@ def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
     to_encode.update({"exp": expire})
-    return jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
-    )
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
 def verify_token(token: str) -> dict:
     try:
-        payload = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return payload
     except jwt.PyJWTError:
         return None
@@ -94,9 +90,7 @@ def spec_json_to_prompt(spec_json: dict) -> str:
     prompt += f"Components: {', '.join(components)}\n"
     prompt += f"Features: {', '.join(features)}\n"
     prompt += f"Tech Stack: {', '.join(tech_stack)}\n"
-    prompt += (
-        "Generate an improved version with better materials, performance, or design."
-    )
+    prompt += "Generate an improved version with better materials, performance, or design."
 
     return prompt
 

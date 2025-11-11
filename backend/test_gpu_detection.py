@@ -29,18 +29,12 @@ try:
             capture_output=True,
             text=True,
         )
-        gpus = [
-            line.strip()
-            for line in result.stdout.split("\n")
-            if line.strip() and "Name" not in line
-        ]
+        gpus = [line.strip() for line in result.stdout.split("\n") if line.strip() and "Name" not in line]
         for gpu in gpus:
             if gpu:
                 print(f"System GPU: {gpu}")
     else:
-        result = subprocess.run(
-            ["lspci", "|", "grep", "VGA"], shell=True, capture_output=True, text=True
-        )
+        result = subprocess.run(["lspci", "|", "grep", "VGA"], shell=True, capture_output=True, text=True)
         print(f"System GPU: {result.stdout}")
 except Exception as e:
     print(f"System detection failed: {e}")

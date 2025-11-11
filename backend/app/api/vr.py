@@ -24,9 +24,7 @@ async def vr_preview(spec_id: str, current_user: str = Depends(get_current_user)
 
 
 @router.get("/vr/render/{spec_id}")
-async def vr_render(
-    spec_id: str, quality: str = "high", current_user: str = Depends(get_current_user)
-):
+async def vr_render(spec_id: str, quality: str = "high", current_user: str = Depends(get_current_user)):
     """VR rendering endpoint stub"""
     # Placeholder for Bhavesh's VR rendering integration
     return {
@@ -39,9 +37,7 @@ async def vr_render(
 
 
 @router.get("/vr/status/{render_id}")
-async def vr_render_status(
-    render_id: str, current_user: str = Depends(get_current_user)
-):
+async def vr_render_status(render_id: str, current_user: str = Depends(get_current_user)):
     """Check VR render status"""
     # Placeholder for render status checking
     return {

@@ -5,13 +5,7 @@ from datetime import datetime
 
 from app.database import get_current_user, get_db
 from app.models import Iteration, Spec
-from app.schemas import (
-    MessageResponse,
-    ProviderSwitchRequest,
-    SwitchChanged,
-    SwitchRequest,
-    SwitchResponse,
-)
+from app.schemas import MessageResponse, ProviderSwitchRequest, SwitchChanged, SwitchRequest, SwitchResponse
 from app.storage import get_signed_url, upload_to_bucket
 from app.utils import create_iter_id, generate_glb_from_spec
 from fastapi import APIRouter, Depends, HTTPException
@@ -54,9 +48,7 @@ async def switch(
         # TODO: Implement object query resolution
         raise HTTPException(status_code=400, detail="object_query not yet implemented")
     else:
-        raise HTTPException(
-            status_code=400, detail="Either object_id or object_query required"
-        )
+        raise HTTPException(status_code=400, detail="Either object_id or object_query required")
 
     # 3. Find target object and apply updates
     objects = spec.spec_json.get("objects", [])
@@ -106,9 +98,7 @@ async def switch(
             break
 
     if not target_found:
-        raise HTTPException(
-            status_code=400, detail=f"Target object {target_object_id} not found"
-        )
+        raise HTTPException(status_code=400, detail=f"Target object {target_object_id} not found")
 
     if not changes:
         raise HTTPException(status_code=400, detail="No valid updates provided")
@@ -120,12 +110,8 @@ async def switch(
 
     # 5. Save iteration diff
     iter_id = create_iter_id()
-    change_descriptions = [
-        f"{c['field']} changed from {c['before']} to {c['after']}" for c in changes
-    ]
-    feedback = (
-        request.note or f"Updated {target_object_id}: {', '.join(change_descriptions)}"
-    )
+    change_descriptions = [f"{c['field']} changed from {c['before']} to {c['after']}" for c in changes]
+    feedback = request.note or f"Updated {target_object_id}: {', '.join(change_descriptions)}"
 
     iteration = Iteration(
         iter_id=iter_id,
@@ -145,11 +131,7 @@ async def switch(
         preview_status[status_id] = {"status": "processing"}
 
         # Start async preview generation
-        asyncio.create_task(
-            generate_preview_async(
-                status_id, request.spec_id, spec.spec_version, spec.spec_json
-            )
-        )
+        asyncio.create_task(generate_preview_async(status_id, request.spec_id, spec.spec_version, spec.spec_json))
 
         return {
             "status_url": f"/api/v1/switch/status/{status_id}",
@@ -185,9 +167,7 @@ async def switch(
 preview_status = {}
 
 
-async def generate_preview_async(
-    status_id: str, spec_id: str, spec_version: int, spec_json: dict
-):
+async def generate_preview_async(status_id: str, spec_id: str, spec_version: int, spec_json: dict):
     """Background task for async preview generation"""
     try:
         # Simulate processing time for complex specs
@@ -213,9 +193,7 @@ async def generate_preview_async(
 
 
 @router.get("/status/{status_id}")
-async def get_preview_status(
-    status_id: str, current_user: str = Depends(get_current_user)
-):
+async def get_preview_status(status_id: str, current_user: str = Depends(get_current_user)):
     """Poll endpoint for async preview generation status"""
     if status_id not in preview_status:
         raise HTTPException(status_code=404, detail="Status ID not found")
@@ -230,23 +208,15 @@ async def get_preview_status(
     elif status["status"] == "failed":
         error = status["error"]
         del preview_status[status_id]
-        raise HTTPException(
-            status_code=500, detail=f"Preview generation failed: {error}"
-        )
+        raise HTTPException(status_code=500, detail=f"Preview generation failed: {error}")
     else:
         # Still processing
         return {"status": "processing", "message": "Preview generation in progress"}
 
 
 @router.post("/provider", response_model=MessageResponse)
-async def switch_provider(
-    request: ProviderSwitchRequest, current_user: str = Depends(get_current_user)
-):
+async def switch_provider(request: ProviderSwitchRequest, current_user: str = Depends(get_current_user)):
     if request.provider not in ["local", "yotta"]:
-        raise HTTPException(
-            status_code=400, detail="Invalid provider. Use 'local' or 'yotta'"
-        )
+        raise HTTPException(status_code=400, detail="Invalid provider. Use 'local' or 'yotta'")
 
-    return MessageResponse(
-        message=f"Switched to {request.provider} provider for user {current_user}"
-    )
+    return MessageResponse(message=f"Switched to {request.provider} provider for user {current_user}")

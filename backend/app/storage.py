@@ -42,9 +42,7 @@ async def upload_preview(spec_id: str, preview_bytes: bytes) -> str:
     return await get_signed_url("previews", path, expires=600)
 
 
-async def upload_geometry(
-    spec_id: str, geometry_bytes: bytes, file_type: str = "stl"
-) -> str:
+async def upload_geometry(spec_id: str, geometry_bytes: bytes, file_type: str = "stl") -> str:
     """Upload geometry STL file"""
     path = f"{spec_id}.{file_type}"
     await upload_to_bucket("geometry", path, geometry_bytes)

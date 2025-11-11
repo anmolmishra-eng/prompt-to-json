@@ -60,9 +60,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("eval_id"),
     )
-    op.create_index(
-        op.f("ix_evaluations_user_id"), "evaluations", ["user_id"], unique=False
-    )
+    op.create_index(op.f("ix_evaluations_user_id"), "evaluations", ["user_id"], unique=False)
 
     # Create iterations table
     op.create_table(

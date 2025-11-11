@@ -53,9 +53,7 @@ async def feedback(feedback_req: dict, current_user: str = Depends(get_current_u
         headers["Authorization"] = f"Bearer {API_KEY}"
 
     async with httpx.AsyncClient() as client:
-        res = await client.post(
-            f"{SOHAM_URL}/feedback", json=feedback_req, headers=headers
-        )
+        res = await client.post(f"{SOHAM_URL}/feedback", json=feedback_req, headers=headers)
 
     if res.status_code != 200:
         raise HTTPException(status_code=500, detail="Compliance feedback failed")
