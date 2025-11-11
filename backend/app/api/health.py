@@ -1,9 +1,10 @@
-from fastapi import APIRouter
-from fastapi.responses import PlainTextResponse
+import logging
+
 from app.schemas import MessageResponse
 from app.utils import get_uptime
+from fastapi import APIRouter
+from fastapi.responses import PlainTextResponse
 from prometheus_fastapi_instrumentator import Instrumentator
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +13,11 @@ router = APIRouter()
 # Initialize Prometheus instrumentator
 instrumentator = Instrumentator()
 
+
 @router.get("/", response_model=MessageResponse, name="Service Status")
 async def health_check():
     return MessageResponse(message="Service is healthy")
+
 
 @router.get("/health", name="Detailed Health")
 async def health():
@@ -22,8 +25,9 @@ async def health():
         "status": "ok",
         "uptime": get_uptime(),
         "service": "Design Engine API",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
+
 
 @router.get("/health/detailed")
 async def detailed_health():
@@ -35,15 +39,18 @@ async def detailed_health():
         "components": {
             "database": "connected",
             "storage": "connected",
-            "gpu": "available" if __import__('torch').cuda.is_available() else "unavailable"
-        }
+            "gpu": "available"
+            if __import__("torch").cuda.is_available()
+            else "unavailable",
+        },
     }
+
 
 @router.get("/metrics", response_class=PlainTextResponse)
 async def metrics():
     # Return Prometheus metrics in text format
     try:
-        return instrumentator.registry.generate_latest().decode('utf-8')
+        return instrumentator.registry.generate_latest().decode("utf-8")
     except Exception:
         # Fallback metrics if instrumentator not properly initialized
         uptime = get_uptime()
@@ -55,11 +62,12 @@ app_uptime_seconds {uptime}
 app_info{{version="1.0.0",service="design_engine_api"}} 1
 """
 
+
 @router.get("/test-error")
 async def test_error():
     """Test endpoint to verify Sentry error tracking"""
     import sentry_sdk
-    
+
     # Capture the error in Sentry
     try:
         # Intentionally cause an error
@@ -68,10 +76,10 @@ async def test_error():
         # Send to Sentry
         sentry_sdk.capture_exception(e)
         logger.error(f"Test error captured: {e}")
-        
+
         # Return success message
         return {
             "message": "Test error successfully sent to Sentry!",
             "error_type": "ZeroDivisionError",
-            "sentry_status": "captured"
+            "sentry_status": "captured",
         }

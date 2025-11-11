@@ -18,7 +18,7 @@ const getVRPreview = async (specId, token) => {
       'Authorization': `Bearer ${token}`
     }
   });
-  
+
   return await response.json();
 };
 
@@ -44,7 +44,7 @@ const requestVRRender = async (specId, quality, token) => {
       'Authorization': `Bearer ${token}`
     }
   });
-  
+
   return await response.json();
 };
 
@@ -70,7 +70,7 @@ const checkRenderStatus = async (renderId, token) => {
       'Authorization': `Bearer ${token}`
     }
   });
-  
+
   return await response.json();
 };
 
@@ -97,7 +97,7 @@ public class DesignEngineVR : MonoBehaviour
 {
     private string apiBase = "https://api.designengine.com/api/v1";
     private string authToken;
-    
+
     [System.Serializable]
     public class VRPreviewResponse
     {
@@ -107,7 +107,7 @@ public class DesignEngineVR : MonoBehaviour
         public int expires_in;
         public bool vr_optimized;
     }
-    
+
     [System.Serializable]
     public class VRRenderResponse
     {
@@ -117,18 +117,18 @@ public class DesignEngineVR : MonoBehaviour
         public string estimated_time;
         public string render_id;
     }
-    
+
     // Login and get JWT token
     public IEnumerator Login(string username, string password)
     {
         WWWForm form = new WWWForm();
         form.AddField("username", username);
         form.AddField("password", password);
-        
+
         using (UnityWebRequest request = UnityWebRequest.Post($"{apiBase}/auth/login", form))
         {
             yield return request.SendWebRequest();
-            
+
             if (request.result == UnityWebRequest.Result.Success)
             {
                 var response = JsonUtility.FromJson<LoginResponse>(request.downloadHandler.text);
@@ -141,16 +141,16 @@ public class DesignEngineVR : MonoBehaviour
             }
         }
     }
-    
+
     // Get VR preview for spec
     public IEnumerator GetVRPreview(string specId, System.Action<VRPreviewResponse> callback)
     {
         using (UnityWebRequest request = UnityWebRequest.Get($"{apiBase}/vr/preview/{specId}"))
         {
             request.SetRequestHeader("Authorization", $"Bearer {authToken}");
-            
+
             yield return request.SendWebRequest();
-            
+
             if (request.result == UnityWebRequest.Result.Success)
             {
                 var response = JsonUtility.FromJson<VRPreviewResponse>(request.downloadHandler.text);
@@ -162,14 +162,14 @@ public class DesignEngineVR : MonoBehaviour
             }
         }
     }
-    
+
     // Load GLB model in VR scene
     public IEnumerator LoadVRModel(string glbUrl)
     {
         using (UnityWebRequest request = UnityWebRequest.Get(glbUrl))
         {
             yield return request.SendWebRequest();
-            
+
             if (request.result == UnityWebRequest.Result.Success)
             {
                 // Use GLTFast or similar library to load GLB
@@ -178,43 +178,43 @@ public class DesignEngineVR : MonoBehaviour
             }
         }
     }
-    
+
     // Request high-quality VR render
     public IEnumerator RequestVRRender(string specId, string quality = "high")
     {
         using (UnityWebRequest request = UnityWebRequest.Get($"{apiBase}/vr/render/{specId}?quality={quality}"))
         {
             request.SetRequestHeader("Authorization", $"Bearer {authToken}");
-            
+
             yield return request.SendWebRequest();
-            
+
             if (request.result == UnityWebRequest.Result.Success)
             {
                 var response = JsonUtility.FromJson<VRRenderResponse>(request.downloadHandler.text);
                 Debug.Log($"VR Render queued: {response.render_id}");
-                
+
                 // Start polling for completion
                 StartCoroutine(PollRenderStatus(response.render_id));
             }
         }
     }
-    
+
     // Poll render status until complete
     private IEnumerator PollRenderStatus(string renderId)
     {
         while (true)
         {
             yield return new WaitForSeconds(5f); // Poll every 5 seconds
-            
+
             using (UnityWebRequest request = UnityWebRequest.Get($"{apiBase}/vr/status/{renderId}"))
             {
                 request.SetRequestHeader("Authorization", $"Bearer {authToken}");
                 yield return request.SendWebRequest();
-                
+
                 if (request.result == UnityWebRequest.Result.Success)
                 {
                     var status = JsonUtility.FromJson<RenderStatusResponse>(request.downloadHandler.text);
-                    
+
                     if (status.status == "completed")
                     {
                         Debug.Log("VR Render completed!");
@@ -230,7 +230,7 @@ public class DesignEngineVR : MonoBehaviour
             }
         }
     }
-    
+
     // Submit VR experience feedback
     public IEnumerator SubmitVRFeedback(string specId, int rating, string comments)
     {
@@ -242,17 +242,17 @@ public class DesignEngineVR : MonoBehaviour
             platform = "unity_vr",
             device_type = "vr_headset"
         };
-        
+
         string jsonData = JsonUtility.ToJson(feedback);
-        
+
         using (UnityWebRequest request = UnityWebRequest.PostWwwForm($"{apiBase}/vr/feedback", ""))
         {
             request.SetRequestHeader("Authorization", $"Bearer {authToken}");
             request.SetRequestHeader("Content-Type", "application/json");
             request.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(jsonData));
-            
+
             yield return request.SendWebRequest();
-            
+
             if (request.result == UnityWebRequest.Result.Success)
             {
                 Debug.Log("VR Feedback submitted successfully");
@@ -273,36 +273,36 @@ class DesignEngineWebXR {
     this.token = apiToken;
     this.apiBase = 'https://api.designengine.com/api/v1';
   }
-  
+
   async startVRSession(specId) {
     // Get VR preview
     const preview = await this.getVRPreview(specId);
-    
+
     // Initialize WebXR session
     if (navigator.xr) {
       const session = await navigator.xr.requestSession('immersive-vr');
-      
+
       // Load GLB model
       await this.loadModelInVR(session, preview.preview_url);
-      
+
       return session;
     }
   }
-  
+
   async getVRPreview(specId) {
     const response = await fetch(`${this.apiBase}/vr/preview/${specId}`, {
       headers: {
         'Authorization': `Bearer ${this.token}`
       }
     });
-    
+
     return await response.json();
   }
-  
+
   async loadModelInVR(session, glbUrl) {
     // Use Three.js or A-Frame to load GLB in VR
     const loader = new THREE.GLTFLoader();
-    
+
     return new Promise((resolve) => {
       loader.load(glbUrl, (gltf) => {
         // Add model to VR scene
@@ -328,7 +328,7 @@ import { ViroARScene, ViroARSceneNavigator, Viro3DObject } from '@viro-community
 
 const ARDesignViewer = ({ specId, authToken }) => {
   const [modelUrl, setModelUrl] = useState(null);
-  
+
   useEffect(() => {
     // Get AR-optimized model
     fetch(`https://api.designengine.com/api/v1/vr/preview/${specId}`, {
@@ -337,7 +337,7 @@ const ARDesignViewer = ({ specId, authToken }) => {
     .then(response => response.json())
     .then(data => setModelUrl(data.preview_url));
   }, [specId]);
-  
+
   return (
     <ViroARSceneNavigator
       initialScene={{
@@ -364,7 +364,7 @@ const ARDesignViewer = ({ specId, authToken }) => {
 VR render quality options:
 
 - **low**: Fast preview (< 10s render time)
-- **medium**: Balanced quality (< 30s render time)  
+- **medium**: Balanced quality (< 30s render time)
 - **high**: Production quality (< 60s render time)
 - **ultra**: Maximum quality (< 120s render time)
 

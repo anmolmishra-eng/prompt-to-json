@@ -103,13 +103,13 @@ if (response.status === 403 || response.status === 404) {
 const handleConflict = async (response) => {
   if (response.status === 409) {
     const error = await response.json();
-    
+
     // Show friendly message
     const userChoice = await showConflictDialog({
       message: "Someone else modified this design. What would you like to do?",
       options: ["Merge Changes", "Override", "Cancel"]
     });
-    
+
     if (userChoice === "merge") {
       // Fetch latest version and merge
       const latest = await fetch(`/api/v1/specs/${specId}`);
@@ -133,13 +133,13 @@ const handleConflict = async (response) => {
 const handleAsyncPreview = async (response) => {
   if (response.status === 202) {
     const { status_url } = await response.json();
-    
+
     // Poll status URL
     const pollStatus = async () => {
       const statusResponse = await fetch(status_url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (statusResponse.status === 200) {
         const { preview_url } = await statusResponse.json();
         return preview_url; // Ready!
@@ -148,7 +148,7 @@ const handleAsyncPreview = async (response) => {
         setTimeout(pollStatus, 2000);
       }
     };
-    
+
     return pollStatus();
   }
 };

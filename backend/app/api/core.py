@@ -1,21 +1,22 @@
+from app.api.evaluate import evaluate
+from app.api.generate import generate
+from app.api.iterate import iterate
+from app.database import get_current_user, get_db
+from app.schemas import CoreRunRequest, EvaluateRequest, GenerateRequest, IterateRequest
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.schemas import CoreRunRequest, GenerateRequest, EvaluateRequest, IterateRequest
-from app.database import get_current_user, get_db
-from app.api.generate import generate
-from app.api.evaluate import evaluate
-from app.api.iterate import iterate
 
 router = APIRouter()
+
 
 @router.post("/run")
 async def core_run(
     request: CoreRunRequest,
     current_user: str = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     outputs = {}
-    
+
     for step in request.pipeline:
         if step == "generate":
             generate_req = GenerateRequest(**request.input)
@@ -34,8 +35,9 @@ async def core_run(
             outputs["store"] = {"ok": True}
         else:
             raise HTTPException(status_code=400, detail=f"Unknown step: {step}")
-    
+
     return outputs  # aggregated outputs
+
 
 @router.get("/status")
 async def core_status(current_user: str = Depends(get_current_user)):

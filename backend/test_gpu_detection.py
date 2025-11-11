@@ -1,6 +1,7 @@
-import torch
-import subprocess
 import platform
+import subprocess
+
+import torch
 
 print("🔍 DETAILED GPU DETECTION REPORT")
 print("=" * 50)
@@ -23,14 +24,23 @@ else:
 print("\n🖥️ System GPU Detection:")
 try:
     if platform.system() == "Windows":
-        result = subprocess.run(['wmic', 'path', 'win32_VideoController', 'get', 'name'], 
-                              capture_output=True, text=True)
-        gpus = [line.strip() for line in result.stdout.split('\n') if line.strip() and 'Name' not in line]
+        result = subprocess.run(
+            ["wmic", "path", "win32_VideoController", "get", "name"],
+            capture_output=True,
+            text=True,
+        )
+        gpus = [
+            line.strip()
+            for line in result.stdout.split("\n")
+            if line.strip() and "Name" not in line
+        ]
         for gpu in gpus:
             if gpu:
                 print(f"System GPU: {gpu}")
     else:
-        result = subprocess.run(['lspci', '|', 'grep', 'VGA'], shell=True, capture_output=True, text=True)
+        result = subprocess.run(
+            ["lspci", "|", "grep", "VGA"], shell=True, capture_output=True, text=True
+        )
         print(f"System GPU: {result.stdout}")
 except Exception as e:
     print(f"System detection failed: {e}")
@@ -38,12 +48,19 @@ except Exception as e:
 # 3. NVIDIA-SMI Detection
 print("\n⚡ NVIDIA-SMI Detection:")
 try:
-    result = subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total,driver_version', '--format=csv,noheader'], 
-                          capture_output=True, text=True)
+    result = subprocess.run(
+        [
+            "nvidia-smi",
+            "--query-gpu=name,memory.total,driver_version",
+            "--format=csv,noheader",
+        ],
+        capture_output=True,
+        text=True,
+    )
     if result.returncode == 0:
-        lines = result.stdout.strip().split('\n')
+        lines = result.stdout.strip().split("\n")
         for i, line in enumerate(lines):
-            parts = line.split(', ')
+            parts = line.split(", ")
             if len(parts) >= 3:
                 print(f"NVIDIA GPU {i}: {parts[0]}")
                 print(f"  - Memory: {parts[1]}")
@@ -57,7 +74,7 @@ except Exception as e:
 print("\n🧪 GPU Memory Test:")
 if torch.cuda.is_available():
     try:
-        device = torch.device('cuda:0')
+        device = torch.device("cuda:0")
         test_tensor = torch.randn(1000, 1000).to(device)
         print(f"✅ Successfully allocated tensor on GPU")
         print(f"Memory allocated: {torch.cuda.memory_allocated(0) / 1024**2:.1f} MB")

@@ -1,5 +1,6 @@
-from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 
 def build_preferences_from_db(db: Session, min_delta: float = 0.5):
     """
@@ -7,19 +8,28 @@ def build_preferences_from_db(db: Session, min_delta: float = 0.5):
     using iterations + evaluations. preferred == "B" if rating improved.
     """
     pairs = []
-    rows = db.execute(text("""
+    rows = db.execute(
+        text(
+            """
       SELECT i.spec_id, i.before_spec, i.after_spec, e.score AS new_score, e.ts AS ets
       FROM iterations i
       JOIN evaluations e ON e.spec_id = i.spec_id
       ORDER BY e.ts DESC
-    """)).fetchall()
+    """
+        )
+    ).fetchall()
 
     for spec_id, before, after, new_score, ets in rows:
-        prev = db.execute(text("""
+        prev = db.execute(
+            text(
+                """
            SELECT score FROM evaluations
            WHERE spec_id=:sid AND ts < :ets
            ORDER BY ts DESC LIMIT 1
-        """), {"sid": spec_id, "ets": ets}).fetchone()
+        """
+            ),
+            {"sid": spec_id, "ets": ets},
+        ).fetchone()
         if not prev:
             continue
         prev_score = float(prev[0])
