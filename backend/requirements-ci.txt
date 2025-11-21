@@ -1,0 +1,26 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+pydantic
+pyjwt
+httpx
+python-multipart
+python-dotenv
+passlib[bcrypt]
+pydantic-settings
+bcrypt
+supabase
+prometheus-fastapi-instrumentator
+sentry-sdk[fastapi]
+requests
+torch --index-url https://download.pytorch.org/whl/cpu
+torchvision --index-url https://download.pytorch.org/whl/cpu
+torchaudio --index-url https://download.pytorch.org/whl/cpu
+transformers
+gymnasium
+stable-baselines3
+psycopg2-binary
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
