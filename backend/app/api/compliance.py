@@ -1,7 +1,10 @@
 import base64
 import json
+import logging
 
 import httpx
+
+logger = logging.getLogger(__name__)
 from app.config import settings
 from app.database import get_current_user, get_db
 from app.models import Spec
@@ -16,49 +19,137 @@ SOHAM_URL = settings.SOHAM_URL
 API_KEY = settings.COMPLIANCE_API_KEY
 
 
+@router.get("/test")
+async def test_endpoint():
+    return {"message": "Compliance endpoint is working", "timestamp": "2024-01-01"}
+
+
 @router.post("/run_case")
 async def run_case(case: dict, current_user: str = Depends(get_current_user)):
-    # Forward the request to Soham's /run_case
-    headers = {}
-    if API_KEY:
-        headers["Authorization"] = f"Bearer {API_KEY}"
+    try:
+        logger.info(f"Processing compliance case for {case.get('city')} - Project: {case.get('project_id')}")
 
-    async with httpx.AsyncClient() as client:
-        res = await client.post(f"{SOHAM_URL}/run_case", json=case, headers=headers)
+        # Validate city
+        city = case.get("city", "").lower()
+        if city not in ["mumbai", "pune", "ahmedabad"]:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid city: {city}. Supported cities: Mumbai, Pune, Ahmedabad"
+            )
 
-    # On success, parse returned case_id and maybe geometry
-    if res.status_code != 200:
-        raise HTTPException(status_code=500, detail="Compliance run failed")
+        # Call Soham's compliance service with extended timeout
+        logger.info(f"Calling external compliance service for {city}")
 
-    data = res.json()
-    case_id = data.get("case_id")
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            res = await client.post(f"{SOHAM_URL}/run_case", json=case)
 
-    # Assume response includes output geometry (STL) or a URL; store to Supabase
-    geometry_bytes = data.get("geometry_zip_bytes")
-    if geometry_bytes and case_id:
-        # Decode base64 if needed
-        if isinstance(geometry_bytes, str):
-            geometry_bytes = base64.b64decode(geometry_bytes)
-        await upload_to_bucket("compliance", f"{case_id}.zip", geometry_bytes)
+        if res.status_code == 200:
+            data = res.json()
+            logger.info(f"Successfully received compliance analysis from external service ({len(res.content)} bytes)")
+            return data
+        else:
+            logger.warning(f"External compliance service returned status {res.status_code}")
+            raise Exception(f"External service returned {res.status_code}")
 
-    # Return Soham's response through the API
-    return data
+    except httpx.TimeoutException as e:
+        logger.warning(f"Compliance service timeout after 60 seconds: {e}")
+        return await _mock_compliance_response(case)
+    except httpx.RequestError as e:
+        logger.error(f"Network error calling compliance service: {e}")
+        return await _mock_compliance_response(case)
+    except Exception as e:
+        logger.error(f"Unexpected error in compliance service: {type(e).__name__}: {e}")
+        return await _mock_compliance_response(case)
+
+
+async def _mock_compliance_response(case: dict):
+    """Enhanced mock compliance response matching Soham's format"""
+    try:
+        import uuid
+        from datetime import datetime
+
+        logger.info(f"Generating mock compliance response for {case.get('city')}")
+
+        city_name = case.get("city", "Mumbai")
+        city = city_name.lower()
+        project_id = case.get("project_id", "unknown_project")
+        case_id = case.get("case_id", f"{city}_case_{str(uuid.uuid4())[:8]}")
+
+        # City-specific mock rules
+        city_rules = {
+            "mumbai": ["MUM-FSI-URBAN-R15-20", "MUM-SETBACK-R15-20", "MUM-HEIGHT-STANDARD"],
+            "pune": ["PUNE-HEIGHT-SPECIAL-ECO", "PUNE-FSI-SUBURBAN", "PUNE-SETBACK-ECO"],
+            "ahmedabad": ["AMD-FSI-URBAN-R15-20", "AMD-SETBACK-R15-20", "AMD-HEIGHT-HERITAGE"],
+        }
+
+        return {
+            "project_id": project_id,
+            "case_id": case_id,
+            "city": city_name,
+            "parameters": case.get("parameters", {}),
+            "rules_applied": city_rules.get(city, city_rules["mumbai"]),
+            "reasoning": f"Mock compliance analysis for {city_name} project. This is a fallback response when the external compliance service is unavailable. For detailed analysis, please ensure the external service is accessible.",
+            "clause_summaries": [
+                {
+                    "clause_id": rule,
+                    "authority": f"{city_name} Municipal Corporation",
+                    "notes": f"Mock rule for {city_name} compliance",
+                    "quick_summary": "Fallback compliance check",
+                }
+                for rule in city_rules.get(city, city_rules["mumbai"])
+            ],
+            "confidence_score": 0.3,
+            "confidence_level": "Low",
+            "confidence_note": "Mock response - external compliance service unavailable",
+            "basic_reasoning": f"Fallback compliance analysis for {city_name} project with mock regulations.",
+        }
+    except Exception as e:
+        logger.error(f"Mock response generation failed: {e}")
+        return {"case_id": "error_case", "status": "ERROR", "message": f"Mock response generation failed: {str(e)}"}
 
 
 @router.post("/feedback")
 async def feedback(feedback_req: dict, current_user: str = Depends(get_current_user)):
-    # Simply proxy to Soham's /feedback
-    headers = {}
-    if API_KEY:
-        headers["Authorization"] = f"Bearer {API_KEY}"
+    """Submit compliance feedback to Soham's service"""
+    try:
+        logger.info(f"Submitting compliance feedback for project: {feedback_req.get('project_id')}")
 
-    async with httpx.AsyncClient() as client:
-        res = await client.post(f"{SOHAM_URL}/feedback", json=feedback_req, headers=headers)
+        # Validate required fields
+        required_fields = ["project_id", "case_id", "user_feedback"]
+        for field in required_fields:
+            if field not in feedback_req:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
 
-    if res.status_code != 200:
-        raise HTTPException(status_code=500, detail="Compliance feedback failed")
+        # Validate user_feedback value
+        valid_feedback = ["up", "down"]
+        if feedback_req.get("user_feedback") not in valid_feedback:
+            raise HTTPException(status_code=400, detail=f"Invalid user_feedback. Must be one of: {valid_feedback}")
 
-    return res.json()
+        headers = {}
+        if API_KEY:
+            headers["Authorization"] = f"Bearer {API_KEY}"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            res = await client.post(f"{SOHAM_URL}/feedback", json=feedback_req, headers=headers)
+
+        if res.status_code != 200:
+            logger.error(f"Soham feedback service returned {res.status_code}: {res.text}")
+            raise HTTPException(status_code=500, detail="Compliance feedback failed")
+
+        data = res.json()
+        logger.info(f"Feedback submitted successfully: {data.get('feedback_id')}")
+        return data
+
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout submitting feedback: {e}")
+        raise HTTPException(status_code=500, detail="Feedback service timeout")
+    except httpx.RequestError as e:
+        logger.error(f"Network error submitting feedback: {e}")
+        raise HTTPException(status_code=500, detail="Network error")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error submitting feedback: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/regulations")

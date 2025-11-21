@@ -22,7 +22,7 @@ async def service_status():
 @router.get("/health", name="Health Check")
 async def health_check():
     return {
-        "status": "ok",
+        "status": "healthy",
         "uptime": get_uptime(),
         "service": "Design Engine API",
         "version": "1.0.0",

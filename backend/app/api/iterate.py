@@ -1,13 +1,18 @@
-import copy
+"""
+Iterate endpoint (UPDATED with service and error handling)
+"""
+
+import logging
 
 from app.database import get_current_user, get_db
-from app.lm_adapter import lm_run
-from app.models import Iteration, Spec
+from app.error_handler import APIException
 from app.schemas import IterateRequest, IterateResponse
-from app.utils import create_iter_id, spec_json_to_prompt
-from fastapi import APIRouter, Depends, HTTPException
+from app.schemas.error_schemas import ErrorCode
+from app.services.iterate_service import IterateService
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -17,35 +22,46 @@ async def iterate(
     current_user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Load current spec
-    spec = db.query(Spec).filter(Spec.spec_id == request.spec_id).first()
-    if not spec:
-        raise HTTPException(status_code=404, detail="Spec not found")
+    """Iterate and improve a design spec"""
 
-    before_spec = copy.deepcopy(spec.spec_json)
+    try:
+        # Validate
+        if not request.spec_id:
+            raise APIException(status_code=400, error_code=ErrorCode.VALIDATION_ERROR, message="spec_id is required")
 
-    # Call LM to improve spec (strategy influences prompt)
-    base_prompt = spec_json_to_prompt(before_spec)
-    strategy_prompt = f"{base_prompt}\nStrategy: {request.strategy}"
+        if not request.user_id:
+            raise APIException(status_code=400, error_code=ErrorCode.VALIDATION_ERROR, message="user_id is required")
 
-    result = await lm_run(strategy_prompt, {"strategy": request.strategy})
-    after_spec = result["spec_json"]
-    feedback_text = result.get("feedback", "Improved as per strategy.")
+        if not request.strategy:
+            raise APIException(
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+                message="strategy is required",
+                details={
+                    "valid_strategies": ["auto_optimize", "improve_materials", "improve_layout", "improve_colors"]
+                },
+            )
 
-    # Save iteration
-    iter_id = create_iter_id()
-    iteration = Iteration(
-        iter_id=iter_id,
-        spec_id=request.spec_id,
-        before_spec=before_spec,
-        after_spec=after_spec,
-        feedback=feedback_text,
-    )
-    db.add(iteration)
+        # Delegate to service
+        service = IterateService(db)
+        result = await service.iterate_spec(request.user_id, request.spec_id, request.strategy)
 
-    # Update spec in DB
-    spec.spec_version += 1
-    spec.spec_json = after_spec
-    db.commit()
+        logger.info(f"Iterate completed for spec {request.spec_id} with strategy {request.strategy}")
 
-    return IterateResponse(before=before_spec, after=after_spec, feedback=feedback_text)
+        return IterateResponse(
+            before=result["before"],
+            after=result["after"],
+            feedback=result["feedback"],
+            iteration_id=result["iteration_id"],
+            preview_url=result["preview_url"],
+            spec_version=result["spec_version"],
+            training_triggered=result.get("training_triggered", False),
+        )
+
+    except APIException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in iterate: {str(e)}", exc_info=True)
+        raise APIException(
+            status_code=500, error_code=ErrorCode.INTERNAL_ERROR, message="Unexpected error during iteration"
+        )

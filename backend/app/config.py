@@ -1,5 +1,6 @@
 from typing import Optional
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -68,8 +69,7 @@ class Settings(BaseSettings):
     # Security
     ENCRYPTION_KEY: Optional[str] = None  # AES-256 key for data encryption
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
 
 
 settings = Settings()

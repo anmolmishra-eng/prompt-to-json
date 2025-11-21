@@ -14,8 +14,11 @@ def route(is_heavy: bool) -> str:
     """
     if DEVICE_PREFERENCE == "local":
         return "local"
-    if DEVICE_PREFERENCE == "yotta":
+    if DEVICE_PREFERENCE == "yotta" and YOTTA_URL:
         return "yotta"
+    # Default to local if Yotta not configured
+    if not YOTTA_URL:
+        return "local"
     return "yotta" if is_heavy else "local"
 
 

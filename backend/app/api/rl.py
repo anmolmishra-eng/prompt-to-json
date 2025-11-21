@@ -21,8 +21,12 @@ async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Sessio
     # Validate spec IDs exist before saving
     from app.models import RLHFFeedback, Spec
 
-    spec_a = db.query(Spec).filter(Spec.spec_id == feedback.get("spec_a_id")).first()
-    spec_b = db.query(Spec).filter(Spec.spec_id == feedback.get("spec_b_id")).first()
+    # Handle both field name formats
+    spec_a_id = feedback.get("design_a_id") or feedback.get("spec_a_id")
+    spec_b_id = feedback.get("design_b_id") or feedback.get("spec_b_id")
+
+    spec_a = db.query(Spec).filter(Spec.spec_id == spec_a_id).first()
+    spec_b = db.query(Spec).filter(Spec.spec_id == spec_b_id).first()
 
     if not spec_a or not spec_b:
         raise HTTPException(400, "One or both spec IDs not found")
@@ -30,10 +34,10 @@ async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Sessio
     # Save feedback to database
     feedback_record = RLHFFeedback(
         user_id=feedback.get("user_id", user),
-        spec_a_id=feedback.get("spec_a_id"),
-        spec_b_id=feedback.get("spec_b_id"),
+        spec_a_id=spec_a_id,
+        spec_b_id=spec_b_id,
         preference=feedback.get("preference"),
-        feedback_text=feedback.get("feedback_text"),
+        feedback_text=feedback.get("reason") or feedback.get("feedback_text"),
         rating_a=feedback.get("rating_a", 3),
         rating_b=feedback.get("rating_b", 3),
     )
@@ -125,10 +129,24 @@ async def train_opt_ep(params: dict, user=Depends(get_current_user)):
         return {"ok": True, "artifact": res.get("artifact")}
     else:
         try:
-            artifact = train_opt_ppo(steps=params.get("steps", 200000))
+            import traceback
+
+            logger.info(f"Starting PPO training with params: {params}")
+
+            artifact = train_opt_ppo(
+                steps=params.get("steps", 200000),
+                learning_rate=params.get("learning_rate", 3e-4),
+                batch_size=params.get("batch_size", 2048),
+                n_epochs=params.get("n_epochs", 10),
+                gamma=params.get("gamma", 0.99),
+                gae_lambda=params.get("gae_lambda", 0.95),
+                clip_range=params.get("clip_range", 0.2),
+            )
             return {"ok": True, "artifact": artifact}
-        except FileNotFoundError as e:
-            raise HTTPException(400, f"Missing model file: {e}")
+        except Exception as e:
+            error_details = traceback.format_exc()
+            logger.error(f"PPO training failed: {e}\n{error_details}")
+            raise HTTPException(500, f"PPO training failed: {str(e)}")
 
 
 @router.post("/rl/suggest/iterate")

@@ -5,7 +5,7 @@ Structured error response schemas following RFC 7807 Problem Details for HTTP AP
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ErrorCode(str, Enum):
@@ -63,8 +63,8 @@ class ErrorResponse(BaseModel):
 
     error: ErrorDetail = Field(..., description="Error information")
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error": {
                     "code": "VALIDATION_ERROR",
@@ -75,3 +75,4 @@ class ErrorResponse(BaseModel):
                 }
             }
         }
+    )
