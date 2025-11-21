@@ -19,6 +19,15 @@ async def upload_to_bucket(bucket: str, path: str, data: bytes) -> dict:
         return result
     except Exception as e:
         logger.error(f"Upload failed: {e}")
+
+        # Check if it's a bucket not found error
+        if "Bucket not found" in str(e):
+            raise Exception(
+                f"Supabase bucket '{bucket}' not found. "
+                f"Please create the bucket in your Supabase dashboard: "
+                f"https://supabase.com/dashboard -> Storage -> Create bucket '{bucket}'"
+            )
+
         raise Exception(f"Upload to {bucket}/{path} failed: {e}")
 
 

@@ -1,0 +1,24 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--disable-warnings",
+    "--tb=no",
+    "-q",
+    "--no-header",
+    "--no-summary"
+]
+filterwarnings = [
+    "ignore",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::ResourceWarning",
+    "ignore::UserWarning",
+    "ignore::RuntimeWarning"
+]
+asyncio_mode = "auto"
+log_cli = false
+log_cli_level = "CRITICAL"
+log_level = "CRITICAL"

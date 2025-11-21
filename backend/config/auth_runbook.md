@@ -3,131 +3,72 @@
 ## JWT Secret Management
 
 ### Initial Setup
-1. **Generate Strong Secret:**
-   ```bash
-   openssl rand -hex 32
-   # Output: a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456
-   ```
-
-2. **Set Environment Variable:**
-   ```bash
-   export JWT_SECRET_KEY="a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
-   ```
-
-3. **Verify Configuration:**
-   ```bash
-   curl -X POST http://localhost:8000/api/v1/auth/login \
-     -d "username=user&password=pass"
-   ```
-
-### Key Rotation Procedure
-
-**Monthly Rotation (Recommended):**
-
-1. **Generate New Secret:**
-   ```bash
-   NEW_SECRET=$(openssl rand -hex 32)
-   echo "New secret: $NEW_SECRET"
-   ```
-
-2. **Update Environment:**
-   ```bash
-   # Update .env file
-   sed -i "s/JWT_SECRET_KEY=.*/JWT_SECRET_KEY=$NEW_SECRET/" .env
-
-   # Or update in secrets manager
-   aws secretsmanager update-secret \
-     --secret-id "design-engine/jwt-secret" \
-     --secret-string "$NEW_SECRET"
-   ```
-
-3. **Rolling Deployment:**
-   ```bash
-   # Deploy with new secret
-   kubectl set env deployment/design-engine JWT_SECRET_KEY="$NEW_SECRET"
-   kubectl rollout restart deployment/design-engine
-   ```
-
-4. **Verify Rotation:**
-   ```bash
-   # Test new token generation
-   curl -X POST https://api.designengine.com/api/v1/auth/login \
-     -d "username=test&password=test"
-   ```
-
-### API Key Management
-
-**Yotta API Key Setup:**
 ```bash
-# Store in environment
-export YOTTA_API_KEY="yotta_live_abc123def456"
-export YOTTA_BASE_URL="https://api.yotta.com"
+# Generate a secure JWT secret (run once)
+python -c "import secrets; print(secrets.token_urlsafe(32))"
 
-# Test connection
-curl -H "Authorization: Bearer $YOTTA_API_KEY" \
-  https://api.yotta.com/health
+# Example output
+# rB9_Mh-5K_L4pQ_8tU-1vW_2xY_3zA_4bC_5dE_6fG
+
+# Add to .env file
+JWT_SECRET_KEY=rB9_Mh-5K_L4pQ_8tU-1vW_2xY_3zA_4bC_5dE_6fG
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
 ```
 
-**Compliance API Key Setup:**
-```bash
-# Store Soham's compliance service key
-export COMPLIANCE_API_KEY="comp_key_xyz789"
-export SOHAM_URL="https://ai-rule-api-w7z5.onrender.com"
+### Secret Rotation (Every 90 days)
+1. Generate new secret
+2. Update JWT_SECRET_KEY in .env
+3. All existing tokens remain valid for their 60-minute lifetime
+4. After 1 hour, all users must re-login
+5. Old secret becomes invalid for new tokens
 
-# Test connection
-curl -H "Authorization: Bearer $COMPLIANCE_API_KEY" \
-  $SOHAM_URL/health
+## API Keys for Service-to-Service
+```bash
+# Create API key (admin only)
+curl -X POST http://localhost:8000/api/v1/auth/api-key \
+  -H "Authorization: Bearer {admin_token}" \
+  -H "Content-Type: application/json" \
+  -d '{"service": "compliance_check", "permissions": ["run_case"]}'
+
+# Response:
+# {
+#   "api_key_id": "ak_xyz123",
+#   "secret": "sk_...full key...",
+#   "permissions": ["run_case"],
+#   "created_at": "2025-11-15T14:30:00"
+# }
+
+# Revoke API key
+curl -X DELETE http://localhost:8000/api/v1/auth/api-key/ak_xyz123 \
+  -H "Authorization: Bearer {admin_token}"
 ```
 
-### Token Configuration
+## Login Flow
+```python
+import httpx
 
-**Current Settings:**
-- **Algorithm:** HS256 (HMAC with SHA-256)
-- **Expiration:** 24 hours (configurable)
-- **Payload:** `{"sub": "username", "exp": timestamp}`
+async def login():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/v1/auth/login",
+            json={"username": "user@example.com", "password": "secure_password"}
+        )
 
-**Production Recommendations:**
-- Use RS256 for distributed systems
-- Implement refresh tokens for long-lived sessions
-- Set shorter expiration (1-4 hours) for sensitive operations
+        if response.status_code == 200:
+            token = response.json()["access_token"]
+            headers = {"Authorization": f"Bearer {token}"}
+            # Use headers for all subsequent requests
+```
 
-### Emergency Procedures
+## Token Refresh
+Tokens expire after 60 minutes. To refresh:
 
-**Compromised Secret Response:**
-1. **Immediate Actions:**
-   ```bash
-   # Generate emergency secret
-   EMERGENCY_SECRET=$(openssl rand -hex 32)
+```python
+response = await client.post(
+    "http://localhost:8000/api/v1/auth/refresh",
+    headers={"Authorization": f"Bearer {old_token}"}
+)
 
-   # Update all instances immediately
-   kubectl set env deployment/design-engine JWT_SECRET_KEY="$EMERGENCY_SECRET"
-
-   # Force all users to re-authenticate
-   kubectl rollout restart deployment/design-engine
-   ```
-
-2. **Audit & Investigation:**
-   ```bash
-   # Check recent token usage
-   grep "JWT" /var/log/design-engine/audit.log | tail -100
-
-   # Review Sentry for suspicious activity
-   # Check access logs for unusual patterns
-   ```
-
-### Monitoring & Alerts
-
-**Set up alerts for:**
-- Failed authentication attempts > 10/minute
-- JWT validation errors > 5/minute
-- API key usage anomalies
-- Secret rotation due dates
-
-**Log Monitoring:**
-```bash
-# Monitor auth events
-tail -f /var/log/design-engine/audit.log | grep "auth"
-
-# Check token validation errors
-grep "Invalid token" /var/log/design-engine/app.log
+new_token = response.json()["access_token"]
 ```

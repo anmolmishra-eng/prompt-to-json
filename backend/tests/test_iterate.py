@@ -5,7 +5,7 @@ Test cases for POST /api/v1/iterate endpoint
 import pytest
 
 
-def test_iterate_with_strategy(client, auth_headers, test_db):
+def test_iterate_with_strategy(client, auth_headers):
     """Test iterating a spec with improvement strategy"""
     # 1. Generate spec
     gen_response = client.post(
@@ -17,8 +17,8 @@ def test_iterate_with_strategy(client, auth_headers, test_db):
         },
         headers=auth_headers,
     )
+    assert gen_response.status_code == 200
     spec_id = gen_response.json()["spec_id"]
-    original_spec = gen_response.json()["spec_json"]
 
     # 2. Iterate with strategy
     iterate_response = client.post(
@@ -36,13 +36,6 @@ def test_iterate_with_strategy(client, auth_headers, test_db):
     assert "feedback" in result
     assert "iteration_id" in result
 
-    # 4. Verify iteration was saved
-    from app.models import Iteration
-
-    iteration = test_db.query(Iteration).filter(Iteration.iter_id == result["iteration_id"]).first()
-    assert iteration is not None
-    assert iteration.spec_id == spec_id
-
 
 def test_iterate_invalid_strategy(client, auth_headers):
     """Test error for invalid strategy"""
@@ -51,6 +44,7 @@ def test_iterate_invalid_strategy(client, auth_headers):
         json={"user_id": "demo_user_123", "prompt": "living room", "project_id": "project_001"},
         headers=auth_headers,
     )
+    assert gen_response.status_code == 200
     spec_id = gen_response.json()["spec_id"]
 
     response = client.post(

@@ -102,6 +102,9 @@ class CoreRunRequest(BaseModel):
     pipeline: List[str]  # e.g., ["generate", "evaluate", "iterate"]
     input: Dict[str, Any]  # input data for pipeline steps
 
+    class Config:
+        extra = "forbid"  # Don't allow extra fields
+
 
 class CoreRunResponse(BaseModel):
     outputs: Dict[str, Any]  # aggregated outputs from all steps
@@ -109,6 +112,8 @@ class CoreRunResponse(BaseModel):
 
 # Report schema
 class Report(BaseModel):
+    report_id: Optional[str] = None
+    data: Optional[Dict[str, Any]] = None
     spec: Dict[str, Any]
     iterations: List[Dict[str, Any]]
     evaluations: List[Dict[str, Any]]

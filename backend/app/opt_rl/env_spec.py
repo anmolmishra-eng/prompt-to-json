@@ -14,6 +14,7 @@ class SpecEditEnv(gym.Env):
         self.device = device
         self.rm = SimpleRewardModel()
         self.rm.load_state_dict(torch.load(rm_ckpt, map_location=device))
+        self.rm.to(device)
         self.rm.eval()
         self.base = base_spec
         self.spec = None

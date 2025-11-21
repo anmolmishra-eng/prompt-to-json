@@ -25,8 +25,9 @@ from app.api import (
 )
 from app.config import settings
 from app.utils import setup_logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -90,6 +91,25 @@ except Exception as e:
     logger.error(f"❌ Database connection failed: {e}")
 
 app = FastAPI(title="Design Engine API")
+
+
+# Global exception handler for consistent error responses
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": "HTTP_ERROR", "message": exc.detail, "status_code": exc.status_code}},
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"code": "INTERNAL_ERROR", "message": "Internal server error", "status_code": 500}},
+    )
+
 
 # Initialize Prometheus metrics
 instrumentator = Instrumentator(

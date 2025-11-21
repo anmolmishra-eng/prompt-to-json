@@ -1,4 +1,5 @@
-"""Initial schema
+"""
+Initial database schema migration
 
 Revision ID: 001
 Revises:
@@ -7,7 +8,6 @@ Create Date: 2024-01-01 00:00:00.000000
 """
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "001"
@@ -17,86 +17,81 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create users table
+    """Create tables"""
+    # Users table
     op.create_table(
         "users",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("email", sa.String(), nullable=True),
-        sa.Column("hashed_password", sa.String(), nullable=True),
-        sa.Column("is_active", sa.Boolean(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
+        sa.Column("user_id", sa.String(50), primary_key=True),
+        sa.Column("username", sa.String(100), unique=True, nullable=False),
+        sa.Column("email", sa.String(100), unique=True, nullable=False),
+        sa.Column("password_hash", sa.String(255), nullable=False),
+        sa.Column("is_active", sa.Boolean(), default=True),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), onupdate=sa.func.now()),
     )
-    op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
-    op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
 
-    # Create specs table
+    # Specs table
     op.create_table(
         "specs",
-        sa.Column("spec_id", sa.String(), nullable=False),
-        sa.Column("user_id", sa.String(), nullable=True),
-        sa.Column("project_id", sa.String(), nullable=True),
-        sa.Column("prompt", sa.Text(), nullable=True),
-        sa.Column("spec_json", sa.JSON(), nullable=True),
-        sa.Column("spec_version", sa.Integer(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=True),
-        sa.PrimaryKeyConstraint("spec_id"),
+        sa.Column("spec_id", sa.String(50), primary_key=True),
+        sa.Column("user_id", sa.String(50), sa.ForeignKey("users.user_id")),
+        sa.Column("project_id", sa.String(100), nullable=True),
+        sa.Column("prompt", sa.Text(), nullable=False),
+        sa.Column("spec_json", sa.JSON(), nullable=False),
+        sa.Column("spec_version", sa.Integer(), default=1),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), onupdate=sa.func.now()),
     )
-    op.create_index(op.f("ix_specs_project_id"), "specs", ["project_id"], unique=False)
-    op.create_index(op.f("ix_specs_user_id"), "specs", ["user_id"], unique=False)
+    op.create_index("ix_specs_user_id", "specs", ["user_id"])
+    op.create_index("ix_specs_project_id", "specs", ["project_id"])
 
-    # Create evaluations table
-    op.create_table(
-        "evaluations",
-        sa.Column("eval_id", sa.String(), nullable=False),
-        sa.Column("spec_id", sa.String(), nullable=True),
-        sa.Column("user_id", sa.String(), nullable=True),
-        sa.Column("score", sa.Integer(), nullable=True),
-        sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("ts", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["spec_id"],
-            ["specs.spec_id"],
-        ),
-        sa.PrimaryKeyConstraint("eval_id"),
-    )
-    op.create_index(op.f("ix_evaluations_user_id"), "evaluations", ["user_id"], unique=False)
-
-    # Create iterations table
+    # Iterations table
     op.create_table(
         "iterations",
-        sa.Column("iter_id", sa.String(), nullable=False),
-        sa.Column("spec_id", sa.String(), nullable=True),
-        sa.Column("before_spec", sa.JSON(), nullable=True),
-        sa.Column("after_spec", sa.JSON(), nullable=True),
+        sa.Column("iter_id", sa.String(50), primary_key=True),
+        sa.Column("spec_id", sa.String(50), sa.ForeignKey("specs.spec_id")),
+        sa.Column("user_id", sa.String(50), nullable=True),
+        sa.Column("before_spec", sa.JSON(), nullable=False),
+        sa.Column("after_spec", sa.JSON(), nullable=False),
         sa.Column("feedback", sa.Text(), nullable=True),
-        sa.Column("ts", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["spec_id"],
-            ["specs.spec_id"],
-        ),
-        sa.PrimaryKeyConstraint("iter_id"),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
     )
+    op.create_index("ix_iterations_spec_id", "iterations", ["spec_id"])
 
-    # Create audit_logs table
+    # Evaluations table
     op.create_table(
-        "audit_logs",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("event", sa.String(), nullable=True),
-        sa.Column("user_id", sa.String(), nullable=True),
-        sa.Column("ts", sa.DateTime(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
+        "evaluations",
+        sa.Column("eval_id", sa.String(50), primary_key=True),
+        sa.Column("spec_id", sa.String(50), sa.ForeignKey("specs.spec_id")),
+        sa.Column("user_id", sa.String(50), sa.ForeignKey("users.user_id")),
+        sa.Column("score", sa.Float(), nullable=False),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.Column("feedback_text", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
     )
+    op.create_index("ix_evaluations_spec_id", "evaluations", ["spec_id"])
+    op.create_index("ix_evaluations_user_id", "evaluations", ["user_id"])
+
+    # RLHF Feedback table
+    op.create_table(
+        "rlhf_feedback",
+        sa.Column("feedback_id", sa.String(50), primary_key=True),
+        sa.Column("user_id", sa.String(50), sa.ForeignKey("users.user_id")),
+        sa.Column("spec_a_id", sa.String(50), sa.ForeignKey("specs.spec_id")),
+        sa.Column("spec_b_id", sa.String(50), sa.ForeignKey("specs.spec_id")),
+        sa.Column("preference", sa.String(1), nullable=False),  # 'A' or 'B'
+        sa.Column("feedback_text", sa.Text(), nullable=True),
+        sa.Column("rating_a", sa.Float(), nullable=True),
+        sa.Column("rating_b", sa.Float(), nullable=True),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now()),
+    )
+    op.create_index("ix_rlhf_feedback_user_id", "rlhf_feedback", ["user_id"])
 
 
 def downgrade() -> None:
-    op.drop_table("audit_logs")
-    op.drop_table("iterations")
-    op.drop_index(op.f("ix_evaluations_user_id"), table_name="evaluations")
+    """Drop tables"""
+    op.drop_table("rlhf_feedback")
     op.drop_table("evaluations")
-    op.drop_index(op.f("ix_specs_user_id"), table_name="specs")
-    op.drop_index(op.f("ix_specs_project_id"), table_name="specs")
+    op.drop_table("iterations")
     op.drop_table("specs")
-    op.drop_index(op.f("ix_users_id"), table_name="users")
-    op.drop_index(op.f("ix_users_email"), table_name="users")
     op.drop_table("users")

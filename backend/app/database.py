@@ -9,17 +9,12 @@ from sqlalchemy.orm import sessionmaker
 engine = create_engine(settings.DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Drop all tables with CASCADE to handle foreign key constraints
+# Only create tables, don't drop in production
+# For SQLite, we don't need schema operations
 try:
-    with engine.connect() as conn:
-        conn.execute(text("DROP SCHEMA public CASCADE"))
-        conn.execute(text("CREATE SCHEMA public"))
-        conn.commit()
+    Base.metadata.create_all(bind=engine)
 except Exception as e:
-    print(f"Schema reset failed: {e}")
-
-# Create tables
-Base.metadata.create_all(bind=engine)
+    print(f"Table creation failed: {e}")
 
 security = HTTPBearer()
 
@@ -45,5 +40,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         return username
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Authentication required")

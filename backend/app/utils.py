@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import jwt
 from app.config import settings
@@ -106,7 +106,7 @@ def log_audit_event(event: str, user_id: str, details: dict = None):
     audit_data = {
         "event": event,
         "user_id": user_id,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "details": details or {},
     }
     logger.info(f"AUDIT: {audit_data}")
