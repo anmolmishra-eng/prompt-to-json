@@ -116,23 +116,24 @@ python quick_test_all.py
 
 #### `POST /api/v1/iterate`
 **Purpose**: Improve existing designs iteratively
-- **Input**: `{"design_id": "uuid", "feedback": "Make it more spacious", "constraints": {}}`
-- **Output**: Updated design with improvements applied
+- **Input**: `{"user_id": "user123", "spec_id": "spec_015ba76e", "strategy": "auto_optimize"}`
+- **Output**: Before/after comparison with iteration details
 - **What it does**:
-  - Takes user feedback and applies improvements
-  - Maintains design consistency while making changes
-  - Tracks iteration history
-  - Preserves user preferences across iterations
+  - Applies optimization strategies (auto_optimize, user_feedback, etc.)
+  - Shows before/after design comparison
+  - Generates new preview URLs and version numbers
+  - Tracks iteration history with unique iteration IDs
+  - Updates cost estimates and material specifications
 
 #### `POST /api/v1/switch`
 **Purpose**: Switch or replace specific design components
-- **Input**: `{"design_id": "uuid", "target": {"component_type": "cabinet"}, "update": {"style": "shaker", "material": "oak"}}`
+- **Input**: `{"user_id": "user123", "spec_id": "spec_015ba76e", "target": {"object_id": "kitchen_cabinet_01", "object_query": "upper cabinets"}, "update": {"material": "oak", "color_hex": "#8B4513", "texture_override": "wood_grain"}, "note": "Changed to oak for warmer look", "expected_version": 2}`
 - **Output**: Updated design with component replacements
 - **What it does**:
-  - Replaces specific components (cabinets, countertops, appliances)
-  - Maintains compatibility with existing design
-  - Updates cost and timeline estimates
-  - Preserves overall design integrity
+  - Targets specific objects by ID or query
+  - Updates materials, colors, and textures
+  - Maintains version control with expected_version
+  - Preserves overall design integrity with user notes
 
 #### `GET /api/v1/history`
 **Purpose**: Retrieve user's design history and iterations
@@ -202,6 +203,88 @@ python quick_test_all.py
   - Identifies safety violations
   - Provides specific fix recommendations
   - Generates compliance certificates
+
+#### `POST /api/v1/compliance/run_case`
+**Purpose**: Run compliance analysis for specific Indian city projects
+- **Input**: Project details with city-specific parameters
+- **Output**: Detailed compliance analysis with DCR validation
+- **Supported Cities**: Mumbai, Pune, Ahmedabad
+- **What it does**:
+  - Validates against city-specific Development Control Regulations (DCR)
+  - Analyzes plot size, location type, and road width requirements
+  - Provides compliance scores and recommendations
+  - Integrates with external compliance service for real-time validation
+
+#### `POST /api/v1/compliance/feedback`
+**Purpose**: Submit user feedback on compliance analysis results
+- **Input**: `{"project_id": "proj_123", "case_id": "case_456", "input_case": {}, "output_report": {}, "user_feedback": "up"}`
+- **Output**: Feedback confirmation with unique feedback ID
+- **What it does**:
+  - Records user satisfaction with compliance analysis
+  - Enables adaptive learning for compliance AI
+  - Supports "up" (positive) or "down" (negative) feedback
+  - Integrates with external feedback service for continuous improvement
+
+**Example Test Cases**:
+```json
+// Ahmedabad Project
+{
+  "project_id": "proj_lotus_towers_04",
+  "case_id": "ahmedabad_001",
+  "city": "Ahmedabad",
+  "document": "Ahmedabad_DCR.pdf",
+  "parameters": {
+    "plot_size": 1500,
+    "location": "urban",
+    "road_width": 15
+  }
+}
+
+// Mumbai Small Plot
+{
+  "project_id": "proj_compact_living_03",
+  "case_id": "mumbai_002_small_plot",
+  "city": "Mumbai",
+  "document": "DCPR_2034.pdf",
+  "parameters": {
+    "plot_size": 400,
+    "location": "suburban",
+    "road_width": 15
+  }
+}
+
+// Pune Riverfront
+{
+  "project_id": "proj_riverfront_02",
+  "case_id": "pune_001",
+  "city": "Pune",
+  "document": "Pune_DCR.pdf",
+  "parameters": {
+    "plot_size": 800,
+    "location": "suburban",
+    "road_width": 10
+  }
+}
+
+// Feedback Example
+{
+  "project_id": "proj_lotus_towers_04",
+  "case_id": "ahmedabad_001",
+  "input_case": {
+    "city": "Ahmedabad",
+    "parameters": {
+      "plot_size": 1500,
+      "location": "urban",
+      "road_width": 15
+    }
+  },
+  "output_report": {
+    "rules_applied": ["AMD-FSI-URBAN-R15-20"],
+    "confidence_score": 0.8
+  },
+  "user_feedback": "up"
+}
+```
 
 ---
 
