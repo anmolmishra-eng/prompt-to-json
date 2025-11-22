@@ -14,10 +14,14 @@ supabase
 prometheus-fastapi-instrumentator
 sentry-sdk[fastapi]
 requests
-torch --index-url https://download.pytorch.org/whl/cpu
-torchvision --index-url https://download.pytorch.org/whl/cpu
-torchaudio --index-url https://download.pytorch.org/whl/cpu
+torch==2.9.1
+torchvision==0.24.1
+torchaudio==2.9.1
 transformers
+trl
+accelerate
+datasets
+peft
 gymnasium
 stable-baselines3
 psycopg2-binary
