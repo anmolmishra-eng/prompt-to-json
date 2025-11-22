@@ -63,4 +63,3 @@ curl http://localhost:8000/api/v1/cities/Mumbai/rules | jq
 ```bash
 curl http://localhost:8000/api/v1/cities/Ahmedabad/context | jq
 ```
-

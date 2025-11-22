@@ -83,7 +83,7 @@
 
 ### Test Execution Times:
 - **BHIV Layer Tests**: 7.11 seconds
-- **MCP Integration Tests**: 3.58 seconds  
+- **MCP Integration Tests**: 3.58 seconds
 - **RL Integration Tests**: 1.75 seconds
 - **All Tests Combined**: 12.31 seconds
 

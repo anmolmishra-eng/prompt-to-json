@@ -1,8 +1,8 @@
 # Team Handoff Meeting Agenda
 ## Multi-City Backend - Production Go-Live
 
-**Date:** November 22, 2025, 4:00 PM  
-**Duration:** 2 hours  
+**Date:** November 22, 2025, 4:00 PM
+**Duration:** 2 hours
 **Location:** Conference Room / Video Call
 
 ---
@@ -82,10 +82,10 @@
 
 ## Required Sign-offs
 
-✅ **Anmol Mishra** (Tech Lead) - Handover complete  
-⬜ **Frontend Team** - Ready to integrate  
-⬜ **DevOps Team** - Ready to deploy/maintain  
-⬜ **Backend Team** - Ready to support  
+✅ **Anmol Mishra** (Tech Lead) - Handover complete
+⬜ **Frontend Team** - Ready to integrate
+⬜ **DevOps Team** - Ready to deploy/maintain
+⬜ **Backend Team** - Ready to support
 
 ---
 
@@ -101,7 +101,7 @@
 
 ## Contact Information
 
-**Primary Contact:** Anmol Mishra  
-**Email:** anmol@company.com  
-**Documentation:** HANDOVER.md  
+**Primary Contact:** Anmol Mishra
+**Email:** anmol@company.com
+**Documentation:** HANDOVER.md
 **Emergency:** On-call rotation schedule

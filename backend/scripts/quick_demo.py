@@ -21,7 +21,7 @@ async def demo_health_check():
     print("=" * 50)
     print("1. HEALTH CHECK")
     print("=" * 50)
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get("http://localhost:8000/api/v1/health", timeout=5.0)
@@ -42,10 +42,10 @@ def demo_city_data():
     print("\n" + "=" * 50)
     print("2. MULTI-CITY SUPPORT")
     print("=" * 50)
-    
+
     loader = CityDataLoader()
     cities = loader.get_all_cities()
-    
+
     print(f"Supported Cities: {len(cities)}")
     for city in cities:
         rules = loader.get_city_rules(city)
@@ -57,13 +57,13 @@ async def demo_api_endpoints():
     print("\n" + "=" * 50)
     print("3. API ENDPOINTS")
     print("=" * 50)
-    
+
     endpoints = [
         ("Cities List", "GET", "/api/v1/cities/"),
         ("Mumbai Rules", "GET", "/api/v1/cities/Mumbai/rules"),
-        ("Pune Context", "GET", "/api/v1/cities/Pune/context")
+        ("Pune Context", "GET", "/api/v1/cities/Pune/context"),
     ]
-    
+
     try:
         async with httpx.AsyncClient() as client:
             for name, method, endpoint in endpoints:
@@ -84,23 +84,23 @@ def demo_validation_results():
     print("\n" + "=" * 50)
     print("4. VALIDATION RESULTS")
     print("=" * 50)
-    
+
     # Show mock validation results
     results = {
         "Mumbai": {"tests": 4, "passed": 4, "status": "PASS"},
         "Pune": {"tests": 4, "passed": 4, "status": "PASS"},
         "Ahmedabad": {"tests": 4, "passed": 4, "status": "PASS"},
-        "Nashik": {"tests": 4, "passed": 4, "status": "PASS"}
+        "Nashik": {"tests": 4, "passed": 4, "status": "PASS"},
     }
-    
+
     total_tests = sum(r["tests"] for r in results.values())
     total_passed = sum(r["passed"] for r in results.values())
     success_rate = (total_passed / total_tests) * 100
-    
+
     print(f"Total Tests: {total_tests}")
     print(f"Passed: {total_passed}")
     print(f"Success Rate: {success_rate:.1f}%")
-    
+
     for city, result in results.items():
         print(f"  • {city}: {result['passed']}/{result['tests']} - {result['status']}")
 
@@ -110,20 +110,20 @@ def demo_architecture():
     print("\n" + "=" * 50)
     print("5. ARCHITECTURE OVERVIEW")
     print("=" * 50)
-    
+
     components = [
         "FastAPI Backend (Port 8000)",
         "Multi-City Data Loader",
         "PostgreSQL Database",
         "Redis Cache",
         "Nginx Reverse Proxy",
-        "Docker Deployment Stack"
+        "Docker Deployment Stack",
     ]
-    
+
     print("System Components:")
     for component in components:
         print(f"  • {component}")
-    
+
     print("\nMulti-City Features:")
     print("  • 4 Indian cities supported")
     print("  • City-specific DCR rules")
@@ -135,13 +135,13 @@ async def main():
     """Run complete demo"""
     print("MULTI-CITY BACKEND - LIVE DEMO")
     print("Generated on:", "2025-11-22")
-    
+
     await demo_health_check()
     demo_city_data()
     await demo_api_endpoints()
     demo_validation_results()
     demo_architecture()
-    
+
     print("\n" + "=" * 50)
     print("DEMO COMPLETE")
     print("=" * 50)

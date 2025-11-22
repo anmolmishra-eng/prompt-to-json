@@ -106,7 +106,7 @@ python workflows/start_workflows.py
 
 ### Prefect UI Access:
 - **URL**: http://localhost:4200
-- **Features**: 
+- **Features**:
   - Deployment management
   - Flow run monitoring
   - Execution logs

@@ -3,9 +3,8 @@ MCP Integration Tests
 """
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.main_bhiv import app
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
@@ -38,11 +37,8 @@ def test_mcp_rules_with_filter():
 
 def test_mcp_rules_query():
     """Test MCP rules natural language query"""
-    query_payload = {
-        "city": "Mumbai",
-        "query": "What is FSI for residential buildings?"
-    }
-    
+    query_payload = {"city": "Mumbai", "query": "What is FSI for residential buildings?"}
+
     response = client.post("/mcp/rules/query", params=query_payload)
     assert response.status_code == 200
     data = response.json()

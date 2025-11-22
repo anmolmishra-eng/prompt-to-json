@@ -4,12 +4,13 @@ Deploy Geometry Verification Flow to Prefect
 
 import asyncio
 from pathlib import Path
-from geometry_verification_flow import geometry_verification_flow, GeometryConfig
+
+from geometry_verification_flow import GeometryConfig, geometry_verification_flow
 
 
 async def deploy_geometry_verification_flow():
     """Deploy geometry verification flow"""
-    
+
     # Create deployment
     deployment = await geometry_verification_flow.to_deployment(
         name="geometry-verification-daily",
@@ -20,15 +21,15 @@ async def deploy_geometry_verification_flow():
             "config": GeometryConfig(
                 glb_source_dir=Path("data/geometry_outputs"),
                 output_dir=Path("reports/geometry_verification"),
-                max_file_size_mb=50.0
+                max_file_size_mb=50.0,
             ).dict()
-        }
+        },
     )
-    
+
     print(f"Deployment created: {deployment.name}")
     print(f"Description: {deployment.description}")
     print(f"Flow ID: {deployment.flow_id}")
-    
+
     return deployment
 
 

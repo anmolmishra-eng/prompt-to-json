@@ -3,27 +3,24 @@ BHIV Assistant Main Application
 """
 
 import logging
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.bhiv_layer.assistant_api import router as bhiv_router
-from app.mcp.mcp_client import mcp_router
 from app.bhiv_layer.rl_feedback_handler import rl_router
+from app.mcp.mcp_client import mcp_router
 from config.integration_config import IntegrationConfig
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -40,7 +37,7 @@ app = FastAPI(
     title="BHIV AI Assistant",
     description="Orchestration layer for Task 7, Sohum's MCP, and Ranjeet's RL systems",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -57,6 +54,7 @@ app.include_router(bhiv_router)
 app.include_router(mcp_router)
 app.include_router(rl_router)
 
+
 # Root endpoint
 @app.get("/")
 async def root():
@@ -70,8 +68,8 @@ async def root():
             "health": "/bhiv/v1/health",
             "mcp": "/mcp",
             "rl": "/rl",
-            "docs": "/docs"
-        }
+            "docs": "/docs",
+        },
     }
 
 
@@ -83,13 +81,7 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     config = IntegrationConfig()
-    
-    uvicorn.run(
-        "app.main:app",
-        host=config.bhiv.api_host,
-        port=config.bhiv.api_port,
-        reload=True,
-        log_level="info"
-    )
+
+    uvicorn.run("app.main:app", host=config.bhiv.api_host, port=config.bhiv.api_port, reload=True, log_level="info")

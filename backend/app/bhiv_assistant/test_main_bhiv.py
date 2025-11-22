@@ -3,18 +3,19 @@ Test Main BHIV Application
 """
 
 import asyncio
-import httpx
 import json
 from datetime import datetime
+
+import httpx
 
 
 async def test_main_bhiv():
     """Test main BHIV application endpoints"""
     base_url = "http://localhost:8003"
-    
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         print("Testing Main BHIV Application...")
-        
+
         # Test 1: Root endpoint
         print("\n[1/4] Testing root endpoint...")
         try:
@@ -27,7 +28,7 @@ async def test_main_bhiv():
             print(f"   Endpoints: {list(data.get('endpoints', {}).keys())}")
         except Exception as e:
             print(f"[ERROR] Root failed: {e}")
-        
+
         # Test 2: Health endpoint
         print("\n[2/4] Testing health endpoint...")
         try:
@@ -38,7 +39,7 @@ async def test_main_bhiv():
             print(f"   Timestamp: {data.get('timestamp')}")
         except Exception as e:
             print(f"[ERROR] Health failed: {e}")
-        
+
         # Test 3: BHIV health check
         print("\n[3/4] Testing BHIV health check...")
         try:
@@ -49,7 +50,7 @@ async def test_main_bhiv():
                 print(f"   {system}: {status}")
         except Exception as e:
             print(f"[ERROR] BHIV health failed: {e}")
-        
+
         # Test 4: API documentation
         print("\n[4/4] Testing API docs...")
         try:
@@ -58,7 +59,7 @@ async def test_main_bhiv():
             print("   Interactive documentation available at /docs")
         except Exception as e:
             print(f"[ERROR] API docs failed: {e}")
-        
+
         print("\n[SUCCESS] Main BHIV application test completed!")
         print("\nApplication Features:")
         print("- Unified FastAPI application")
@@ -73,5 +74,5 @@ if __name__ == "__main__":
     print("Testing Main BHIV Application...")
     print("Make sure the server is running: python start_bhiv.py")
     print("=" * 60)
-    
+
     asyncio.run(test_main_bhiv())

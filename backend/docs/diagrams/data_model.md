@@ -14,7 +14,7 @@ erDiagram
         json source_documents
         json typical_use_cases
     }
-    
+
     SPEC {
         string spec_id PK
         string user_id
@@ -26,7 +26,7 @@ erDiagram
         datetime updated_at
         string city FK
     }
-    
+
     EVALUATION {
         string eval_id PK
         string spec_id FK
@@ -35,7 +35,7 @@ erDiagram
         text notes
         datetime ts
     }
-    
+
     ITERATION {
         string iter_id PK
         string spec_id FK
@@ -44,7 +44,7 @@ erDiagram
         text feedback
         datetime ts
     }
-    
+
     USER {
         string id PK
         string username
@@ -53,7 +53,7 @@ erDiagram
         boolean is_active
         datetime created_at
     }
-    
+
     CITY ||--o{ SPEC : "applies_to"
     SPEC ||--o{ EVALUATION : "evaluated_by"
     SPEC ||--o{ ITERATION : "iterated_from"

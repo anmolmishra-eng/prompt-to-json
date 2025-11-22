@@ -92,7 +92,7 @@ Test completed with status: complete
 ### Task Performance:
 - **PDF Scanning**: Cached for 1 hour
 - **Text Extraction**: 3 retry attempts
-- **Rule Parsing**: 2 retry attempts  
+- **Rule Parsing**: 2 retry attempts
 - **MCP Upload**: 3 retry attempts with 10s delay
 - **Audit Logging**: Single execution
 

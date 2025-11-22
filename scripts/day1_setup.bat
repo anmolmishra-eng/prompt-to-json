@@ -39,7 +39,7 @@ echo ## Key Findings
 echo.
 echo ### Dependencies Identified
 echo - Task 7 → Sohum MCP: 2 API dependencies
-echo - Task 7 → Ranjeet RL: 2 API dependencies  
+echo - Task 7 → Ranjeet RL: 2 API dependencies
 echo - BHIV → All systems: 6 integration points
 echo.
 echo ### System Separation

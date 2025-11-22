@@ -2,11 +2,11 @@
 RL Integration Tests
 """
 
-import pytest
-from fastapi.testclient import TestClient
 from datetime import datetime
 
+import pytest
 from app.main_bhiv import app
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
@@ -19,9 +19,9 @@ def test_rl_feedback_submission():
         "rating": 4.5,
         "feedback_text": "Excellent design layout",
         "design_accepted": True,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
-    
+
     response = client.post("/rl/feedback", json=feedback_payload)
     assert response.status_code == 200
     data = response.json()
@@ -30,13 +30,8 @@ def test_rl_feedback_submission():
 
 def test_rl_feedback_minimal():
     """Test RL feedback with minimal data"""
-    feedback_payload = {
-        "user_id": "test_user_002",
-        "spec_id": "spec_test_002",
-        "rating": 3.0,
-        "design_accepted": False
-    }
-    
+    feedback_payload = {"user_id": "test_user_002", "spec_id": "spec_test_002", "rating": 3.0, "design_accepted": False}
+
     response = client.post("/rl/feedback", json=feedback_payload)
     assert response.status_code == 200
 
@@ -45,16 +40,13 @@ def test_rl_confidence_score():
     """Test RL confidence score endpoint"""
     spec_data = {
         "spec_json": {
-            "rooms": [
-                {"type": "bedroom", "area": 120},
-                {"type": "living_room", "area": 200}
-            ],
+            "rooms": [{"type": "bedroom", "area": 120}, {"type": "living_room", "area": 200}],
             "total_area": 800,
-            "style": "modern"
+            "style": "modern",
         },
-        "city": "Mumbai"
+        "city": "Mumbai",
     }
-    
+
     response = client.post("/rl/confidence", json=spec_data)
     assert response.status_code == 200
     data = response.json()
@@ -68,9 +60,9 @@ def test_rl_feedback_invalid_rating():
         "user_id": "test_user_003",
         "spec_id": "spec_test_003",
         "rating": 10.0,  # Invalid rating > 5
-        "design_accepted": True
+        "design_accepted": True,
     }
-    
+
     response = client.post("/rl/feedback", json=feedback_payload)
     # Should handle validation error gracefully
     assert response.status_code in [200, 422]

@@ -19,15 +19,14 @@ from app.multi_city.city_data_loader import City
 
 async def validate_api_endpoints():
     """Validate all multi-city API endpoints"""
-    
+
     base_url = "http://localhost:8000"
     results = []
-    
+
     print("Multi-City API Endpoint Validation")
     print("=" * 50)
-    
+
     async with httpx.AsyncClient() as client:
-        
         # Test 1: List all cities
         print("\nTesting: GET /api/v1/cities/")
         try:
@@ -43,7 +42,7 @@ async def validate_api_endpoints():
         except Exception as e:
             print(f"  ERROR: {e}")
             results.append({"endpoint": "list_cities", "status": "ERROR", "error": str(e)})
-        
+
         # Test 2: City rules for each city
         for city in City:
             print(f"\nTesting: GET /api/v1/cities/{city.value}/rules")
@@ -56,11 +55,13 @@ async def validate_api_endpoints():
                     results.append({"endpoint": f"rules_{city.value}", "status": "PASS", "fsi_base": fsi})
                 else:
                     print(f"  FAIL: Status {response.status_code}")
-                    results.append({"endpoint": f"rules_{city.value}", "status": "FAIL", "status_code": response.status_code})
+                    results.append(
+                        {"endpoint": f"rules_{city.value}", "status": "FAIL", "status_code": response.status_code}
+                    )
             except Exception as e:
                 print(f"  ERROR: {e}")
                 results.append({"endpoint": f"rules_{city.value}", "status": "ERROR", "error": str(e)})
-        
+
         # Test 3: City context for each city
         for city in City:
             print(f"\nTesting: GET /api/v1/cities/{city.value}/context")
@@ -70,14 +71,18 @@ async def validate_api_endpoints():
                     data = response.json()
                     use_cases_count = len(data.get("typical_use_cases", []))
                     print(f"  PASS: {city.value} context ({use_cases_count} use cases)")
-                    results.append({"endpoint": f"context_{city.value}", "status": "PASS", "use_cases_count": use_cases_count})
+                    results.append(
+                        {"endpoint": f"context_{city.value}", "status": "PASS", "use_cases_count": use_cases_count}
+                    )
                 else:
                     print(f"  FAIL: Status {response.status_code}")
-                    results.append({"endpoint": f"context_{city.value}", "status": "FAIL", "status_code": response.status_code})
+                    results.append(
+                        {"endpoint": f"context_{city.value}", "status": "FAIL", "status_code": response.status_code}
+                    )
             except Exception as e:
                 print(f"  ERROR: {e}")
                 results.append({"endpoint": f"context_{city.value}", "status": "ERROR", "error": str(e)})
-        
+
         # Test 4: Invalid city handling
         print(f"\nTesting: GET /api/v1/cities/InvalidCity/rules")
         try:
@@ -91,13 +96,13 @@ async def validate_api_endpoints():
         except Exception as e:
             print(f"  ERROR: {e}")
             results.append({"endpoint": "invalid_city", "status": "ERROR", "error": str(e)})
-    
+
     # Generate summary
     total_tests = len(results)
     passed_tests = sum(1 for r in results if r["status"] == "PASS")
     failed_tests = sum(1 for r in results if r["status"] == "FAIL")
     error_tests = sum(1 for r in results if r["status"] == "ERROR")
-    
+
     print(f"\n{'='*50}")
     print("API VALIDATION SUMMARY")
     print(f"{'='*50}")
@@ -106,28 +111,28 @@ async def validate_api_endpoints():
     print(f"Failed: {failed_tests}")
     print(f"Errors: {error_tests}")
     print(f"Success Rate: {(passed_tests/total_tests)*100:.1f}%")
-    
+
     # Save report
     report_dir = Path("reports/validation")
     report_dir.mkdir(parents=True, exist_ok=True)
-    
+
     report_file = report_dir / f"api_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    
+
     summary = {
         "timestamp": datetime.now().isoformat(),
         "total_tests": total_tests,
         "passed_tests": passed_tests,
         "failed_tests": failed_tests,
         "error_tests": error_tests,
-        "success_rate": (passed_tests/total_tests)*100,
-        "results": results
+        "success_rate": (passed_tests / total_tests) * 100,
+        "results": results,
     }
-    
-    with open(report_file, 'w') as f:
+
+    with open(report_file, "w") as f:
         json.dump(summary, f, indent=2)
-    
+
     print(f"\nReport saved to: {report_file}")
-    
+
     return passed_tests == total_tests
 
 
