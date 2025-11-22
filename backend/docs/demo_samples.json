@@ -1,0 +1,30 @@
+{
+  "mumbai_residential": {
+    "description": "Mumbai 4-floor residential building",
+    "request": {
+      "user_id": "demo_user",
+      "prompt": "Design a 4-floor residential building with parking",
+      "project_id": "demo_mumbai_001",
+      "city": "Mumbai"
+    },
+    "curl_command": "curl -X POST http://localhost:8000/api/v1/generate \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    \"user_id\": \"demo_user\",\n    \"prompt\": \"Design a 4-floor residential building with parking\",\n    \"project_id\": \"demo_mumbai_001\",\n    \"city\": \"Mumbai\"\n  }' | jq"
+  },
+  "pune_it_park": {
+    "description": "Pune IT office park",
+    "request": {
+      "user_id": "demo_user",
+      "prompt": "Create an IT office campus with 3 buildings",
+      "project_id": "demo_pune_001",
+      "city": "Pune"
+    },
+    "curl_command": "curl -X POST http://localhost:8000/api/v1/generate \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    \"user_id\": \"demo_user\",\n    \"prompt\": \"Create an IT office campus with 3 buildings\",\n    \"project_id\": \"demo_pune_001\",\n    \"city\": \"Pune\"\n  }' | jq"
+  },
+  "city_rules": {
+    "description": "Get city DCR rules",
+    "curl_command": "curl http://localhost:8000/api/v1/cities/Mumbai/rules | jq"
+  },
+  "city_context": {
+    "description": "Get city context",
+    "curl_command": "curl http://localhost:8000/api/v1/cities/Ahmedabad/context | jq"
+  }
+}

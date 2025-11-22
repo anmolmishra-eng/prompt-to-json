@@ -9,6 +9,7 @@ import time
 import sentry_sdk
 from app.api import (
     auth,
+    bhiv_integrated,
     compliance,
     core,
     data_privacy,
@@ -23,6 +24,7 @@ from app.api import (
     switch,
     vr,
 )
+from app.multi_city.city_data_loader import city_router
 from app.config import settings
 from app.utils import setup_logging
 from fastapi import FastAPI, HTTPException, Request
@@ -192,6 +194,12 @@ app.include_router(vr.router, prefix="/api/v1", tags=["🥽 VR/AR Integration"])
 
 # 8. AI Training & Optimization
 app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL/RLHF Training"])
+
+# 9. Multi-City Support
+app.include_router(city_router, prefix="/api/v1", tags=["🏙️ Multi-City Support"])
+
+# 10. BHIV AI Assistant (Task 8)
+app.include_router(bhiv_integrated.router, tags=["🤖 BHIV AI Assistant"])
 
 if __name__ == "__main__":
     import uvicorn
