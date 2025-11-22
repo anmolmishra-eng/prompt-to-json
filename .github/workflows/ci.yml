@@ -18,11 +18,11 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install minimal dependencies
+    - name: Install dependencies
       run: |
         cd backend
         python -m pip install --upgrade pip
-        pip install fastapi uvicorn pydantic sqlalchemy python-multipart
+        pip install -r requirements-ci.txt
 
     - name: Syntax check
       run: |
