@@ -49,6 +49,9 @@ models_ckpt/
 *.pt
 *.pth
 *.ckpt
+*.zip
+*.bin
+*.safetensors
 
 # Reports
 reports/
