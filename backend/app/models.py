@@ -49,3 +49,23 @@ class RLHFFeedback(Base):
     rating_a = Column(Integer)  # 1-5 rating for design A
     rating_b = Column(Integer)  # 1-5 rating for design B
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class RLHFPreferences(Base):
+    __tablename__ = "rlhf_preferences"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, index=True)
+    preference_type = Column(String)  # "style", "material", "layout", etc.
+    preference_value = Column(String)  # The preferred value
+    confidence = Column(Integer)  # 1-5 confidence score
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(String, primary_key=True)
+    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)

@@ -1,0 +1,52 @@
+{
+  "generate_response": {
+    "spec_id": "spec_abc123xyz",
+    "spec_json": {
+      "version": "1.0",
+      "objects": [
+        {
+          "id": "floor_001",
+          "type": "floor",
+          "material": "concrete",
+          "level": 0
+        }
+      ],
+      "constraints": {
+        "city": "Mumbai",
+        "fsi_base": 1.33,
+        "setback_front": 3.0
+      }
+    },
+    "preview_url": "https://storage.example.com/previews/spec_abc123xyz.png",
+    "cost_estimate": 2500000,
+    "processing_time_ms": 850
+  },
+  "health_response": {
+    "status": "healthy",
+    "database": "connected",
+    "cache": "connected",
+    "timestamp": "2025-11-22T14:05:30.123Z",
+    "version": "1.0.0"
+  },
+  "cities_response": {
+    "cities": [
+      "Mumbai",
+      "Pune",
+      "Ahmedabad",
+      "Nashik"
+    ],
+    "count": 4
+  },
+  "mumbai_rules_response": {
+    "city": "Mumbai",
+    "dcr_version": "DCPR 2034",
+    "fsi_base": 1.33,
+    "setback_front": 3.0,
+    "setback_rear": 3.0,
+    "parking_ratio": "1 ECS per 100 sqm",
+    "source_documents": [
+      "DCPR_2034.pdf",
+      "MCGM_Amendments.pdf"
+    ]
+  }
+}
