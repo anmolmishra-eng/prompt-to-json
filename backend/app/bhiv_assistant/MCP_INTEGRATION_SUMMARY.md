@@ -24,7 +24,7 @@
 
 ### Supported Cities
 - Mumbai
-- Pune  
+- Pune
 - Ahmedabad
 - Nashik
 

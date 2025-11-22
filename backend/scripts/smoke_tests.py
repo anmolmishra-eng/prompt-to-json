@@ -17,15 +17,14 @@ from app.multi_city.city_data_loader import City
 
 async def run_smoke_tests():
     """Run basic smoke tests"""
-    
+
     base_url = "http://localhost"
     results = []
-    
+
     print("Running Smoke Tests...")
     print("=" * 40)
-    
+
     async with httpx.AsyncClient() as client:
-        
         # Test 1: Health endpoint
         try:
             response = await client.get(f"{base_url}/health")
@@ -38,7 +37,7 @@ async def run_smoke_tests():
         except Exception as e:
             print(f"✗ Health check: ERROR - {e}")
             results.append(False)
-        
+
         # Test 2: API documentation
         try:
             response = await client.get(f"{base_url}/docs")
@@ -51,7 +50,7 @@ async def run_smoke_tests():
         except Exception as e:
             print(f"✗ API docs: ERROR - {e}")
             results.append(False)
-        
+
         # Test 3: Cities list
         try:
             response = await client.get(f"{base_url}/api/v1/cities/")
@@ -69,7 +68,7 @@ async def run_smoke_tests():
         except Exception as e:
             print(f"✗ Cities list: ERROR - {e}")
             results.append(False)
-        
+
         # Test 4: Sample city rules
         try:
             response = await client.get(f"{base_url}/api/v1/cities/Mumbai/rules")
@@ -87,14 +86,14 @@ async def run_smoke_tests():
         except Exception as e:
             print(f"✗ Mumbai rules: ERROR - {e}")
             results.append(False)
-    
+
     # Summary
     passed = sum(results)
     total = len(results)
-    
+
     print("\n" + "=" * 40)
     print(f"Smoke Tests: {passed}/{total} passed")
-    
+
     if passed == total:
         print("✓ All smoke tests PASSED")
         return True

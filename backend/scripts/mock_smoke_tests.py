@@ -14,13 +14,13 @@ from app.multi_city.city_data_loader import City, CityDataLoader
 
 def run_mock_smoke_tests():
     """Run mock smoke tests without requiring live server"""
-    
+
     tests_passed = 0
     tests_failed = 0
-    
+
     print("Running Mock Smoke Tests...")
     print("=" * 50)
-    
+
     # Test 1: City Data Loader Import
     try:
         loader = CityDataLoader()
@@ -29,7 +29,7 @@ def run_mock_smoke_tests():
     except Exception as e:
         print(f"FAIL - Test 1: City Data Loader Import: {e}")
         tests_failed += 1
-    
+
     # Test 2: All Cities Available
     try:
         cities = loader.get_all_cities()
@@ -42,10 +42,10 @@ def run_mock_smoke_tests():
     except Exception as e:
         print(f"FAIL - Test 2: All Cities Available: {e}")
         tests_failed += 1
-    
+
     # Test 3-6: City Rules for each city
     expected_fsi = {"Mumbai": 1.33, "Pune": 1.5, "Ahmedabad": 1.8, "Nashik": 1.2}
-    
+
     for i, (city_name, expected) in enumerate(expected_fsi.items(), 3):
         try:
             city = City(city_name)
@@ -59,14 +59,14 @@ def run_mock_smoke_tests():
         except Exception as e:
             print(f"FAIL - Test {i}: {city_name} Rules: {e}")
             tests_failed += 1
-    
+
     # Test 7: City Context
     try:
         city = City.MUMBAI
         context = loader.get_city_context(city)
         required_fields = ["city", "dcr_version", "constraints", "source_documents", "typical_use_cases"]
         missing_fields = [field for field in required_fields if field not in context]
-        
+
         if not missing_fields:
             print("PASS - Test 7: City Context")
             tests_passed += 1
@@ -76,7 +76,7 @@ def run_mock_smoke_tests():
     except Exception as e:
         print(f"FAIL - Test 7: City Context: {e}")
         tests_failed += 1
-    
+
     # Test 8: Invalid City Handling
     try:
         invalid_city = loader.validate_city("InvalidCity")
@@ -89,7 +89,7 @@ def run_mock_smoke_tests():
     except Exception as e:
         print(f"FAIL - Test 8: Invalid City Handling: {e}")
         tests_failed += 1
-    
+
     # Test 9: Use Cases Count
     try:
         city = City.PUNE
@@ -104,22 +104,22 @@ def run_mock_smoke_tests():
     except Exception as e:
         print(f"FAIL - Test 9: Use Cases Count: {e}")
         tests_failed += 1
-    
+
     # Test 10: Data Consistency
     try:
         consistent = True
         for city in City:
             rules = loader.get_city_rules(city)
             context = loader.get_city_context(city)
-            
+
             if rules.city.value != context["city"]:
                 consistent = False
                 break
-            
+
             if rules.fsi_base != context["constraints"]["fsi_base"]:
                 consistent = False
                 break
-        
+
         if consistent:
             print("PASS - Test 10: Data Consistency")
             tests_passed += 1
@@ -129,11 +129,11 @@ def run_mock_smoke_tests():
     except Exception as e:
         print(f"FAIL - Test 10: Data Consistency: {e}")
         tests_failed += 1
-    
+
     # Summary
     total_tests = tests_passed + tests_failed
     success_rate = (tests_passed / total_tests) * 100 if total_tests > 0 else 0
-    
+
     print(f"\n{'='*50}")
     print("MOCK SMOKE TEST SUMMARY")
     print(f"{'='*50}")
@@ -141,7 +141,7 @@ def run_mock_smoke_tests():
     print(f"Passed: {tests_passed}")
     print(f"Failed: {tests_failed}")
     print(f"Success Rate: {success_rate:.1f}%")
-    
+
     if tests_failed == 0:
         print("\nALL MOCK SMOKE TESTS PASSED!")
         return True

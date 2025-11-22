@@ -3,8 +3,8 @@ E2E test configuration and fixtures
 """
 
 import pytest
-from fastapi.testclient import TestClient
 from app.main import app
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -32,5 +32,5 @@ def sample_prompts():
         "Mumbai": "Design a 4-floor residential building with parking",
         "Pune": "Create an IT office park with 3 buildings",
         "Ahmedabad": "Design a textile mill redevelopment project",
-        "Nashik": "Create a wine tourism facility with tasting rooms"
+        "Nashik": "Create a wine tourism facility with tasting rooms",
     }

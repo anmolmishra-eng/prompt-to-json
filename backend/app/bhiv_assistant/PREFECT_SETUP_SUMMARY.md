@@ -9,7 +9,7 @@
 
 ### Directories Created:
 - **`workflows/ingestion/`** - Data ingestion workflows
-- **`workflows/monitoring/`** - System monitoring workflows  
+- **`workflows/monitoring/`** - System monitoring workflows
 - **`workflows/compliance/`** - Compliance checking workflows
 
 ## 🔧 Installation Status
@@ -86,7 +86,7 @@ python -c "from prefect.settings import PREFECT_API_URL; print(f'API URL: {PREFE
 ```
 workflows/
 ├── setup_prefect.sh          # Bash setup script
-├── setup_prefect.bat         # Windows batch script  
+├── setup_prefect.bat         # Windows batch script
 ├── setup_prefect.py          # Python setup script
 ├── ingestion/                 # Data ingestion workflows
 ├── monitoring/                # System monitoring workflows
@@ -117,7 +117,7 @@ PREFECT_WORK_POOL=default-pool
 ## 🎯 Next Steps for Workflow Implementation
 
 1. **Step 3.2**: Create ingestion workflows
-2. **Step 3.3**: Create monitoring workflows  
+2. **Step 3.3**: Create monitoring workflows
 3. **Step 3.4**: Create compliance workflows
 4. **Step 3.5**: Deploy and test workflows
 

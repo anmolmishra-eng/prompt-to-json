@@ -18,7 +18,7 @@
 
 ### Integrated Routers
 1. **BHIV Router** (`/bhiv/v1/*`) - Core orchestration endpoints
-2. **MCP Router** (`/mcp/*`) - Rules and compliance endpoints  
+2. **MCP Router** (`/mcp/*`) - Rules and compliance endpoints
 3. **RL Router** (`/rl/*`) - Feedback and optimization endpoints
 
 ### Core Endpoints
@@ -152,7 +152,7 @@ Step 2.4 Main BHIV App is **COMPLETE** ✅
 
 All integration modules are now complete:
 - ✅ Step 2.1: Integration Config
-- ✅ Step 2.2: MCP Integration  
+- ✅ Step 2.2: MCP Integration
 - ✅ Step 2.3: RL Feedback Integration
 - ✅ Step 2.4: Main BHIV App
 

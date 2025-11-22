@@ -24,8 +24,8 @@ from app.api import (
     switch,
     vr,
 )
-from app.multi_city.city_data_loader import city_router
 from app.config import settings
+from app.multi_city.city_data_loader import city_router
 from app.utils import setup_logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware

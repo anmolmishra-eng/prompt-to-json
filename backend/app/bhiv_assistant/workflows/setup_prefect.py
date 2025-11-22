@@ -3,9 +3,9 @@ Setup Prefect Infrastructure for BHIV Workflows
 Cross-platform Python setup script
 """
 
+import os
 import subprocess
 import sys
-import os
 import time
 from pathlib import Path
 
@@ -34,47 +34,36 @@ def setup_prefect():
     """Setup Prefect infrastructure"""
     print("Setting up Prefect workflow orchestration...")
     print("=" * 60)
-    
+
     # Step 1: Install Prefect packages
     print("\n[1/5] Installing Prefect packages...")
-    packages = [
-        "prefect==2.14.3",
-        "prefect-docker==0.4.1", 
-        "prefect-sqlalchemy==0.2.4"
-    ]
-    
+    packages = ["prefect==2.14.3", "prefect-docker==0.4.1", "prefect-sqlalchemy==0.2.4"]
+
     for package in packages:
         success = run_command(f"pip install {package}", f"Installing {package}")
         if not success:
             print(f"[WARNING] Failed to install {package}, continuing...")
-    
+
     # Step 2: Set API URL
     print("\n[2/5] Configuring Prefect API URL...")
-    run_command(
-        'prefect config set PREFECT_API_URL="http://localhost:4200/api"',
-        "Setting API URL"
-    )
-    
+    run_command('prefect config set PREFECT_API_URL="http://localhost:4200/api"', "Setting API URL")
+
     # Step 3: Create directory structure
     print("\n[3/5] Creating workflow directories...")
     base_dir = Path(__file__).parent
-    directories = [
-        base_dir / "ingestion",
-        base_dir / "monitoring", 
-        base_dir / "compliance"
-    ]
-    
+    directories = [base_dir / "ingestion", base_dir / "monitoring", base_dir / "compliance"]
+
     for directory in directories:
         try:
             directory.mkdir(parents=True, exist_ok=True)
             print(f"[OK] Created directory: {directory}")
         except Exception as e:
             print(f"[ERROR] Failed to create {directory}: {e}")
-    
+
     # Step 4: Check Prefect installation
     print("\n[4/5] Verifying Prefect installation...")
     run_command("prefect version", "Checking Prefect version")
-    
+
     # Step 5: Instructions for manual steps
     print("\n[5/5] Setup complete!")
     print("\n" + "=" * 60)

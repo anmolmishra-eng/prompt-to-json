@@ -16,7 +16,7 @@
 - Lifespan manager with emojis
 - Complex startup logging
 
-# NEW: app/main_bhiv.py  
+# NEW: app/main_bhiv.py
 - Clean production-ready structure
 - Simple, focused implementation
 - Professional logging setup
@@ -27,7 +27,7 @@
 # OLD: Scattered endpoint definitions
 {
     "design": "/bhiv/v1/design",
-    "health": "/bhiv/v1/health", 
+    "health": "/bhiv/v1/health",
     "mcp": "/mcp",
     "rl": "/rl",
     "docs": "/docs"
