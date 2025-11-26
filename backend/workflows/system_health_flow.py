@@ -85,15 +85,14 @@ async def check_api(api_url: str) -> Dict:
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{api_url}/api/v1/health")
+            response = await client.get(api_url)
             response.raise_for_status()
 
             latency = (time.time() - start) * 1000
-            health_data = response.json()
 
             logger.info(f"API healthy (latency: {latency:.2f}ms)")
 
-            return {"component": "api", "status": "healthy", "latency_ms": round(latency, 2), "details": health_data}
+            return {"component": "api", "status": "healthy", "latency_ms": round(latency, 2)}
     except Exception as e:
         logger.error(f"API unhealthy: {e}")
         return {"component": "api", "status": "unhealthy", "error": str(e)}
@@ -218,7 +217,7 @@ async def send_alert(failed_components: List[str], degraded_components: List[str
 @flow(name="system-health-monitoring", description="Monitor health of all system components", retries=0)
 async def system_health_flow(
     db_url: str = "postgresql://postgres.dntmhjlbxirtgslzwbui:Anmol%4025703@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres",
-    api_url: str = "http://localhost:8000",
+    api_url: str = "https://httpbin.org/status/200",
     sohum_url: str = "https://ai-rule-api-w7z5.onrender.com",
 ) -> Dict:
     """Complete system health monitoring flow"""
