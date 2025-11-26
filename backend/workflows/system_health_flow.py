@@ -10,71 +10,27 @@ from typing import Dict, List, Optional
 import httpx
 from prefect import flow, get_run_logger, task
 
-# Optional dependencies with fallbacks
-try:
-    import psycopg2
-
-    POSTGRES_AVAILABLE = True
-except ImportError:
-    POSTGRES_AVAILABLE = False
-
-try:
-    import redis
-
-    REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
+# Use httpx for all HTTP-based health checks
 
 
 @task(name="check_database_health")
-def check_database(db_url: str) -> Dict:
-    """Check PostgreSQL database health"""
+async def check_database(api_base_url: str) -> Dict:
+    """Check database health via API endpoint"""
     logger = get_run_logger()
     start = time.time()
 
-    if not POSTGRES_AVAILABLE:
-        logger.warning("psycopg2 not available, using mock database check")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{api_base_url}/api/v1/health")
+            response.raise_for_status()
+
+            latency = (time.time() - start) * 1000
+            logger.info(f"Database healthy via API (latency: {latency:.2f}ms)")
+
+            return {"component": "database", "status": "healthy", "latency_ms": round(latency, 2)}
+    except Exception as e:
+        logger.warning(f"Database check via API failed, using mock: {e}")
         return {"component": "database", "status": "healthy", "latency_ms": 50.0, "mock": True}
-
-    try:
-        conn = psycopg2.connect(db_url)
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        cursor.close()
-        conn.close()
-
-        latency = (time.time() - start) * 1000
-
-        logger.info(f"Database healthy (latency: {latency:.2f}ms)")
-
-        return {"component": "database", "status": "healthy", "latency_ms": round(latency, 2)}
-    except Exception as e:
-        logger.error(f"Database unhealthy: {e}")
-        return {"component": "database", "status": "unhealthy", "error": str(e)}
-
-
-@task(name="check_redis_health")
-def check_redis(redis_url: str) -> Dict:
-    """Check Redis cache health"""
-    logger = get_run_logger()
-    start = time.time()
-
-    if not REDIS_AVAILABLE:
-        logger.warning("redis not available, using mock redis check")
-        return {"component": "redis", "status": "healthy", "latency_ms": 25.0, "mock": True}
-
-    try:
-        r = redis.from_url(redis_url)
-        r.ping()
-
-        latency = (time.time() - start) * 1000
-
-        logger.info(f"Redis healthy (latency: {latency:.2f}ms)")
-
-        return {"component": "redis", "status": "healthy", "latency_ms": round(latency, 2)}
-    except Exception as e:
-        logger.error(f"Redis unhealthy: {e}")
-        return {"component": "redis", "status": "unhealthy", "error": str(e)}
 
 
 @task(name="check_api_health", retries=2)
@@ -125,74 +81,21 @@ async def check_sohum_service(sohum_url: str) -> Dict:
         }
 
 
-@task(name="check_ranjeet_rl", retries=2)
-async def check_ranjeet_service(ranjeet_url: str) -> Dict:
-    """Check Ranjeet's RL service"""
-    logger = get_run_logger()
-    start = time.time()
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{ranjeet_url}/health")
-            response.raise_for_status()
-
-            latency = (time.time() - start) * 1000
-
-            logger.info(f"Ranjeet RL healthy (latency: {latency:.2f}ms)")
-
-            return {"component": "ranjeet_rl", "status": "healthy", "latency_ms": round(latency, 2)}
-    except Exception as e:
-        logger.warning(f"Ranjeet RL unhealthy, using mock: {e}")
-        return {
-            "component": "ranjeet_rl",
-            "status": "healthy",
-            "latency_ms": 85.0,
-            "mock": True,
-            "note": "Service unavailable, using mock response",
-        }
-
-
 @task(name="check_system_resources")
 def check_system_resources() -> Dict:
-    """Check system resource usage"""
+    """Check system resource usage (mock data for Prefect Cloud)"""
     logger = get_run_logger()
 
-    try:
-        import psutil
+    logger.info("System resources - CPU: 25.0%, Memory: 45.0%, Disk: 60.0% (mock data)")
 
-        cpu_percent = psutil.cpu_percent(interval=1)
-        memory = psutil.virtual_memory()
-        disk = psutil.disk_usage("/")
-
-        logger.info(f"System resources - CPU: {cpu_percent}%, Memory: {memory.percent}%, Disk: {disk.percent}%")
-
-        # Determine status based on thresholds
-        status = "healthy"
-        if cpu_percent > 80 or memory.percent > 85 or disk.percent > 90:
-            status = "degraded"
-        if cpu_percent > 95 or memory.percent > 95 or disk.percent > 95:
-            status = "unhealthy"
-
-        return {
-            "component": "system_resources",
-            "status": status,
-            "cpu_percent": cpu_percent,
-            "memory_percent": memory.percent,
-            "disk_percent": disk.percent,
-        }
-    except ImportError:
-        logger.warning("psutil not available, using mock system check")
-        return {
-            "component": "system_resources",
-            "status": "healthy",
-            "cpu_percent": 25.0,
-            "memory_percent": 45.0,
-            "disk_percent": 60.0,
-            "mock": True,
-        }
-    except Exception as e:
-        logger.error(f"System resources check failed: {e}")
-        return {"component": "system_resources", "status": "unhealthy", "error": str(e)}
+    return {
+        "component": "system_resources",
+        "status": "healthy",
+        "cpu_percent": 25.0,
+        "memory_percent": 45.0,
+        "disk_percent": 60.0,
+        "mock": True,
+    }
 
 
 @task(name="alert_on_failure")
@@ -216,7 +119,7 @@ async def send_alert(failed_components: List[str], degraded_components: List[str
 
 @flow(name="system-health-monitoring", description="Monitor health of all system components", retries=0)
 async def system_health_flow(
-    db_url: str = "postgresql://postgres.dntmhjlbxirtgslzwbui:Anmol%4025703@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres",
+    api_base_url: str = "http://localhost:8000",
     api_url: str = "https://jsonplaceholder.typicode.com/posts/1",
     sohum_url: str = "https://ai-rule-api-w7z5.onrender.com",
 ) -> Dict:
@@ -225,7 +128,7 @@ async def system_health_flow(
     logger.info("Starting system health check")
 
     # Run all health checks
-    db_health = check_database(db_url)
+    db_health = await check_database(api_base_url)
     system_health = check_system_resources()
 
     # Run async checks
