@@ -1,7 +1,7 @@
 import logging
 
 from app.database import get_current_user, get_db
-from app.models import Evaluation, Iteration, RLHFFeedback, RLHFPreferences, Spec
+from app.models import Evaluation, Iteration, RLFeedback, Spec
 from app.storage import supabase
 from app.utils import log_audit_event
 from fastapi import APIRouter, Depends, HTTPException
@@ -27,8 +27,7 @@ async def export_user_data(
     specs = db.query(Spec).filter(Spec.user_id == user_id).all()
     evaluations = db.query(Evaluation).filter(Evaluation.user_id == user_id).all()
     iterations = db.query(Iteration).join(Spec).filter(Spec.user_id == user_id).all()
-    rlhf_feedback = db.query(RLHFFeedback).filter(RLHFFeedback.user_id == user_id).all()
-    rlhf_preferences = db.query(RLHFPreferences).filter(RLHFPreferences.user_id == user_id).all()
+    rl_feedback = db.query(RLFeedback).filter(RLFeedback.user_id == user_id).all()
 
     # Format export data
     export_data = {
@@ -65,9 +64,8 @@ async def export_user_data(
                 }
                 for iter in iterations
             ],
-            "rlhf_data": {
-                "feedback_count": len(rlhf_feedback),
-                "preferences_count": len(rlhf_preferences),
+            "rl_data": {
+                "feedback_count": len(rl_feedback),
             },
         },
     }
@@ -96,8 +94,7 @@ async def delete_user_data(
         spec_ids = [spec.spec_id for spec in specs]
 
         # Delete from database (cascading deletes will handle related records)
-        db.query(RLHFFeedback).filter(RLHFFeedback.user_id == user_id).delete()
-        db.query(RLHFPreferences).filter(RLHFPreferences.user_id == user_id).delete()
+        db.query(RLFeedback).filter(RLFeedback.user_id == user_id).delete()
         db.query(Evaluation).filter(Evaluation.user_id == user_id).delete()
 
         # Delete iterations for user specs

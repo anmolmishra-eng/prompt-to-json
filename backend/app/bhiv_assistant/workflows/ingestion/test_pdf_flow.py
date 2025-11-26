@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 
-from pdf_to_mcp_flow import PDFIngestionConfig, pdf_ingestion_flow
+from .pdf_to_mcp_flow import PDFIngestionConfig, pdf_ingestion_flow
 
 
 async def test_pdf_workflow():

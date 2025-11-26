@@ -1,5 +1,9 @@
+"""
+Storage Module - Supabase Storage Integration
+Handles file uploads, previews, and signed URLs
+"""
 import logging
-import uuid
+import mimetypes
 from typing import Optional
 
 from app.config import settings
@@ -8,79 +12,251 @@ from supabase import Client, create_client
 logger = logging.getLogger(__name__)
 
 # Initialize Supabase client
-supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+
+# ============================================================================
+# BUCKET MANAGEMENT
+# ============================================================================
 
 
-async def upload_to_bucket(bucket: str, path: str, data: bytes) -> dict:
-    """Upload file to Supabase bucket"""
+def ensure_buckets_exist():
+    """
+    Ensure all required storage buckets exist
+    Creates them if they don't exist
+    """
+    required_buckets = [
+        settings.STORAGE_BUCKET_FILES,
+        settings.STORAGE_BUCKET_PREVIEWS,
+        settings.STORAGE_BUCKET_GEOMETRY,
+        settings.STORAGE_BUCKET_COMPLIANCE,
+    ]
+
     try:
-        result = supabase.storage.from_(bucket).upload(path, data)
-        logger.info(f"Uploaded to {bucket}/{path}")
-        return result
+        # Get existing buckets
+        existing = supabase.storage.list_buckets()
+        existing_names = [b.name for b in existing] if hasattr(existing, "__iter__") else []
+
+        # Create missing buckets
+        for bucket in required_buckets:
+            if bucket not in existing_names:
+                supabase.storage.create_bucket(bucket, options={"public": False})  # Private by default
+                logger.info(f"Created bucket: {bucket}")
+            else:
+                logger.info(f"Bucket exists: {bucket}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to ensure buckets: {e}")
+        return False
+
+
+# ============================================================================
+# FILE UPLOAD
+# ============================================================================
+
+
+def upload_file(file_path: str, bucket: str, destination_path: str, content_type: Optional[str] = None) -> str:
+    """
+    Upload file to Supabase storage
+
+    Args:
+        file_path: Local file path
+        bucket: Target bucket name
+        destination_path: Path in bucket (e.g., "users/123/file.pdf")
+        content_type: MIME type (auto-detected if None)
+
+    Returns:
+        Public URL or signed URL
+    """
+    try:
+        # Auto-detect content type
+        if not content_type:
+            content_type, _ = mimetypes.guess_type(file_path)
+            content_type = content_type or "application/octet-stream"
+
+        # Read file
+        with open(file_path, "rb") as f:
+            file_data = f.read()
+
+        # Upload to Supabase
+        result = supabase.storage.from_(bucket).upload(
+            destination_path, file_data, file_options={"content-type": content_type}
+        )
+
+        # Get public URL
+        url = supabase.storage.from_(bucket).get_public_url(destination_path)
+
+        logger.info(f"Uploaded: {destination_path} to {bucket}")
+        return url
+
     except Exception as e:
         logger.error(f"Upload failed: {e}")
-
-        # Check if it's a bucket not found error
-        if "Bucket not found" in str(e):
-            raise Exception(
-                f"Supabase bucket '{bucket}' not found. "
-                f"Please create the bucket in your Supabase dashboard: "
-                f"https://supabase.com/dashboard -> Storage -> Create bucket '{bucket}'"
-            )
-
-        raise Exception(f"Upload to {bucket}/{path} failed: {e}")
+        raise
 
 
-async def get_signed_url(bucket: str, path: str, expires: int = 600) -> str:
-    """Get signed URL for secure file access"""
+def upload_preview(spec_id: str, preview_data: bytes, format: str = "png") -> str:
+    """
+    Upload design preview image
+
+    Args:
+        spec_id: Specification ID
+        preview_data: Image bytes
+        format: Image format (png, jpg)
+
+    Returns:
+        Preview URL
+    """
+    destination = f"previews/{spec_id}.{format}"
+
     try:
-        resp = supabase.storage.from_(bucket).create_signed_url(path, expires)
-        signed_url = resp.get("signedURL")
-        logger.info(f"Generated signed URL for {bucket}/{path}, expires in {expires}s")
-        return signed_url
+        result = supabase.storage.from_(settings.STORAGE_BUCKET_PREVIEWS).upload(
+            destination, preview_data, file_options={"content-type": f"image/{format}"}
+        )
+
+        url = supabase.storage.from_(settings.STORAGE_BUCKET_PREVIEWS).get_public_url(destination)
+
+        logger.info(f"Preview uploaded: {spec_id}")
+        return url
+
+    except Exception as e:
+        logger.error(f"Preview upload failed: {e}")
+        raise
+
+
+def upload_geometry(spec_id: str, glb_data: bytes) -> str:
+    """
+    Upload .GLB geometry file
+
+    Args:
+        spec_id: Specification ID
+        glb_data: GLB file bytes
+
+    Returns:
+        Geometry URL
+    """
+    destination = f"geometry/{spec_id}.glb"
+
+    try:
+        result = supabase.storage.from_(settings.STORAGE_BUCKET_GEOMETRY).upload(
+            destination, glb_data, file_options={"content-type": "model/gltf-binary"}
+        )
+
+        url = supabase.storage.from_(settings.STORAGE_BUCKET_GEOMETRY).get_public_url(destination)
+
+        logger.info(f"Geometry uploaded: {spec_id}")
+        return url
+
+    except Exception as e:
+        logger.error(f"Geometry upload failed: {e}")
+        raise
+
+
+# ============================================================================
+# SIGNED URLS
+# ============================================================================
+
+
+def generate_signed_url(file_path: str, bucket: Optional[str] = None, expires_in: int = 3600) -> str:
+    """
+    Generate signed URL for private file access
+
+    Args:
+        file_path: Full URL or path in bucket
+        bucket: Bucket name (auto-detected if None)
+        expires_in: Expiration time in seconds
+
+    Returns:
+        Signed URL
+    """
+    try:
+        # If full URL provided, extract path and bucket
+        if file_path.startswith("http"):
+            # Extract bucket and path from URL
+            parts = file_path.split("/storage/v1/object/public/")
+            if len(parts) > 1:
+                bucket_and_path = parts[1].split("/", 1)
+                bucket = bucket_and_path[0]
+                file_path = bucket_and_path[1]
+
+        if not bucket:
+            raise ValueError("Bucket name required")
+
+        # Generate signed URL
+        signed_url = supabase.storage.from_(bucket).create_signed_url(file_path, expires_in)
+
+        return signed_url["signedURL"]
+
     except Exception as e:
         logger.error(f"Signed URL generation failed: {e}")
-        raise Exception(f"Failed to generate signed URL for {bucket}/{path}: {e}")
+        return file_path  # Return original URL as fallback
 
 
-# Bucket-specific upload functions
-async def upload_preview(spec_id: str, preview_bytes: bytes) -> str:
-    """Upload preview GLB file"""
-    path = f"{spec_id}.glb"
-    await upload_to_bucket("previews", path, preview_bytes)
-    return await get_signed_url("previews", path, expires=600)
+# ============================================================================
+# FILE MANAGEMENT
+# ============================================================================
 
 
-async def upload_geometry(spec_id: str, geometry_bytes: bytes, file_type: str = "stl") -> str:
-    """Upload geometry STL file"""
-    path = f"{spec_id}.{file_type}"
-    await upload_to_bucket("geometry", path, geometry_bytes)
-    return await get_signed_url("geometry", path, expires=600)
+def delete_file(file_path: str, bucket: str) -> bool:
+    """Delete file from storage"""
+    try:
+        supabase.storage.from_(bucket).remove([file_path])
+        logger.info(f"Deleted: {file_path} from {bucket}")
+        return True
+    except Exception as e:
+        logger.error(f"Delete failed: {e}")
+        return False
 
 
-async def upload_compliance(case_id: str, compliance_bytes: bytes) -> str:
-    """Upload compliance ZIP file"""
-    path = f"{case_id}.zip"
-    await upload_to_bucket("compliance", path, compliance_bytes)
-    return await get_signed_url("compliance", path, expires=600)
+def list_files(bucket: str, path: str = "") -> list:
+    """List files in bucket path"""
+    try:
+        files = supabase.storage.from_(bucket).list(path)
+        return files
+    except Exception as e:
+        logger.error(f"List failed: {e}")
+        return []
 
 
-class StorageManager:
-    def __init__(self):
-        self.client = supabase
-        self.bucket = settings.SUPABASE_BUCKET
-
-    async def upload_file(self, file_content: bytes, filename: str) -> str:
-        """Upload file and return file path"""
-        file_id = str(uuid.uuid4())
-        file_path = f"{file_id}_{filename}"
-
-        await upload_to_bucket(self.bucket, file_path, file_content)
-        return file_path
-
-    async def get_signed_url(self, file_path: str, expires_in: int = 600) -> str:
-        """Generate signed URL for file access"""
-        return await get_signed_url(self.bucket, file_path, expires_in)
+# ============================================================================
+# INITIALIZATION
+# ============================================================================
 
 
-storage_manager = StorageManager()
+def init_storage():
+    """Initialize storage system on startup"""
+    logger.info("Initializing Supabase storage...")
+    success = ensure_buckets_exist()
+    if success:
+        logger.info("Storage initialization complete")
+    else:
+        logger.warning("Storage initialization had errors")
+    return success
+
+
+# ============================================================================
+# COMPATIBILITY ALIASES
+# ============================================================================
+
+
+def get_signed_url(bucket: str, file_path: str, expires: int = 3600) -> str:
+    """Alias for generate_signed_url for backward compatibility"""
+    return generate_signed_url(file_path, bucket, expires)
+
+
+async def upload_to_bucket(bucket: str, file_path: str, data: bytes) -> str:
+    """Upload data to bucket (async wrapper)"""
+    try:
+        result = supabase.storage.from_(bucket).upload(
+            file_path, data, file_options={"content-type": "application/octet-stream"}
+        )
+        url = supabase.storage.from_(bucket).get_public_url(file_path)
+        return url
+    except Exception as e:
+        logger.error(f"Upload to bucket failed: {e}")
+        raise
+
+
+# Run initialization
+if __name__ != "__main__":
+    init_storage()

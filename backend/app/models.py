@@ -1,71 +1,440 @@
-import datetime
+"""
+Complete SQLAlchemy Database Models
+All tables with relationships, indexes, and constraints
+"""
+import uuid
+from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
 
-class Spec(Base):
-    __tablename__ = "specs"
-    spec_id = Column(String, primary_key=True)
-    user_id = Column(String, index=True)
-    project_id = Column(String, index=True)
-    prompt = Column(Text)
-    spec_json = Column(JSON)
-    spec_version = Column(Integer, default=1)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+def generate_uuid():
+    """Generate UUID4 string"""
+    return str(uuid.uuid4())
 
 
-class Evaluation(Base):
-    __tablename__ = "evaluations"
-    eval_id = Column(String, primary_key=True)
-    spec_id = Column(String, ForeignKey("specs.spec_id"))
-    user_id = Column(String, index=True)
-    score = Column(Integer)
-    notes = Column(Text)
-    ts = Column(DateTime, default=datetime.datetime.utcnow)
+def utc_now():
+    """Get current UTC timestamp"""
+    return datetime.now(timezone.utc)
 
 
-class Iteration(Base):
-    __tablename__ = "iterations"
-    iter_id = Column(String, primary_key=True)
-    spec_id = Column(String, ForeignKey("specs.spec_id"))
-    before_spec = Column(JSON)
-    after_spec = Column(JSON)
-    feedback = Column(Text)
-    ts = Column(DateTime, default=datetime.datetime.utcnow)
-
-
-class RLHFFeedback(Base):
-    __tablename__ = "rlhf_feedback"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(String, index=True)
-    spec_a_id = Column(String, ForeignKey("specs.spec_id"))  # First design
-    spec_b_id = Column(String, ForeignKey("specs.spec_id"))  # Second design
-    preference = Column(String)  # "A", "B", or "tie"
-    feedback_text = Column(Text)  # Optional text feedback
-    rating_a = Column(Integer)  # 1-5 rating for design A
-    rating_b = Column(Integer)  # 1-5 rating for design B
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-
-
-class RLHFPreferences(Base):
-    __tablename__ = "rlhf_preferences"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(String, index=True)
-    preference_type = Column(String)  # "style", "material", "layout", etc.
-    preference_value = Column(String)  # The preferred value
-    confidence = Column(Integer)  # 1-5 confidence score
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+# ============================================================================
+# USER & AUTHENTICATION MODELS
+# ============================================================================
 
 
 class User(Base):
+    """User accounts and authentication"""
+
     __tablename__ = "users"
-    id = Column(String, primary_key=True)
-    username = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    full_name = Column(String(100))
+    phone = Column(String(20))
+    company = Column(String(100))
+
+    # Status
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    is_admin = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=False)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    last_login = Column(DateTime(timezone=True))
+
+    # Relationships
+    specs = relationship("Spec", back_populates="user", cascade="all, delete-orphan")
+    iterations = relationship("Iteration", back_populates="user", cascade="all, delete-orphan")
+    evaluations = relationship("Evaluation", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    audit_logs = relationship("AuditLog", back_populates="user")
+
+    def __repr__(self):
+        return f"<User {self.username}>"
+
+
+class RefreshToken(Base):
+    """JWT refresh tokens for long-lived authentication"""
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token = Column(String(255), unique=True, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Expiration & Revocation
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    is_revoked = Column(Boolean, default=False, index=True)
+    revoked_at = Column(DateTime(timezone=True))
+    revoked_reason = Column(String(100))
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    ip_address = Column(String(45))  # IPv6 compatible
+    user_agent = Column(String(255))
+
+    # Relationships
+    user = relationship("User", back_populates="refresh_tokens")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_refresh_tokens_user_active", "user_id", "is_revoked"),
+        Index("ix_refresh_tokens_expires", "expires_at"),
+    )
+
+    def __repr__(self):
+        return f"<RefreshToken {self.token[:8]}... user={self.user_id}>"
+
+
+# ============================================================================
+# DESIGN SPECIFICATION MODELS
+# ============================================================================
+
+
+class Spec(Base):
+    """Design specifications generated by LM"""
+
+    __tablename__ = "specs"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(String, index=True)
+
+    # Prompt & Generation
+    prompt = Column(Text, nullable=False)
+    city = Column(String(50), nullable=False, index=True)
+    spec_json = Column(JSON, nullable=False)
+    design_type = Column(String(50), index=True)  # kitchen, house, office, etc.
+
+    # Preview & Storage
+    preview_url = Column(String(512))
+    geometry_url = Column(String(512))
+
+    # Cost & Compliance
+    estimated_cost = Column(Float)
+    currency = Column(String(3), default="INR")
+    compliance_status = Column(String(20), default="pending", index=True)
+
+    # Status
+    status = Column(String(20), default="draft", index=True)  # draft, final, archived, deleted
+    version = Column(Integer, default=1)
+
+    # Metadata
+    generation_time_ms = Column(Integer)
+    lm_provider = Column(String(20))  # local, yotta
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    user = relationship("User", back_populates="specs")
+    iterations = relationship("Iteration", back_populates="spec", cascade="all, delete-orphan")
+    evaluations = relationship("Evaluation", back_populates="spec", cascade="all, delete-orphan")
+    compliance_checks = relationship("ComplianceCheck", back_populates="spec", cascade="all, delete-orphan")
+    rl_feedback = relationship("RLFeedback", back_populates="spec")
+
+    # Indexes & Constraints
+    __table_args__ = (
+        Index("ix_specs_user_created", "user_id", "created_at"),
+        Index("ix_specs_city_type", "city", "design_type"),
+        Index("ix_specs_project", "project_id"),
+        CheckConstraint("estimated_cost >= 0", name="check_cost_positive"),
+    )
+
+    def __repr__(self):
+        return f"<Spec {self.id[:8]}... type={self.design_type} city={self.city}>"
+
+
+class Iteration(Base):
+    """Material/property changes to specs"""
+
+    __tablename__ = "iterations"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    spec_id = Column(String, ForeignKey("specs.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Change Request
+    query = Column(Text, nullable=False)
+    nlp_confidence = Column(Float)
+
+    # Changes Made
+    diff = Column(JSON, nullable=False)
+    spec_json = Column(JSON, nullable=False)
+    changed_objects = Column(Text)  # JSON string for SQLite compatibility
+
+    # Preview & Cost
+    preview_url = Column(String(512))
+    cost_delta = Column(Float)
+    new_total_cost = Column(Float)
+
+    # Metadata
+    processing_time_ms = Column(Integer)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    # Relationships
+    spec = relationship("Spec", back_populates="iterations")
+    user = relationship("User", back_populates="iterations")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_iterations_spec_created", "spec_id", "created_at"),
+        Index("ix_iterations_user", "user_id"),
+    )
+
+    def __repr__(self):
+        return f"<Iteration {self.id[:8]}... spec={self.spec_id[:8]}...>"
+
+
+class Evaluation(Base):
+    """User feedback/ratings on designs"""
+
+    __tablename__ = "evaluations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    spec_id = Column(String, ForeignKey("specs.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Rating
+    rating = Column(Float, nullable=False)
+    notes = Column(Text)
+
+    # Aspect Ratings
+    aspects = Column(JSON)  # {aesthetics: 4.5, compliance: 5.0, cost: 3.5}
+
+    # Tags
+    tags = Column(Text)  # JSON string for SQLite compatibility
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    # Relationships
+    spec = relationship("Spec", back_populates="evaluations")
+    user = relationship("User", back_populates="evaluations")
+
+    # Indexes & Constraints
+    __table_args__ = (
+        Index("ix_evaluations_spec", "spec_id"),
+        Index("ix_evaluations_user", "user_id"),
+        CheckConstraint("rating >= 0 AND rating <= 5", name="check_rating_range"),
+    )
+
+    def __repr__(self):
+        return f"<Evaluation spec={self.spec_id[:8]}... rating={self.rating}>"
+
+
+# ============================================================================
+# COMPLIANCE MODELS
+# ============================================================================
+
+
+class ComplianceCheck(Base):
+    """Compliance verification results from Sohum's MCP"""
+
+    __tablename__ = "compliance_checks"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    spec_id = Column(String, ForeignKey("specs.id", ondelete="CASCADE"), nullable=False)
+
+    # External Reference
+    case_id = Column(String, unique=True, index=True)
+
+    # Check Details
+    city = Column(String(50), nullable=False, index=True)
+    case_type = Column(String(50), nullable=False)  # zoning, setback, fsi, height, parking
+
+    # Status
+    status = Column(String(20), default="pending", index=True, nullable=False)
+
+    # Results
+    result = Column(JSON)
+    compliant = Column(Boolean)
+    confidence_score = Column(Float)
+
+    # Violations
+    violations = Column(JSON)  # List of violations with details
+    recommendations = Column(JSON)
+
+    # Geometry
+    geometry_url = Column(String(512))
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+
+    # Relationships
+    spec = relationship("Spec", back_populates="compliance_checks")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_compliance_spec_status", "spec_id", "status"),
+        Index("ix_compliance_city_type", "city", "case_type"),
+        Index("ix_compliance_created", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<ComplianceCheck {self.id[:8]}... case={self.case_id} status={self.status}>"
+
+
+# ============================================================================
+# RL FEEDBACK MODELS
+# ============================================================================
+
+
+class RLFeedback(Base):
+    """Reinforcement learning feedback data"""
+
+    __tablename__ = "rl_feedback"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, nullable=False, index=True)
+    spec_id = Column(String, ForeignKey("specs.id", ondelete="SET NULL"), index=True)
+
+    # Input
+    prompt = Column(Text, nullable=False)
+    context = Column(JSON)
+
+    # Output
+    spec_json = Column(JSON, nullable=False)
+
+    # Scores
+    rl_score = Column(Float)  # Model's predicted score
+    user_rating = Column(Float)  # User's actual rating
+    reward = Column(Float)  # Calculated reward signal
+
+    # Feedback Type
+    feedback_type = Column(String(20), default="implicit", index=True)  # implicit, explicit
+
+    # Training
+    used_for_training = Column(Boolean, default=False)
+    training_batch_id = Column(String)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+
+    # Relationships
+    spec = relationship("Spec", back_populates="rl_feedback")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_rl_feedback_user_created", "user_id", "created_at"),
+        Index("ix_rl_feedback_training", "used_for_training"),
+    )
+
+    def __repr__(self):
+        return f"<RLFeedback spec={self.spec_id[:8] if self.spec_id else 'None'}... score={self.rl_score}>"
+
+
+# ============================================================================
+# AUDIT & LOGGING MODELS
+# ============================================================================
+
+
+class AuditLog(Base):
+    """Audit trail for security and compliance"""
+
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Actor
+    user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), index=True)
+
+    # Action
+    action = Column(String(100), nullable=False, index=True)
+    resource_type = Column(String(50), index=True)
+    resource_id = Column(String)
+
+    # Details
+    details = Column(JSON)
+    status = Column(String(20))  # success, failure, error
+    error_message = Column(Text)
+
+    # Request Info
+    ip_address = Column(String(45))
+    user_agent = Column(String(255))
+    request_id = Column(String(50), index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+
+    # Relationships
+    user = relationship("User", back_populates="audit_logs")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_audit_user_action", "user_id", "action"),
+        Index("ix_audit_resource", "resource_type", "resource_id"),
+        Index("ix_audit_status", "status"),
+    )
+
+    def __repr__(self):
+        return f"<AuditLog {self.action} user={self.user_id} at={self.created_at}>"
+
+
+# ============================================================================
+# PREFECT WORKFLOW TRACKING
+# ============================================================================
+
+
+class WorkflowRun(Base):
+    """Track Prefect workflow executions"""
+
+    __tablename__ = "workflow_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Workflow Info
+    flow_name = Column(String(100), nullable=False, index=True)
+    flow_run_id = Column(String(100), unique=True, index=True)
+    deployment_name = Column(String(100))
+
+    # Execution
+    status = Column(String(20), index=True)  # scheduled, running, completed, failed, cancelled
+    parameters = Column(JSON)
+    result = Column(JSON)
+    error = Column(Text)
+
+    # Timestamps
+    scheduled_at = Column(DateTime(timezone=True))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    duration_seconds = Column(Float)
+
+    # Created
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_workflow_flow_status", "flow_name", "status"),
+        Index("ix_workflow_created", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<WorkflowRun {self.flow_name} status={self.status}>"

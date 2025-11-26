@@ -7,7 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 
 # Prefect 3.x uses different scheduling approach
-from log_aggregation_flow import LogConfig, log_aggregation_flow
+from .log_aggregation_flow import LogConfig, log_aggregation_flow
 
 
 async def deploy_log_aggregation_flow():

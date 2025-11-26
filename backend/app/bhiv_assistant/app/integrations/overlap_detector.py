@@ -5,7 +5,7 @@ Advanced overlap detection for system components
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
 
-from system_analyzer import SystemAnalyzer, SystemComponent
+from .system_analyzer import SystemAnalyzer, SystemComponent
 
 
 @dataclass

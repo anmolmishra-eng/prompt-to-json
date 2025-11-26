@@ -19,7 +19,7 @@ router = APIRouter()
 async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Submit RL feedback for training"""
     # Validate spec IDs exist before saving
-    from app.models import RLHFFeedback, Spec
+    from app.models import RLFeedback, Spec
 
     # Handle both field name formats
     spec_a_id = feedback.get("design_a_id") or feedback.get("spec_a_id")
@@ -32,14 +32,13 @@ async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Sessio
         raise HTTPException(400, "One or both spec IDs not found")
 
     # Save feedback to database
-    feedback_record = RLHFFeedback(
+    feedback_record = RLFeedback(
         user_id=feedback.get("user_id", user),
-        spec_a_id=spec_a_id,
-        spec_b_id=spec_b_id,
-        preference=feedback.get("preference"),
-        feedback_text=feedback.get("reason") or feedback.get("feedback_text"),
-        rating_a=feedback.get("rating_a", 3),
-        rating_b=feedback.get("rating_b", 3),
+        spec_id=spec_a_id,  # Use the primary spec
+        prompt="Feedback comparison",
+        spec_json=spec_a.spec_json,
+        user_rating=feedback.get("rating_a", 3),
+        feedback_type="explicit",
     )
     db.add(feedback_record)
     db.commit()
@@ -147,6 +146,43 @@ async def train_opt_ep(params: dict, user=Depends(get_current_user)):
             error_details = traceback.format_exc()
             logger.error(f"PPO training failed: {e}\n{error_details}")
             raise HTTPException(500, f"PPO training failed: {str(e)}")
+
+
+@router.post("/rl/optimize")
+async def rl_optimize(req: dict, user=Depends(get_current_user)):
+    """
+    RL optimization endpoint for BHIV Assistant
+    Request: {"spec_json": {...}, "prompt": "...", "city": "Mumbai", "mode": "optimize"}
+    """
+    try:
+        spec_json = req.get("spec_json", {})
+        prompt = req.get("prompt", "Optimize design")
+        city = req.get("city", "Mumbai")
+        mode = req.get("mode", "optimize")
+
+        logger.info(f"RL optimization request for {city}: {mode}")
+
+        # Mock optimization response
+        optimized_layout = {
+            "layout_type": "optimized",
+            "efficiency_score": 0.92,
+            "space_utilization": 0.88,
+            "cost_optimization": 0.85,
+            "city": city,
+            "optimization_notes": f"RL-optimized layout for {city} based on: {prompt[:50]}...",
+        }
+
+        return {
+            "optimized_layout": optimized_layout,
+            "confidence": 0.87,
+            "reward_score": 0.91,
+            "status": "success",
+            "processing_time_ms": 150,
+        }
+
+    except Exception as e:
+        logger.error(f"RL optimization failed: {e}")
+        raise HTTPException(500, f"RL optimization failed: {str(e)}")
 
 
 @router.post("/rl/suggest/iterate")

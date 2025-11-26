@@ -45,7 +45,16 @@ async def verify_glb_file(glb_path: Path, max_size_mb: float) -> Dict:
     - Basic geometry validation
     """
     try:
-        import trimesh
+        if trimesh is None:
+            logger.warning("Trimesh not available, skipping geometry validation")
+            return {
+                "filename": glb_path.name,
+                "file_size_mb": round(glb_path.stat().st_size / (1024 * 1024), 2),
+                "size_ok": True,
+                "is_valid": False,
+                "status": "skip",
+                "issues": ["Trimesh not available"],
+            }
 
         # Check file size
         file_size_mb = glb_path.stat().st_size / (1024 * 1024)

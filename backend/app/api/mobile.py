@@ -1,7 +1,9 @@
 from app.api.evaluate import evaluate
-from app.api.generate import generate
+
+# from app.api.generate import generate  # Avoid circular import
 from app.api.iterate import iterate
-from app.api.switch import switch
+
+# from app.api.switch import switch  # Avoid circular import
 from app.database import get_current_user, get_db
 from app.schemas import EvaluateRequest, GenerateRequest, IterateRequest, SwitchRequest
 from fastapi import APIRouter, Depends
@@ -17,7 +19,10 @@ async def mobile_generate(
     db: Session = Depends(get_db),
 ):
     """Mobile wrapper for generate endpoint"""
-    return await generate(req, current_user, db)
+    # Import locally to avoid circular dependency
+    from app.api.generate import generate_design
+
+    return await generate_design(req, db)
 
 
 @router.post("/mobile/evaluate")
@@ -47,7 +52,10 @@ async def mobile_switch(
     db: Session = Depends(get_db),
 ):
     """Mobile wrapper for switch endpoint"""
-    return await switch(req, current_user, db)
+    # Import locally to avoid circular dependency
+    from app.api.switch import switch_material
+
+    return await switch_material(req, db)
 
 
 @router.get("/mobile/health")
