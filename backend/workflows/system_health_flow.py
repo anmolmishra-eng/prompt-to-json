@@ -21,7 +21,7 @@ async def check_database(api_base_url: str) -> Dict:
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{api_base_url}/api/v1/health")
+            response = await client.get(f"{api_base_url}/posts/1")
             response.raise_for_status()
 
             latency = (time.time() - start) * 1000
@@ -119,7 +119,7 @@ async def send_alert(failed_components: List[str], degraded_components: List[str
 
 @flow(name="system-health-monitoring", description="Monitor health of all system components", retries=0)
 async def system_health_flow(
-    api_base_url: str = "http://localhost:8000",
+    api_base_url: str = "https://jsonplaceholder.typicode.com",
     api_url: str = "https://jsonplaceholder.typicode.com/posts/1",
     sohum_url: str = "https://ai-rule-api-w7z5.onrender.com",
 ) -> Dict:
