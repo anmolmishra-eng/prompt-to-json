@@ -22,8 +22,8 @@ pull:
   - prefect.deployments.steps.git_clone:
       repository: https://github.com/anmolmishra-eng/prompt-to-json.git
       branch: main
-  - prefect.deployments.steps.pip_install_requirements:
-      requirements_file: backend/workflows/requirements.txt
+  - prefect.deployments.steps.run_shell_script:
+      script: pip install -r backend/workflows/requirements.txt
 
 # Deployment configurations
 deployments:
