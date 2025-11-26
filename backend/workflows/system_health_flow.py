@@ -216,7 +216,13 @@ async def send_alert(failed_components: List[str], degraded_components: List[str
 
 
 @flow(name="system-health-monitoring", description="Monitor health of all system components", retries=0)
-async def system_health_flow(db_url: str, redis_url: str, api_url: str, sohum_url: str, ranjeet_url: str) -> Dict:
+async def system_health_flow(
+    db_url: str = "postgresql://postgres.dntmhjlbxirtgslzwbui:Anmol%4025703@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres",
+    redis_url: str = "redis://localhost:6379/0",
+    api_url: str = "http://localhost:8000",
+    sohum_url: str = "https://ai-rule-api-w7z5.onrender.com",
+    ranjeet_url: str = "http://localhost:8002",
+) -> Dict:
     """Complete system health monitoring flow"""
     logger = get_run_logger()
     logger.info("Starting system health check")
