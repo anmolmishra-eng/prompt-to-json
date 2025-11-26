@@ -218,10 +218,8 @@ async def send_alert(failed_components: List[str], degraded_components: List[str
 @flow(name="system-health-monitoring", description="Monitor health of all system components", retries=0)
 async def system_health_flow(
     db_url: str = "postgresql://postgres.dntmhjlbxirtgslzwbui:Anmol%4025703@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres",
-    redis_url: str = "redis://localhost:6379/0",
     api_url: str = "http://localhost:8000",
     sohum_url: str = "https://ai-rule-api-w7z5.onrender.com",
-    ranjeet_url: str = "http://localhost:8002",
 ) -> Dict:
     """Complete system health monitoring flow"""
     logger = get_run_logger()
@@ -229,16 +227,14 @@ async def system_health_flow(
 
     # Run all health checks
     db_health = check_database(db_url)
-    redis_health = check_redis(redis_url)
     system_health = check_system_resources()
 
     # Run async checks
     api_health = await check_api(api_url)
     sohum_health = await check_sohum_service(sohum_url)
-    ranjeet_health = await check_ranjeet_service(ranjeet_url)
 
     # Collect results
-    results = [db_health, redis_health, system_health, api_health, sohum_health, ranjeet_health]
+    results = [db_health, system_health, api_health, sohum_health]
 
     # Categorize components
     failed = [r["component"] for r in results if r["status"] == "unhealthy"]
