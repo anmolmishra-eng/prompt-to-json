@@ -7,7 +7,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from log_aggregation_flow import LogConfig, log_aggregation_flow
+from .log_aggregation_flow import LogConfig, log_aggregation_flow
 
 
 async def test_log_aggregation():

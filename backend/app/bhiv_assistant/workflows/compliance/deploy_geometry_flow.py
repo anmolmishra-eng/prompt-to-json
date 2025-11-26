@@ -5,7 +5,7 @@ Deploy Geometry Verification Flow to Prefect
 import asyncio
 from pathlib import Path
 
-from geometry_verification_flow import GeometryConfig, geometry_verification_flow
+from .geometry_verification_flow import GeometryConfig, geometry_verification_flow
 
 
 async def deploy_geometry_verification_flow():

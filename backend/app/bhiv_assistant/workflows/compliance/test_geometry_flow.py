@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 
-from geometry_verification_flow import GeometryConfig, geometry_verification_flow
+from .geometry_verification_flow import GeometryConfig, geometry_verification_flow
 
 
 async def test_geometry_verification():

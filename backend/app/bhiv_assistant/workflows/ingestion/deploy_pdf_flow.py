@@ -5,8 +5,9 @@ Deploy PDF Ingestion Flow to Prefect
 import asyncio
 from pathlib import Path
 
-from pdf_to_mcp_flow import PDFIngestionConfig, pdf_ingestion_flow
 from prefect import serve
+
+from .pdf_to_mcp_flow import PDFIngestionConfig, pdf_ingestion_flow
 
 
 async def deploy_pdf_flow():

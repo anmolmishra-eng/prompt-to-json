@@ -9,7 +9,17 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import httpx
-from app.config import settings
+
+try:
+    from app.config import settings
+except ImportError:
+    # Fallback for when running from bhiv_assistant context
+    import os
+    import sys
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    from app.config import settings
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -73,8 +83,10 @@ class BHIVAssistant:
 
     def __init__(self):
         self.http_client = None
+        # Initialize RL handler with default values
         self.rl_handler = RLFeedbackHandler(
-            base_url=str(self.config.ranjeet.base_url), api_key=self.config.ranjeet.api_key
+            base_url=getattr(settings, "RANJEET_RL_URL", "http://localhost:8001"),
+            api_key=getattr(settings, "RANJEET_API_KEY", None),
         )
 
     async def _get_client(self) -> httpx.AsyncClient:

@@ -9,6 +9,7 @@ import time
 import sentry_sdk
 from app.api import (
     auth,
+    bhiv_assistant,
     bhiv_integrated,
     compliance,
     core,
@@ -199,6 +200,7 @@ app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL/RLHF Training"])
 app.include_router(city_router, prefix="/api/v1", tags=["🏙️ Multi-City Support"])
 
 # 10. BHIV AI Assistant (Task 8)
+app.include_router(bhiv_assistant.router, tags=["🧠 BHIV AI Assistant"])
 app.include_router(bhiv_integrated.router, tags=["🤖 BHIV AI Assistant"])
 
 if __name__ == "__main__":

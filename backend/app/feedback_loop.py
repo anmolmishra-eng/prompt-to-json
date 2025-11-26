@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
-from app.models import Evaluation, Iteration, RLHFFeedback, RLHFPreferences, Spec
+from app.models import Evaluation, Iteration, RLFeedback, Spec
 from app.rl import rl_feedback as rl_feedback_endpoint
 from sqlalchemy.orm import Session
 
@@ -57,14 +57,13 @@ class FeedbackLoopOrchestrator:
                 # Assume later iterations are improvements
                 preference = "B" if rating > 3 else ("A" if rating < 3 else "EQUAL")
 
-                feedback = RLHFPreferences(
+                feedback = RLFeedback(
                     user_id=user_id,
-                    spec_a_id=spec_id,  # Before iteration
-                    spec_b_id=spec_id,  # After iteration (same ID but different version)
-                    preference=preference,
-                    notes=notes,
-                    rating=rating,
-                    timestamp=datetime.now(timezone.utc),
+                    spec_id=spec_id,
+                    prompt=spec.prompt,
+                    spec_json=spec.spec_json,
+                    user_rating=rating,
+                    feedback_type="explicit",
                 )
 
                 self.db.add(feedback)
@@ -73,15 +72,13 @@ class FeedbackLoopOrchestrator:
                 )
 
         # Store the primary evaluation feedback
-        rlhf_fb = RLHFFeedback(
+        rlhf_fb = RLFeedback(
             user_id=user_id,
-            spec_a_id=spec_id,
-            spec_b_id=spec_id,
-            preference="A" if rating >= 3.5 else "B",
-            feedback_text=notes,
-            rating_a=rating,
-            rating_b=rating,
-            timestamp=datetime.now(timezone.utc),
+            spec_id=spec_id,
+            prompt=spec.prompt,
+            spec_json=spec.spec_json,
+            user_rating=rating,
+            feedback_type="explicit",
         )
 
         self.db.add(rlhf_fb)
@@ -109,18 +106,17 @@ class FeedbackLoopOrchestrator:
         # Get recent evaluations
         recent_evals = self.db.query(Evaluation).filter(Evaluation.ts >= cutoff_time).all()
 
-        # Get recent RLHF feedback
-        recent_feedback = self.db.query(RLHFFeedback).filter(RLHFFeedback.timestamp >= cutoff_time).all()
+        # Get recent RL feedback
+        recent_feedback = self.db.query(RLFeedback).filter(RLFeedback.created_at >= cutoff_time).all()
 
         # Calculate statistics
         total_feedback = len(recent_evals) + len(recent_feedback)
         avg_rating = sum(e.score for e in recent_evals if e.score) / len(recent_evals) if recent_evals else 0
 
-        # Count preference distribution
-        preference_counts = {
-            "A": len([fb for fb in recent_feedback if fb.preference == "A"]),
-            "B": len([fb for fb in recent_feedback if fb.preference == "B"]),
-            "EQUAL": len([fb for fb in recent_feedback if fb.preference == "EQUAL"]),
+        # Count feedback type distribution
+        feedback_counts = {
+            "explicit": len([fb for fb in recent_feedback if fb.feedback_type == "explicit"]),
+            "implicit": len([fb for fb in recent_feedback if fb.feedback_type == "implicit"]),
         }
 
         logger.info(
@@ -132,8 +128,8 @@ class FeedbackLoopOrchestrator:
             "total_feedback": total_feedback,
             "average_rating": avg_rating,
             "evaluation_count": len(recent_evals),
-            "preference_pairs": len(recent_feedback),
-            "preference_distribution": preference_counts,
+            "feedback_count": len(recent_feedback),
+            "feedback_distribution": feedback_counts,
             "lookback_hours": lookback_hours,
             "cutoff_time": cutoff_time.isoformat(),
         }
@@ -146,14 +142,12 @@ class FeedbackLoopOrchestrator:
             (should_train: bool, stats: dict)
         """
 
-        # Count total preference pairs in database
-        total_pairs = self.db.query(RLHFPreferences).count()
-        total_feedback = self.db.query(RLHFFeedback).count()
+        # Count total feedback in database
+        total_feedback = self.db.query(RLFeedback).count()
 
-        should_train = (total_pairs + total_feedback) >= self.min_feedback_pairs
+        should_train = total_feedback >= self.min_feedback_pairs
 
         stats = {
-            "total_preference_pairs": total_pairs,
             "total_feedback_records": total_feedback,
             "min_required": self.min_feedback_pairs,
             "ready_for_training": should_train,
@@ -175,25 +169,21 @@ class FeedbackLoopOrchestrator:
             List of preference pairs formatted for training
         """
 
-        # Get preference pairs
-        preferences = self.db.query(RLHFPreferences).limit(limit).all()
+        # Get feedback records
+        feedback_records = self.db.query(RLFeedback).limit(limit).all()
 
         dataset = []
-        for pref in preferences:
-            spec_a = self.db.query(Spec).filter(Spec.spec_id == pref.spec_a_id).first()
-            spec_b = self.db.query(Spec).filter(Spec.spec_id == pref.spec_b_id).first()
-
-            if spec_a and spec_b:
-                dataset.append(
-                    {
-                        "prompt": spec_a.prompt,
-                        "response_a": spec_a.spec_json,
-                        "response_b": spec_b.spec_json,
-                        "preference": pref.preference,
-                        "user_id": pref.user_id,
-                        "timestamp": pref.timestamp.isoformat() if pref.timestamp else None,
-                    }
-                )
+        for fb in feedback_records:
+            dataset.append(
+                {
+                    "prompt": fb.prompt,
+                    "spec_json": fb.spec_json,
+                    "user_rating": fb.user_rating,
+                    "user_id": fb.user_id,
+                    "feedback_type": fb.feedback_type,
+                    "timestamp": fb.created_at.isoformat() if fb.created_at else None,
+                }
+            )
 
         logger.info(f"Created training dataset with {len(dataset)} pairs")
 
@@ -203,24 +193,24 @@ class FeedbackLoopOrchestrator:
         """Calculate metrics about feedback quality and completeness"""
 
         all_evals = self.db.query(Evaluation).all()
-        all_feedback = self.db.query(RLHFFeedback).all()
+        all_feedback = self.db.query(RLFeedback).all()
 
         # Quality metrics
         evals_with_notes = len([e for e in all_evals if e.notes])
-        feedback_with_text = len([f for f in all_feedback if f.feedback_text])
+        explicit_feedback = len([f for f in all_feedback if f.feedback_type == "explicit"])
 
         # Rating distribution
         rating_dist = {}
         for eval in all_evals:
-            if eval.score:
-                bucket = int(eval.score)
+            if eval.rating:
+                bucket = int(eval.rating)
                 rating_dist[bucket] = rating_dist.get(bucket, 0) + 1
 
         metrics = {
             "total_evaluations": len(all_evals),
             "total_feedback": len(all_feedback),
             "evals_with_notes": evals_with_notes,
-            "feedback_with_text": feedback_with_text,
+            "explicit_feedback": explicit_feedback,
             "avg_notes_rate": evals_with_notes / len(all_evals) if all_evals else 0,
             "rating_distribution": rating_dist,
             "timestamp": datetime.now(timezone.utc).isoformat(),

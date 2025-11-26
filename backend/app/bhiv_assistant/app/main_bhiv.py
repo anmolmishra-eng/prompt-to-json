@@ -6,12 +6,13 @@ FastAPI app for BHIV AI Assistant layer
 import logging
 from datetime import datetime
 
-from app.bhiv_layer.assistant_api import router as bhiv_router
-from app.bhiv_layer.rl_feedback_handler import rl_router
-from app.mcp.mcp_client import mcp_router
-from config.integration_config import IntegrationConfig
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from ..config.integration_config import IntegrationConfig
+from .bhiv_layer.assistant_api import router as bhiv_router
+from .bhiv_layer.rl_feedback_handler import rl_router
+from .mcp.mcp_client import mcp_router
 
 # Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
