@@ -14,6 +14,16 @@ logger = logging.getLogger(__name__)
 # Initialize Supabase client
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
+# Service role client for admin operations
+try:
+    service_key = getattr(settings, "SUPABASE_SERVICE_KEY", None)
+    if service_key:
+        supabase_admin: Client = create_client(settings.SUPABASE_URL, service_key)
+    else:
+        supabase_admin = supabase
+except:
+    supabase_admin = supabase
+
 # ============================================================================
 # BUCKET MANAGEMENT
 # ============================================================================
@@ -32,23 +42,30 @@ def ensure_buckets_exist():
     ]
 
     try:
-        # Get existing buckets
-        existing = supabase.storage.list_buckets()
+        # Get existing buckets using admin client
+        existing = supabase_admin.storage.list_buckets()
         existing_names = [b.name for b in existing] if hasattr(existing, "__iter__") else []
 
         # Create missing buckets
         for bucket in required_buckets:
             if bucket not in existing_names:
-                supabase.storage.create_bucket(bucket, options={"public": False})  # Private by default
-                logger.info(f"Created bucket: {bucket}")
+                try:
+                    supabase_admin.storage.create_bucket(bucket, options={"public": False})
+                    logger.info(f"Created bucket: {bucket}")
+                except Exception as bucket_error:
+                    # Handle RLS policy errors gracefully
+                    if "row-level security" in str(bucket_error).lower() or "403" in str(bucket_error):
+                        logger.warning(f"Bucket {bucket} creation blocked by RLS policy - may already exist")
+                    else:
+                        logger.error(f"Failed to create bucket {bucket}: {bucket_error}")
             else:
                 logger.info(f"Bucket exists: {bucket}")
 
         return True
 
     except Exception as e:
-        logger.error(f"Failed to ensure buckets: {e}")
-        return False
+        logger.warning(f"Bucket check failed (non-critical): {e}")
+        return True  # Return True to continue startup
 
 
 # ============================================================================
@@ -226,12 +243,16 @@ def list_files(bucket: str, path: str = "") -> list:
 def init_storage():
     """Initialize storage system on startup"""
     logger.info("Initializing Supabase storage...")
-    success = ensure_buckets_exist()
-    if success:
-        logger.info("Storage initialization complete")
-    else:
-        logger.warning("Storage initialization had errors")
-    return success
+    try:
+        success = ensure_buckets_exist()
+        if success:
+            logger.info("Storage initialization complete")
+        else:
+            logger.info("Storage initialization completed with warnings")
+        return success
+    except Exception as e:
+        logger.info(f"Storage initialization skipped: {e}")
+        return True  # Don't block startup
 
 
 # ============================================================================
@@ -257,6 +278,8 @@ async def upload_to_bucket(bucket: str, file_path: str, data: bytes) -> str:
         raise
 
 
-# Run initialization
+# Skip automatic bucket creation - create manually in Supabase dashboard
+# Go to: https://supabase.com/dashboard/project/dntmhjlbxirtgslzwbui/storage/buckets
+# Create buckets: files, previews, geometry, compliance
 if __name__ != "__main__":
-    init_storage()
+    logger.info("Storage buckets should be created manually in Supabase dashboard")
