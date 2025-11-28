@@ -61,11 +61,11 @@ try:
 
     if torch.cuda.is_available():
         gpu_name = torch.cuda.get_device_name(0)
-        logger.info(f"✅ Local GPU connected: {gpu_name}")
+        logger.info(f"GPU connected: {gpu_name}")
     else:
-        logger.warning("❌ No GPU available - using CPU")
+        logger.info("Using CPU mode (GPU not available)")
 except ImportError:
-    logger.warning("❌ PyTorch not available")
+    logger.info("PyTorch not available - using CPU mode")
 
 # Check Supabase connection
 try:
@@ -177,7 +177,7 @@ app.include_router(health.router, prefix="/api/v1", tags=["📊 Monitoring & Hea
 app.include_router(generate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
 app.include_router(evaluate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
 app.include_router(iterate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
-app.include_router(switch.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
+app.include_router(switch.router, tags=["🎨 Core Design Engine"])
 app.include_router(history.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
 
 # 4. Core Operations & Management
