@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 from app.config import settings
 from app.database import get_current_user, get_db
 from app.models import Spec
+from app.prefect_integration import check_workflow_status, trigger_pdf_workflow
 from app.schemas import ComplianceRequest, ComplianceResponse
+from app.service_monitor import should_use_mock_response
 from app.storage import get_signed_url, upload_to_bucket
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -31,10 +33,15 @@ async def run_case(case: dict, current_user: str = Depends(get_current_user)):
 
         # Validate city
         city = case.get("city", "").lower()
-        if city not in ["mumbai", "pune", "ahmedabad"]:
+        if city not in ["mumbai", "pune", "ahmedabad", "nashik"]:
             raise HTTPException(
-                status_code=400, detail=f"Invalid city: {city}. Supported cities: Mumbai, Pune, Ahmedabad"
+                status_code=400, detail=f"Invalid city: {city}. Supported cities: Mumbai, Pune, Ahmedabad, Nashik"
             )
+
+        # Check if we should use mock response based on service health
+        if await should_use_mock_response("sohum_mcp"):
+            logger.info(f"Using mock response for {city} - external service unavailable")
+            return await _mock_compliance_response(case)
 
         # Call Soham's compliance service with extended timeout
         logger.info(f"Calling external compliance service for {city}")
@@ -79,6 +86,7 @@ async def _mock_compliance_response(case: dict):
             "mumbai": ["MUM-FSI-URBAN-R15-20", "MUM-SETBACK-R15-20", "MUM-HEIGHT-STANDARD"],
             "pune": ["PUNE-HEIGHT-SPECIAL-ECO", "PUNE-FSI-SUBURBAN", "PUNE-SETBACK-ECO"],
             "ahmedabad": ["AMD-FSI-URBAN-R15-20", "AMD-SETBACK-R15-20", "AMD-HEIGHT-HERITAGE"],
+            "nashik": ["NAS-FSI-SUBURBAN-R10-15", "NAS-SETBACK-R10-15", "NAS-HEIGHT-WINE-TOURISM"],
         }
 
         return {
@@ -150,6 +158,32 @@ async def feedback(feedback_req: dict, current_user: str = Depends(get_current_u
     except Exception as e:
         logger.error(f"Unexpected error submitting feedback: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/ingest_pdf")
+async def ingest_pdf_rules(request: dict, current_user: str = Depends(get_current_user)):
+    """Ingest compliance rules from PDF using Prefect workflow"""
+    try:
+        pdf_url = request.get("pdf_url")
+        city = request.get("city", "Mumbai")
+
+        if not pdf_url:
+            raise HTTPException(status_code=400, detail="pdf_url is required")
+
+        # Trigger PDF processing workflow
+        result = await trigger_pdf_workflow(pdf_url, city, SOHAM_URL)
+
+        return {"message": "PDF processing initiated", "city": city, "workflow_result": result}
+
+    except Exception as e:
+        logger.error(f"PDF ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/workflow_status")
+async def get_workflow_status(current_user: str = Depends(get_current_user)):
+    """Get workflow system status"""
+    return await check_workflow_status()
 
 
 @router.get("/regulations")

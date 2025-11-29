@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 import httpx
 from app.config import settings
 from app.lm_adapter import run_local_lm
+from app.prefect_integration import check_workflow_status, trigger_pdf_workflow
 from app.utils import create_new_spec_id
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -169,10 +170,67 @@ async def create_design(request: DesignRequest):
         raise HTTPException(status_code=500, detail=f"Design generation failed: {str(e)}")
 
 
+@router.post("/process_with_workflow")
+async def process_with_workflow(request: DesignRequest):
+    """Process design with integrated workflow orchestration"""
+    start_time = datetime.now()
+    request_id = f"workflow_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    try:
+        # Step 1: Generate design (same as before)
+        params = {
+            "user_id": request.user_id,
+            "strategy": request.context.get("style", "modern"),
+            "extracted_dimensions": request.context.get("dimensions", {}),
+        }
+
+        lm_result = run_local_lm(request.prompt, params)
+        spec_id = create_new_spec_id()
+
+        # Step 2: Check if PDF processing is needed
+        pdf_url = request.context.get("compliance_pdf_url")
+        if pdf_url:
+            logger.info(f"[{request_id}] Processing compliance PDF via workflow")
+            workflow_result = await trigger_pdf_workflow(pdf_url, request.city, getattr(settings, "SOHAM_URL", ""))
+            logger.info(f"[{request_id}] Workflow result: {workflow_result}")
+
+        # Step 3: Continue with compliance and RL (same as before)
+        compliance_result = await call_sohum_compliance(
+            lm_result["spec_json"], request.city, request.project_id or request_id
+        )
+
+        rl_result = None
+        try:
+            rl_result = await call_ranjeet_rl(lm_result["spec_json"], request.city)
+        except Exception as e:
+            logger.warning(f"RL optimization failed: {e}")
+
+        processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
+
+        return BHIVResponse(
+            request_id=request_id,
+            spec_id=spec_id,
+            spec_json=lm_result["spec_json"],
+            preview_url=f"https://bhiv-previews.s3.amazonaws.com/{spec_id}.glb",
+            compliance=ComplianceResult(**compliance_result),
+            rl_optimization=RLOptimization(**rl_result) if rl_result else None,
+            processing_time_ms=processing_time,
+            timestamp=datetime.now(),
+        )
+
+    except Exception as e:
+        logger.error(f"[{request_id}] Workflow processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/health")
 async def health_check():
-    """Health check for BHIV Assistant"""
+    """Health check for BHIV Assistant with workflow status"""
     health = {"bhiv": "ok", "task7_internal": "ok", "sohum_mcp": "unknown", "ranjeet_rl": "unknown"}
+
+    # Add workflow status
+    workflow_status = await check_workflow_status()
+    health["workflow_system"] = workflow_status
 
     # Test external systems
     async with httpx.AsyncClient(timeout=5.0) as client:
