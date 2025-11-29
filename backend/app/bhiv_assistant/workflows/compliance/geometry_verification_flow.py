@@ -13,6 +13,13 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+# Import trimesh with fallback
+try:
+    import trimesh
+except ImportError:
+    trimesh = None
+    logger.warning("Trimesh not available - geometry validation will be limited")
+
 
 class GeometryConfig(BaseModel):
     """Configuration for geometry verification"""
