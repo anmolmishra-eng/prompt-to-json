@@ -45,7 +45,7 @@ async def detailed_health():
         "components": {
             "database": "connected",
             "storage": "connected",
-            "gpu": ("available" if __import__("torch").cuda.is_available() else "unavailable"),
+            "gpu": ("available" if __import__("app.gpu_detector").gpu_detector.is_gpu_available() else "unavailable"),
         },
         "external_services": service_health,
         "workflow_system": workflow_status,

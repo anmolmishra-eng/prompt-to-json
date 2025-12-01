@@ -53,7 +53,7 @@ def run_tests():
     # Quick validation
     print("\nRunning quick validation...")
     try:
-        from app.main_bhiv import app
+        from .app.main_bhiv import app
 
         print("[OK] Main BHIV app imports successfully")
 

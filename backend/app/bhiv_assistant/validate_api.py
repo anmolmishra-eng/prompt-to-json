@@ -13,8 +13,8 @@ try:
 
     # Test imports
     print("\n[1/4] Testing imports...")
-    from app.bhiv_layer.assistant_api import BHIVAssistant, DesignRequest
-    from config.integration_config import IntegrationConfig
+    from .app.bhiv_layer.assistant_api import BHIVAssistant, DesignRequest
+    from .config.integration_config import IntegrationConfig
 
     print("[OK] All imports successful")
 

@@ -1,24 +1,34 @@
 import platform
 import subprocess
+import sys
+from pathlib import Path
 
-import torch
+# Add backend to path
+sys.path.insert(0, str(Path(__file__).parent))
 
-print("🔍 DETAILED GPU DETECTION REPORT")
+from app.gpu_detector import gpu_detector
+
+print("COMPREHENSIVE GPU DETECTION REPORT")
 print("=" * 50)
 
-# 1. PyTorch CUDA Detection
-print("\n📊 PyTorch Detection:")
-print(f"CUDA Available: {torch.cuda.is_available()}")
-if torch.cuda.is_available():
-    print(f"CUDA Version: {torch.version.cuda}")
-    print(f"GPU Count: {torch.cuda.device_count()}")
-    for i in range(torch.cuda.device_count()):
-        print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
-        props = torch.cuda.get_device_properties(i)
-        print(f"  - Memory: {props.total_memory / 1024**3:.1f} GB")
-        print(f"  - Compute Capability: {props.major}.{props.minor}")
+# 1. Comprehensive GPU Detection
+print("\nGPU Detection Results:")
+gpu_info = gpu_detector.detect_gpu(force_refresh=True)
+
+print(f"PyTorch Available: {gpu_info['pytorch_available']}")
+print(f"CUDA Available: {gpu_info['cuda_available']}")
+print(f"GPU Count: {gpu_info['gpu_count']}")
+print(f"Detection Method: {gpu_info['detection_method']}")
+
+if gpu_info["gpus"]:
+    for gpu in gpu_info["gpus"]:
+        print(f"GPU {gpu.get('id', '?')}: {gpu.get('name', 'Unknown')}")
+        if gpu.get("memory_total"):
+            print(f"  - Memory: {gpu['memory_total'] / 1024**3:.1f} GB")
+        if gpu.get("compute_capability"):
+            print(f"  - Compute: {gpu['compute_capability']}")
 else:
-    print("❌ No CUDA GPUs detected by PyTorch")
+    print("No GPUs detected")
 
 # 2. System GPU Detection (Windows)
 print("\n🖥️ System GPU Detection:")
@@ -64,22 +74,26 @@ try:
 except Exception as e:
     print(f"nvidia-smi detection failed: {e}")
 
-# 4. Test GPU Memory Allocation
-print("\n🧪 GPU Memory Test:")
-if torch.cuda.is_available():
-    try:
-        device = torch.device("cuda:0")
-        test_tensor = torch.randn(1000, 1000).to(device)
-        print(f"✅ Successfully allocated tensor on GPU")
-        print(f"Memory allocated: {torch.cuda.memory_allocated(0) / 1024**2:.1f} MB")
-        print(f"Memory cached: {torch.cuda.memory_reserved(0) / 1024**2:.1f} MB")
-        del test_tensor
-        torch.cuda.empty_cache()
-        print("✅ GPU memory test passed")
-    except Exception as e:
-        print(f"❌ GPU memory test failed: {e}")
+# 4. GPU Memory Test
+print("\nGPU Memory Test:")
+test_result = gpu_detector.test_gpu_allocation()
+if test_result["success"]:
+    print(f"GPU memory test passed")
+    print(f"Memory allocated: {test_result['memory_allocated'] / 1024**2:.1f} MB")
+    print(f"Device: {test_result['device']}")
 else:
-    print("❌ No GPU available for memory test")
+    print(f"GPU memory test failed: {test_result['error']}")
+
+# 5. Summary and Recommendations
+print("\nSummary:")
+print(f"Best GPU: {gpu_detector.get_best_gpu()}")
+print(f"Recommended Device: {gpu_detector.get_device()}")
+print(f"GPU Available for AI: {gpu_detector.is_gpu_available()}")
+
+if gpu_info["errors"]:
+    print("\n⚠️ Detection Errors:")
+    for error in gpu_info["errors"]:
+        print(f"  - {error}")
 
 print("\n" + "=" * 50)
-print("This detection is 100% REAL - not dummy!")
+print("GPU Detection completed successfully!")
