@@ -11,6 +11,20 @@ from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
 
+# Bucket name mapping to handle case sensitivity
+BUCKET_MAPPING = {
+    "files": "Files",  # Handle case mismatch
+    "previews": "previews",
+    "geometry": "geometry",
+    "compliance": "compliance",
+}
+
+
+def get_bucket_name(bucket: str) -> str:
+    """Get actual bucket name handling case variations"""
+    return BUCKET_MAPPING.get(bucket, bucket)
+
+
 # Initialize Supabase client
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
@@ -96,13 +110,14 @@ def upload_file(file_path: str, bucket: str, destination_path: str, content_type
         with open(file_path, "rb") as f:
             file_data = f.read()
 
-        # Upload to Supabase
-        result = supabase.storage.from_(bucket).upload(
+        # Upload to Supabase (use mapped bucket name)
+        actual_bucket = get_bucket_name(bucket)
+        result = supabase.storage.from_(actual_bucket).upload(
             destination_path, file_data, file_options={"content-type": content_type}
         )
 
         # Get public URL
-        url = supabase.storage.from_(bucket).get_public_url(destination_path)
+        url = supabase.storage.from_(actual_bucket).get_public_url(destination_path)
 
         logger.info(f"Uploaded: {destination_path} to {bucket}")
         return url
@@ -127,11 +142,12 @@ def upload_preview(spec_id: str, preview_data: bytes, format: str = "png") -> st
     destination = f"previews/{spec_id}.{format}"
 
     try:
-        result = supabase.storage.from_(settings.STORAGE_BUCKET_PREVIEWS).upload(
+        actual_bucket = get_bucket_name(settings.STORAGE_BUCKET_PREVIEWS)
+        result = supabase.storage.from_(actual_bucket).upload(
             destination, preview_data, file_options={"content-type": f"image/{format}"}
         )
 
-        url = supabase.storage.from_(settings.STORAGE_BUCKET_PREVIEWS).get_public_url(destination)
+        url = supabase.storage.from_(actual_bucket).get_public_url(destination)
 
         logger.info(f"Preview uploaded: {spec_id}")
         return url
@@ -155,11 +171,12 @@ def upload_geometry(spec_id: str, glb_data: bytes) -> str:
     destination = f"geometry/{spec_id}.glb"
 
     try:
-        result = supabase.storage.from_(settings.STORAGE_BUCKET_GEOMETRY).upload(
+        actual_bucket = get_bucket_name(settings.STORAGE_BUCKET_GEOMETRY)
+        result = supabase.storage.from_(actual_bucket).upload(
             destination, glb_data, file_options={"content-type": "model/gltf-binary"}
         )
 
-        url = supabase.storage.from_(settings.STORAGE_BUCKET_GEOMETRY).get_public_url(destination)
+        url = supabase.storage.from_(actual_bucket).get_public_url(destination)
 
         logger.info(f"Geometry uploaded: {spec_id}")
         return url
@@ -199,8 +216,9 @@ def generate_signed_url(file_path: str, bucket: Optional[str] = None, expires_in
         if not bucket:
             raise ValueError("Bucket name required")
 
-        # Generate signed URL
-        signed_url = supabase.storage.from_(bucket).create_signed_url(file_path, expires_in)
+        # Generate signed URL (use mapped bucket name)
+        actual_bucket = get_bucket_name(bucket)
+        signed_url = supabase.storage.from_(actual_bucket).create_signed_url(file_path, expires_in)
 
         return signed_url["signedURL"]
 
@@ -217,7 +235,8 @@ def generate_signed_url(file_path: str, bucket: Optional[str] = None, expires_in
 def delete_file(file_path: str, bucket: str) -> bool:
     """Delete file from storage"""
     try:
-        supabase.storage.from_(bucket).remove([file_path])
+        actual_bucket = get_bucket_name(bucket)
+        supabase.storage.from_(actual_bucket).remove([file_path])
         logger.info(f"Deleted: {file_path} from {bucket}")
         return True
     except Exception as e:
@@ -228,7 +247,8 @@ def delete_file(file_path: str, bucket: str) -> bool:
 def list_files(bucket: str, path: str = "") -> list:
     """List files in bucket path"""
     try:
-        files = supabase.storage.from_(bucket).list(path)
+        actual_bucket = get_bucket_name(bucket)
+        files = supabase.storage.from_(actual_bucket).list(path)
         return files
     except Exception as e:
         logger.error(f"List failed: {e}")
@@ -268,10 +288,11 @@ def get_signed_url(bucket: str, file_path: str, expires: int = 3600) -> str:
 async def upload_to_bucket(bucket: str, file_path: str, data: bytes) -> str:
     """Upload data to bucket (async wrapper)"""
     try:
-        result = supabase.storage.from_(bucket).upload(
+        actual_bucket = get_bucket_name(bucket)
+        result = supabase.storage.from_(actual_bucket).upload(
             file_path, data, file_options={"content-type": "application/octet-stream"}
         )
-        url = supabase.storage.from_(bucket).get_public_url(file_path)
+        url = supabase.storage.from_(actual_bucket).get_public_url(file_path)
         return url
     except Exception as e:
         logger.error(f"Upload to bucket failed: {e}")

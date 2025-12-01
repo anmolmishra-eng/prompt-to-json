@@ -11,11 +11,11 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from datetime import timedelta
 
-from workflows.compliance.geometry_verification_flow import geometry_verification_flow
+from .compliance.geometry_verification_flow import geometry_verification_flow
 
 # Import flows
-from workflows.ingestion.pdf_to_mcp_flow import pdf_ingestion_flow
-from workflows.monitoring.log_aggregation_flow import log_aggregation_flow
+from .ingestion.pdf_to_mcp_flow import pdf_ingestion_flow
+from .monitoring.log_aggregation_flow import log_aggregation_flow
 
 
 async def deploy_all_workflows():

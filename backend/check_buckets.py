@@ -14,10 +14,21 @@ try:
     buckets = supabase.storage.list_buckets()
 
     # Handle different response formats
-    if hasattr(buckets, "data"):
-        bucket_names = [b.name for b in buckets.data] if buckets.data else []
-    else:
-        bucket_names = [b.get("name", "") for b in buckets] if isinstance(buckets, list) else []
+    try:
+        if hasattr(buckets, "data") and buckets.data:
+            bucket_names = [b.name for b in buckets.data]
+        elif hasattr(buckets, "__iter__"):
+            bucket_names = []
+            for b in buckets:
+                if hasattr(b, "name"):
+                    bucket_names.append(b.name)
+                elif isinstance(b, dict) and "name" in b:
+                    bucket_names.append(b["name"])
+        else:
+            bucket_names = []
+    except Exception as e:
+        print(f"Error parsing buckets: {e}")
+        bucket_names = []
 
     print("Current buckets:", bucket_names)
 

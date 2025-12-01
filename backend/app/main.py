@@ -57,15 +57,17 @@ else:
 
 # Check GPU availability
 try:
-    import torch
+    from app.gpu_detector import gpu_detector
 
-    if torch.cuda.is_available():
-        gpu_name = torch.cuda.get_device_name(0)
-        logger.info(f"GPU connected: {gpu_name}")
+    gpu_info = gpu_detector.detect_gpu()
+    if gpu_info["cuda_available"]:
+        best_gpu = gpu_detector.get_best_gpu()
+        gpu_name = best_gpu["name"] if best_gpu else "Unknown GPU"
+        logger.info(f"GPU connected: {gpu_name} (Method: {gpu_info['detection_method']})")
     else:
         logger.info("Using CPU mode (GPU not available)")
 except ImportError:
-    logger.info("PyTorch not available - using CPU mode")
+    logger.info("GPU detector not available - using CPU mode")
 
 # Check Supabase connection
 try:
