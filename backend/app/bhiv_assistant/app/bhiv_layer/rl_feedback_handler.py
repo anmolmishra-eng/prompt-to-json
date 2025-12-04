@@ -40,10 +40,10 @@ class RLFeedbackHandler:
 
     async def submit_feedback(self, feedback: FeedbackPayload) -> Dict:
         """
-        Submit user feedback to Ranjeet's RL system
+        Submit user feedback to local RL system
         This triggers RL weight updates if threshold met
         """
-        url = f"{self.base_url}/rl/feedback"
+        url = f"{self.base_url}/api/v1/rl/feedback"
 
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -73,7 +73,7 @@ class RLFeedbackHandler:
         Get RL agent confidence score for a spec
         Used for bonus points display to end-users
         """
-        url = f"{self.base_url}/rl/confidence"
+        url = f"{self.base_url}/api/v1/rl/confidence"
 
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -103,6 +103,10 @@ rl_router = APIRouter(prefix="/rl", tags=["RL Integration"])
 @rl_router.post("/feedback")
 async def submit_user_feedback(feedback: FeedbackPayload):
     """Submit user feedback to RL agent"""
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).parent.parent.parent))
     from config.integration_config import IntegrationConfig
 
     config = IntegrationConfig()
@@ -122,6 +126,10 @@ class ConfidenceRequest(BaseModel):
 @rl_router.post("/confidence")
 async def get_spec_confidence(request: ConfidenceRequest):
     """Get RL confidence score for spec"""
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).parent.parent.parent))
     from config.integration_config import IntegrationConfig
 
     config = IntegrationConfig()
