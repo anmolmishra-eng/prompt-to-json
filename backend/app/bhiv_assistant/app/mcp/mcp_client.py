@@ -119,6 +119,10 @@ mcp_router = APIRouter(prefix="/mcp", tags=["MCP Integration"])
 @mcp_router.get("/rules/{city}")
 async def get_city_rules(city: str, rule_type: Optional[str] = None):
     """Get compliance rules for a city"""
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).parent.parent.parent))
     from config.integration_config import IntegrationConfig
 
     config = IntegrationConfig()
@@ -133,6 +137,10 @@ async def get_city_rules(city: str, rule_type: Optional[str] = None):
 @mcp_router.post("/rules/query")
 async def query_city_rules(city: str, query: str):
     """Query rules with natural language"""
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).parent.parent.parent))
     from config.integration_config import IntegrationConfig
 
     config = IntegrationConfig()
@@ -147,6 +155,10 @@ async def query_city_rules(city: str, query: str):
 @mcp_router.get("/metadata/{city}")
 async def get_city_metadata(city: str):
     """Get metadata for city rules"""
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).parent.parent.parent))
     from config.integration_config import IntegrationConfig
 
     config = IntegrationConfig()

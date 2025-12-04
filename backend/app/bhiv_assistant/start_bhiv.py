@@ -21,7 +21,7 @@ if __name__ == "__main__":
     print("=" * 50)
 
     uvicorn.run(
-        "app.main_bhiv:app",
+        "app.bhiv_assistant.app.main_bhiv:app",
         host=config.bhiv.api_host,
         port=config.bhiv.api_port,
         reload=True,

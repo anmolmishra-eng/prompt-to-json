@@ -1,0 +1,5 @@
+prefect>=2.14.0
+trimesh>=4.0.0
+httpx>=0.25.0
+pydantic>=2.0.0
+fastapi>=0.100.0

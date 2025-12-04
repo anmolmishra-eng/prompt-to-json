@@ -84,16 +84,27 @@ if settings.YOTTA_API_KEY and settings.YOTTA_URL:
 else:
     logger.warning("❌ Yotta not configured")
 
-# Check database connection
+# Initialize storage and validate database
 try:
-    from app.database import engine
-    from sqlalchemy import text
+    from app.database_validator import validate_database
+    from app.storage_manager import ensure_storage_ready
 
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    logger.info("✅ Database connected")
+    # Ensure all storage directories exist
+    storage_ready = ensure_storage_ready()
+    if storage_ready:
+        logger.info("✅ Storage system initialized")
+    else:
+        logger.warning("⚠️ Some storage paths failed validation")
+
+    # Validate database
+    db_ready = validate_database()
+    if db_ready:
+        logger.info("✅ Database validated and ready")
+    else:
+        logger.warning("⚠️ Database validation issues detected")
+
 except Exception as e:
-    logger.error(f"❌ Database connection failed: {e}")
+    logger.error(f"❌ Storage/Database initialization failed: {e}")
 
 app = FastAPI(title="Design Engine API")
 
