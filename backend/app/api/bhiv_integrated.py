@@ -10,6 +10,13 @@ from typing import Dict, List, Optional
 
 import httpx
 from app.config import settings
+from app.external_services import (
+    ServiceStatus,
+    get_service_health_status,
+    ranjeet_client,
+    service_manager,
+    sohum_client,
+)
 from app.lm_adapter import run_local_lm
 from app.prefect_integration import check_workflow_status, trigger_pdf_workflow
 from app.utils import create_new_spec_id
@@ -62,47 +69,47 @@ class BHIVResponse(BaseModel):
 
 
 async def call_sohum_compliance(spec_json: Dict, city: str, project_id: str) -> Dict:
-    """Call Sohum's MCP compliance endpoint"""
-    sohum_url = getattr(settings, "SOHAM_URL", "https://ai-rule-api-w7z5.onrender.com")
-    url = f"{sohum_url}/compliance/run_case"
+    """Call Sohum's MCP compliance endpoint with robust error handling"""
+    case_data = {"spec_json": spec_json, "city": city, "project_id": project_id}
 
-    payload = {"spec_json": spec_json, "city": city, "project_id": project_id}
-
+    # Always try the real service first
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            return response.json()
+        logger.info(f"Calling Sohum MCP service for {city}")
+        result = await sohum_client.run_compliance_case(case_data)
+        logger.info(f"Sohum MCP response received successfully")
+        # Mark service as healthy
+        service_manager.service_health["sohum_mcp"] = ServiceStatus.HEALTHY
+        service_manager.last_health_check["sohum_mcp"] = datetime.now()
+        return result
     except Exception as e:
-        logger.error(f"Sohum compliance check failed: {e}")
-        return {
-            "compliant": False,
-            "violations": [f"Compliance check service unavailable: {str(e)}"],
-            "geometry_url": None,
-            "case_id": None,
-        }
+        logger.error(f"Sohum MCP service failed: {e}")
+        # Mark service as unhealthy
+        service_manager.service_health["sohum_mcp"] = ServiceStatus.UNHEALTHY
+        service_manager.last_health_check["sohum_mcp"] = datetime.now()
+        # Use mock response as fallback
+        logger.info(f"Using mock compliance response for {city}")
+        return sohum_client.get_mock_compliance_response(case_data)
 
 
 async def call_ranjeet_rl(spec_json: Dict, city: str) -> Optional[Dict]:
-    """Call Ranjeet's RL optimization endpoint"""
-    yotta_url = getattr(settings, "YOTTA_URL", "https://api.yotta.com")
-    url = f"{yotta_url}/rl/predict"
-
-    headers = {}
-    yotta_key = getattr(settings, "YOTTA_API_KEY_RL", None)
-    if yotta_key:
-        headers["Authorization"] = f"Bearer {yotta_key}"
-
-    payload = {"spec_json": spec_json, "city": city, "constraints": {}}
-
+    """Call Ranjeet's RL optimization endpoint with robust error handling"""
+    # Always try the real service first
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()
+        logger.info(f"Calling Ranjeet RL service for {city}")
+        result = await ranjeet_client.optimize_design(spec_json, city)
+        logger.info(f"Ranjeet RL response received successfully")
+        # Mark service as healthy
+        service_manager.service_health["ranjeet_rl"] = ServiceStatus.HEALTHY
+        service_manager.last_health_check["ranjeet_rl"] = datetime.now()
+        return result
     except Exception as e:
-        logger.warning(f"RL optimization failed: {e}")
-        return None
+        logger.error(f"Ranjeet RL service failed: {e}")
+        # Mark service as unhealthy
+        service_manager.service_health["ranjeet_rl"] = ServiceStatus.UNHEALTHY
+        service_manager.last_health_check["ranjeet_rl"] = datetime.now()
+        # Use mock response as fallback
+        logger.info(f"Using mock RL response for {city}")
+        return ranjeet_client.get_mock_rl_response(spec_json, city)
 
 
 @router.post("/design", response_model=BHIVResponse)
@@ -225,29 +232,37 @@ async def process_with_workflow(request: DesignRequest):
 
 @router.get("/health")
 async def health_check():
-    """Health check for BHIV Assistant with workflow status"""
-    health = {"bhiv": "ok", "task7_internal": "ok", "sohum_mcp": "unknown", "ranjeet_rl": "unknown"}
+    """Comprehensive health check for BHIV Assistant and all integrated services"""
+    # Get external service health status
+    external_services = await get_service_health_status()
 
     # Add workflow status
     workflow_status = await check_workflow_status()
-    health["workflow_system"] = workflow_status
 
-    # Test external systems
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        # Test Sohum MCP
-        try:
-            sohum_url = getattr(settings, "SOHAM_URL", "https://ai-rule-api-w7z5.onrender.com")
-            response = await client.get(f"{sohum_url}/health")
-            health["sohum_mcp"] = "ok" if response.status_code == 200 else "error"
-        except:
-            health["sohum_mcp"] = "unreachable"
+    # Perform live health checks
+    sohum_status = await sohum_client.health_check()
+    ranjeet_status = await ranjeet_client.health_check()
 
-        # Test Ranjeet RL
-        try:
-            yotta_url = getattr(settings, "YOTTA_URL", "https://api.yotta.com")
-            response = await client.get(f"{yotta_url}/health")
-            health["ranjeet_rl"] = "ok" if response.status_code == 200 else "error"
-        except:
-            health["ranjeet_rl"] = "unreachable"
-
-    return health
+    return {
+        "bhiv_assistant": "operational",
+        "task7_internal": "operational",
+        "workflow_system": workflow_status,
+        "external_services": {
+            "sohum_mcp": {
+                "status": sohum_status,
+                "url": settings.SOHUM_MCP_URL,
+                "available": service_manager.should_use_service("sohum_mcp"),
+                "last_check": external_services["sohum_mcp"]["last_check"],
+            },
+            "ranjeet_rl": {
+                "status": ranjeet_status,
+                "url": settings.RANJEET_RL_URL,
+                "available": service_manager.should_use_service("ranjeet_rl"),
+                "last_check": external_services["ranjeet_rl"]["last_check"],
+            },
+        },
+        "timestamp": datetime.now().isoformat(),
+        "overall_status": "operational"
+        if sohum_status != "unhealthy" and ranjeet_status != "unhealthy"
+        else "degraded",
+    }
