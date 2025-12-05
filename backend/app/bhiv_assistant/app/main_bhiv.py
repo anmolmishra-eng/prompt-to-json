@@ -9,17 +9,22 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from ..config.integration_config import IntegrationConfig
-from .bhiv_layer.assistant_api import router as bhiv_router
-from .bhiv_layer.rl_feedback_handler import rl_router
-from .mcp.mcp_client import mcp_router
+# Simple imports without relative paths
+try:
+    from app.bhiv_assistant.config.integration_config import IntegrationConfig
+except ImportError:
+    IntegrationConfig = None
+
+from app.bhiv_assistant.app.bhiv_layer.assistant_api import router as bhiv_router
+from app.bhiv_assistant.app.bhiv_layer.rl_feedback_handler import rl_router
+from app.bhiv_assistant.app.mcp.mcp_client import mcp_router
 
 # Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Config
-config = IntegrationConfig()
+config = IntegrationConfig() if IntegrationConfig else None
 
 # App
 app = FastAPI(
@@ -68,8 +73,8 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "app.main_bhiv:app",
-        host=config.bhiv.api_host,
-        port=config.bhiv.api_port,
+        host="0.0.0.0",
+        port=8003,
         reload=True,
-        log_level=config.bhiv.log_level.lower(),
+        log_level="info",
     )

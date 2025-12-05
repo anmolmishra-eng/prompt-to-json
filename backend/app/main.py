@@ -216,6 +216,11 @@ app.include_router(city_router, prefix="/api/v1", tags=["🏙️ Multi-City Supp
 app.include_router(bhiv_assistant.router, tags=["🧠 BHIV AI Assistant"])
 app.include_router(bhiv_integrated.router, tags=["🤖 BHIV AI Assistant"])
 
+# 11. Workflow Management
+from app.api import workflow_management
+
+app.include_router(workflow_management.router, prefix="/api/v1", tags=["⚙️ Workflow Management"])
+
 if __name__ == "__main__":
     import uvicorn
 
