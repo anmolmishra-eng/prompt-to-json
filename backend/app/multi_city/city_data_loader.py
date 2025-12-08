@@ -130,7 +130,7 @@ class CityDataLoader:
 
 
 # API Router
-city_router = APIRouter(prefix="/cities", tags=["Multi-City"])
+city_router = APIRouter(prefix="/cities", tags=["🏙️ Multi-City"])
 loader = CityDataLoader()
 
 

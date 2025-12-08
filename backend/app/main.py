@@ -9,28 +9,29 @@ import time
 import sentry_sdk
 from app.api import (
     auth,
-    bhiv_assistant,
     bhiv_integrated,
     compliance,
-    core,
     data_privacy,
     evaluate,
     generate,
     health,
     history,
     iterate,
-    mobile,
     reports,
     rl,
     switch,
-    vr,
 )
+
+# Note: bhiv_assistant.py and bhiv.py are unused duplicate files
+# Only bhiv_integrated.py is used for the main BHIV functionality
 from app.config import settings
+from app.database import get_current_user
 from app.multi_city.city_data_loader import city_router
 from app.utils import setup_logging
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer
 from prometheus_fastapi_instrumentator import Instrumentator
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -106,7 +107,14 @@ try:
 except Exception as e:
     logger.error(f"❌ Storage/Database initialization failed: {e}")
 
-app = FastAPI(title="Design Engine API")
+# JWT Security scheme
+security = HTTPBearer()
+
+app = FastAPI(
+    title="Design Engine API",
+    description="Complete FastAPI backend for design generation with JWT authentication",
+    version="0.1.0",
+)
 
 
 # Global exception handler for consistent error responses
@@ -178,48 +186,55 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# Include routers in logical sequence
-# 1. Authentication & Security
+# Basic public health check (no sensitive info)
+@app.get("/health", tags=["📊 Public Health"])
+async def basic_health_check():
+    """Basic health check - no authentication required"""
+    return {"status": "ok", "service": "Design Engine API", "version": "0.1.0"}
+
+
+# SECURED API STRUCTURE WITH JWT AUTHENTICATION
+# Public endpoints (no authentication required)
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["🔐 Authentication"])
-app.include_router(data_privacy.router, prefix="/api/v1", tags=["🔐 Data Privacy"])
 
-# 2. System Health & Monitoring
-app.include_router(health.router, prefix="/api/v1", tags=["📊 Monitoring & Health"])
+# Protected system monitoring (requires JWT authentication)
+app.include_router(
+    health.router, prefix="/api/v1", tags=["📊 Health & Monitoring"], dependencies=[Depends(get_current_user)]
+)
 
-# 3. Core Design Engine (Main Workflow)
-app.include_router(generate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
-app.include_router(evaluate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
-app.include_router(iterate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
-app.include_router(switch.router, tags=["🎨 Core Design Engine"])
-app.include_router(history.router, prefix="/api/v1", tags=["🎨 Core Design Engine"])
+# Protected endpoints (JWT authentication required)
+app.include_router(
+    data_privacy.router, prefix="/api/v1", tags=["🔐 Data Privacy"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    generate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    evaluate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    iterate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(switch.router, dependencies=[Depends(get_current_user)])
+app.include_router(
+    history.router, prefix="/api/v1", tags=["🎨 Core Design Engine"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    compliance.router,
+    prefix="/api/v1/compliance",
+    tags=["✅ Compliance & Validation"],
+    dependencies=[Depends(get_current_user)],
+)
+app.include_router(city_router, prefix="/api/v1", dependencies=[Depends(get_current_user)])
+app.include_router(bhiv_integrated.router, dependencies=[Depends(get_current_user)])
 
-# 4. Core Operations & Management
-app.include_router(core.router, prefix="/api/v1", tags=["⚙️ Core Operations"])
-
-# 5. Compliance & Validation
-app.include_router(compliance.router, prefix="/api/v1/compliance", tags=["✅ Compliance & Validation"])
-
-# 6. File Management & Reports
-app.include_router(reports.router, prefix="/api/v1", tags=["📁 File Management & Reports"])
-
-# 7. Platform Integrations
-app.include_router(mobile.router, prefix="/api/v1", tags=["📱 Mobile Integration"])
-app.include_router(vr.router, prefix="/api/v1", tags=["🥽 VR/AR Integration"])
-
-# 8. AI Training & Optimization
-app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL/RLHF Training"])
-
-# 9. Multi-City Support
-app.include_router(city_router, prefix="/api/v1", tags=["🏙️ Multi-City Support"])
-
-# 10. BHIV AI Assistant (Task 8)
-app.include_router(bhiv_assistant.router, tags=["🧠 BHIV AI Assistant"])
-app.include_router(bhiv_integrated.router, tags=["🤖 BHIV AI Assistant"])
-
-# 11. Workflow Management
 from app.api import workflow_management
 
-app.include_router(workflow_management.router, prefix="/api/v1", tags=["⚙️ Workflow Management"])
+app.include_router(workflow_management.router, prefix="/api/v1", dependencies=[Depends(get_current_user)])
+app.include_router(
+    reports.router, prefix="/api/v1", tags=["📁 File Management"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL Training"], dependencies=[Depends(get_current_user)])
 
 if __name__ == "__main__":
     import uvicorn
