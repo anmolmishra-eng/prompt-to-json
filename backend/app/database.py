@@ -8,6 +8,8 @@ from contextlib import contextmanager
 from typing import Generator
 
 from app.config import settings
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
@@ -379,12 +381,49 @@ if __name__ != "__main__" and not settings.DATABASE_URL.startswith("sqlite:///:m
 # ============================================================================
 
 
-def get_current_user() -> str:
+def get_current_user(token: str = Depends(HTTPBearer())) -> str:
     """
-    Mock authentication dependency
-    In production, this would validate JWT tokens
+    JWT authentication dependency
+    Validates JWT tokens and returns current user
     """
-    return "demo_user"
+    try:
+        import jwt
+        from app.config import settings
+
+        # Extract token from Bearer scheme
+        token_str = token.credentials
+
+        # Decode and validate JWT token
+        payload = jwt.decode(token_str, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+
+        username = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        return username
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 # Export commonly used items

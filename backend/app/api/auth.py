@@ -29,3 +29,36 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     }
     token = jwt.encode(token_data, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
+
+
+from fastapi.security import HTTPBearer
+
+security = HTTPBearer()
+
+
+@router.post("/refresh")
+async def refresh_token(token: str = Depends(security)):
+    """Refresh JWT token - requires valid existing token"""
+    try:
+        # Extract token from Bearer scheme
+        token_str = token.credentials
+
+        # Decode existing token to get user
+        payload = jwt.decode(token_str, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        username = payload.get("sub")
+
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Create new JWT token
+        token_data = {
+            "sub": username,
+            "exp": datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRATION_HOURS),
+        }
+        new_token = jwt.encode(token_data, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+        return {"access_token": new_token, "token_type": "bearer"}
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")

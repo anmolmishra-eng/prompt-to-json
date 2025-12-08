@@ -160,25 +160,34 @@ async def rl_optimize(req: dict, user=Depends(get_current_user)):
         city = req.get("city", "Mumbai")
         mode = req.get("mode", "optimize")
 
-        logger.info(f"RL optimization request for {city}: {mode}")
+        logger.info(f"RL optimization request for {city}: {mode} - using Ranjeet's LIVE service")
 
-        # Mock optimization response
-        optimized_layout = {
-            "layout_type": "optimized",
-            "efficiency_score": 0.92,
-            "space_utilization": 0.88,
-            "cost_optimization": 0.85,
-            "city": city,
-            "optimization_notes": f"RL-optimized layout for {city} based on: {prompt[:50]}...",
-        }
+        # Use Ranjeet's live Core-Bucket Data Bridge service
+        from app.external_services import ranjeet_client
 
-        return {
-            "optimized_layout": optimized_layout,
-            "confidence": 0.87,
-            "reward_score": 0.91,
-            "status": "success",
-            "processing_time_ms": 150,
-        }
+        try:
+            result = await ranjeet_client.optimize_design(spec_json, city)
+            logger.info(f"✅ Ranjeet's live RL service responded successfully")
+            return result
+        except Exception as e:
+            logger.error(f"❌ Ranjeet's live RL service failed: {e}")
+            # Fallback to mock only if live service completely fails
+            logger.warning(f"⚠️ Using fallback mock response for {city}")
+            return {
+                "optimized_layout": {
+                    "layout_type": "fallback_optimized",
+                    "efficiency_score": 0.85,
+                    "space_utilization": 0.82,
+                    "cost_optimization": 0.78,
+                    "city": city,
+                    "optimization_notes": f"Fallback optimization for {city} - live service unavailable",
+                },
+                "confidence": 0.75,
+                "reward_score": 0.80,
+                "status": "fallback",
+                "processing_time_ms": 100,
+                "fallback_reason": str(e),
+            }
 
     except Exception as e:
         logger.error(f"RL optimization failed: {e}")

@@ -111,7 +111,9 @@ class Settings(BaseSettings):
     SOHUM_TIMEOUT: int = Field(default=30, description="Timeout for MCP calls in seconds")
 
     # Ranjeet's RL System
-    RANJEET_RL_URL: str = Field(default="http://localhost:8001", description="Ranjeet RL service URL")
+    RANJEET_RL_URL: str = Field(
+        default="https://core-bucket-bridge-v2-automation.onrender.com", description="Ranjeet RL service URL"
+    )
     RANJEET_API_KEY: Optional[str] = Field(default=None, description="Ranjeet API key (if required)")
     RANJEET_TIMEOUT: int = Field(default=30, description="Timeout for RL calls in seconds")
 

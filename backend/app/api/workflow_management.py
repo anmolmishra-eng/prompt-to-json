@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/workflow", tags=["Workflow Management"])
+router = APIRouter(prefix="/workflow", tags=["⚙️ Workflow Management"])
 
 
 class PDFWorkflowRequest(BaseModel):

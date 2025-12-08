@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/api/v1", tags=["Switch"])
+router = APIRouter(prefix="/api/v1", tags=["🔄 Switch"])
 logger = logging.getLogger(__name__)
 
 # Initialize NLP parser

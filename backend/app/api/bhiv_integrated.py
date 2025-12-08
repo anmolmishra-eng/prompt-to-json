@@ -24,7 +24,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/bhiv/v1", tags=["BHIV AI Assistant"])
+router = APIRouter(prefix="/bhiv/v1", tags=["🤖 BHIV AI Assistant"])
 
 
 # Request/Response Models
@@ -92,24 +92,32 @@ async def call_sohum_compliance(spec_json: Dict, city: str, project_id: str) -> 
 
 
 async def call_ranjeet_rl(spec_json: Dict, city: str) -> Optional[Dict]:
-    """Call Ranjeet's RL optimization endpoint with robust error handling"""
-    # Always try the real service first
+    """Call Ranjeet's RL optimization endpoint - prioritize live service"""
+    # ALWAYS try the live service first with extended timeout
     try:
-        logger.info(f"Calling Ranjeet RL service for {city}")
+        logger.info(f"🚀 Calling Ranjeet's LIVE RL service at {settings.RANJEET_RL_URL} for {city}")
         result = await ranjeet_client.optimize_design(spec_json, city)
-        logger.info(f"Ranjeet RL response received successfully")
+
         # Mark service as healthy
         service_manager.service_health["ranjeet_rl"] = ServiceStatus.HEALTHY
         service_manager.last_health_check["ranjeet_rl"] = datetime.now()
+
+        logger.info(f"✅ Ranjeet RL LIVE service responded successfully!")
         return result
+
     except Exception as e:
-        logger.error(f"Ranjeet RL service failed: {e}")
+        logger.error(f"❌ Ranjeet RL LIVE service failed: {e}")
+        logger.error(f"Service URL: {settings.RANJEET_RL_URL}")
+
         # Mark service as unhealthy
         service_manager.service_health["ranjeet_rl"] = ServiceStatus.UNHEALTHY
         service_manager.last_health_check["ranjeet_rl"] = datetime.now()
-        # Use mock response as fallback
-        logger.info(f"Using mock RL response for {city}")
-        return ranjeet_client.get_mock_rl_response(spec_json, city)
+
+        # Only use mock as absolute last resort
+        logger.warning(f"⚠️ Using mock RL response as fallback for {city} - LIVE service unavailable")
+        mock_response = ranjeet_client.get_mock_rl_response(spec_json, city)
+        mock_response["fallback_reason"] = f"Live service failed: {str(e)}"
+        return mock_response
 
 
 @router.post("/design", response_model=BHIVResponse)
