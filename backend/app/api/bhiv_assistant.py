@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import httpx
+from app.api.monitoring_system import log_error, log_info, track_performance
 from app.config import settings
 from app.database import get_db
 from app.lm_adapter import run_local_lm
@@ -103,9 +104,9 @@ async def call_mcp_compliance_agent(spec_json: Dict[str, Any], city: str, reques
             payload = {"spec_json": spec_json, "city": city, "case_type": "full", "async_mode": False}
 
             try:
-                # Try Sohum's live MCP service first
-                mcp_payload = {"city": city, "spec_json": spec_json}
-                resp = await client.post("https://ai-rule-api-w7z5.onrender.com/mcp/compliance/check", json=mcp_payload)
+                # Use the new MCP integration API
+                mcp_payload = {"city": city, "spec_json": spec_json, "case_type": "full"}
+                resp = await client.post("http://localhost:8000/api/v1/mcp/check", json=mcp_payload)
                 resp.raise_for_status()
                 result_data = resp.json()
             except Exception as e:
@@ -206,19 +207,27 @@ async def call_geometry_agent(spec_json: Dict[str, Any], request_id: str) -> Age
 
     try:
         logger.info(f"[{request_id}] Calling geometry generation agent")
-        await asyncio.sleep(0.1)  # Simulate processing
 
-        # Use storage manager for geometry directory
-        from app.storage_manager import get_storage_path
+        # Use the new geometry generator API
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            geometry_request = {"spec_json": spec_json, "request_id": request_id, "format": "glb"}
 
-        geometry_dir = get_storage_path("geometry_outputs")
+            try:
+                response = await client.post("http://localhost:8000/api/v1/geometry/generate", json=geometry_request)
+                response.raise_for_status()
+                result_data = response.json()
 
-        result_data = {
-            "geometry_url": f"/api/v1/geometry/{request_id}.glb",
-            "format": "glb",
-            "note": "Geometry generation queued for async processing",
-            "output_dir": str(geometry_dir),
-        }
+                logger.info(f"[{request_id}] Geometry generated: {result_data.get('file_size_bytes')} bytes")
+
+            except Exception as e:
+                logger.warning(f"Geometry API failed: {e}, using fallback")
+                result_data = {
+                    "geometry_url": f"/api/v1/geometry/download/{request_id}.glb",
+                    "format": "glb",
+                    "file_size_bytes": 0,
+                    "generation_time_ms": 100,
+                    "note": "Fallback geometry placeholder",
+                }
 
         duration_ms = int((time.time() - start) * 1000)
         logger.info(f"[{request_id}] Geometry agent completed in {duration_ms}ms")
@@ -272,6 +281,7 @@ async def notify_prefect_webhook(
 
 
 @router.post("/prompt", response_model=BHIVPromptResponse, status_code=status.HTTP_201_CREATED)
+@track_performance("bhiv_prompt")
 async def bhiv_prompt(
     req: BHIVPromptRequest,
     background_tasks: BackgroundTasks,
@@ -292,6 +302,7 @@ async def bhiv_prompt(
     start_time = time.time()
 
     logger.info(f"[{request_id}] BHIV Assistant request started for user {req.user_id}")
+    log_info("bhiv_request_started", request_id=request_id, user_id=req.user_id, city=req.city)
 
     # Step 1: Generate Design Spec using LM
     try:
