@@ -16,6 +16,7 @@ except ImportError:
     IntegrationConfig = None
 
 from app.bhiv_assistant.app.bhiv_layer.assistant_api import router as bhiv_router
+from app.bhiv_assistant.app.bhiv_layer.main_api import app as bhiv_main_api
 from app.bhiv_assistant.app.bhiv_layer.rl_feedback_handler import rl_router
 from app.bhiv_assistant.app.mcp.mcp_client import mcp_router
 
@@ -44,6 +45,14 @@ app.add_middleware(
 app.include_router(bhiv_router)
 app.include_router(mcp_router)
 app.include_router(rl_router)
+
+# Mount BHIV main API
+app.mount("/api", bhiv_main_api)
+
+# Mount Prefect-FastAPI integration
+from app.bhiv_assistant.app.bhiv_layer.prefect_fastapi_integration import app as prefect_api
+
+app.mount("/prefect", prefect_api)
 
 
 @app.get("/")

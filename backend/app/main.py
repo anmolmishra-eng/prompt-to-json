@@ -9,6 +9,7 @@ import time
 import sentry_sdk
 from app.api import (
     auth,
+    bhiv_assistant,
     bhiv_integrated,
     compliance,
     data_privacy,
@@ -22,8 +23,9 @@ from app.api import (
     switch,
 )
 
-# Note: bhiv_assistant.py and bhiv.py are unused duplicate files
-# Only bhiv_integrated.py is used for the main BHIV functionality
+# BHIV AI Assistant: Both bhiv_assistant.py and bhiv_integrated.py are included
+# bhiv_assistant.py: Main orchestration layer (/bhiv/v1/prompt)
+# bhiv_integrated.py: Integrated design endpoint (/bhiv/v1/design)
 from app.config import settings
 from app.database import get_current_user
 from app.multi_city.city_data_loader import city_router
@@ -226,6 +228,9 @@ app.include_router(
     dependencies=[Depends(get_current_user)],
 )
 app.include_router(city_router, prefix="/api/v1", dependencies=[Depends(get_current_user)])
+
+# BHIV AI Assistant Endpoints (Consolidated)
+app.include_router(bhiv_assistant.router, dependencies=[Depends(get_current_user)])
 app.include_router(bhiv_integrated.router, dependencies=[Depends(get_current_user)])
 
 from app.api import workflow_management
