@@ -34,11 +34,16 @@ def deploy_workflow(workflow_path: Path) -> bool:
 
 
 async def deploy_all_flows():
-    """Deploy all workflow files"""
-    print("Deploying All Prefect Workflows")
+    """Deploy essential BHIV workflows only"""
+    print("Deploying Essential BHIV Workflows")
     print("=" * 50)
 
-    workflows = ["pdf_to_mcp_flow.py", "compliance_validation_flow.py", "system_health_flow.py"]
+    # Only essential workflows for BHIV system
+    workflows = [
+        "../app/bhiv_assistant/workflows/mcp_compliance_flow.py",
+        "../app/bhiv_assistant/workflows/rl_integration_flows.py",
+        "../app/bhiv_assistant/workflows/notification_flows.py",
+    ]
 
     workflow_dir = Path(__file__).parent
     successful_deployments = 0

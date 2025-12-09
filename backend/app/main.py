@@ -15,9 +15,12 @@ from app.api import (
     data_privacy,
     evaluate,
     generate,
+    geometry_generator,
     health,
     history,
     iterate,
+    mcp_integration,
+    monitoring_system,
     reports,
     rl,
     switch,
@@ -240,6 +243,31 @@ app.include_router(
     reports.router, prefix="/api/v1", tags=["📁 File Management"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL Training"], dependencies=[Depends(get_current_user)])
+
+# New BHIV Feature APIs
+app.include_router(mcp_integration.router, dependencies=[Depends(get_current_user)])
+app.include_router(geometry_generator.router, dependencies=[Depends(get_current_user)])
+app.include_router(monitoring_system.router, dependencies=[Depends(get_current_user)])
+
+# Multi-city RL feedback endpoint
+from app.multi_city.rl_feedback_integration import multi_city_rl
+
+
+@app.post("/api/v1/rl/feedback/city")
+async def city_rl_feedback(
+    city: str, design_spec: dict, user_rating: float, compliance_result: dict, current_user=Depends(get_current_user)
+):
+    """Submit city-specific RL feedback"""
+    feedback_id = await multi_city_rl.collect_city_feedback(city, design_spec, user_rating, compliance_result)
+    return {"feedback_id": feedback_id, "city": city, "status": "success"}
+
+
+@app.get("/api/v1/rl/feedback/city/{city}/summary")
+async def get_city_feedback_summary(city: str, current_user=Depends(get_current_user)):
+    """Get feedback summary for specific city"""
+    summary = await multi_city_rl.get_city_feedback_summary(city)
+    return summary
+
 
 if __name__ == "__main__":
     import uvicorn
