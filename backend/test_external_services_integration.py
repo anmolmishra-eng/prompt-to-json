@@ -122,7 +122,7 @@ async def test_workflow_system():
     print("=" * 70)
 
     try:
-        from app.prefect_integration_enhanced import (
+        from app.prefect_integration_minimal import (
             check_workflow_status,
             get_workflow_capabilities,
             trigger_health_monitoring_workflow,
@@ -142,7 +142,7 @@ async def test_workflow_system():
 
         # Test health monitoring workflow
         print("\n3. TESTING HEALTH MONITORING WORKFLOW...")
-        health_workflow = await trigger_health_monitoring_workflow()
+        health_workflow = await trigger_automation_workflow("health_monitoring", {})
         print(f"   Workflow ID: {health_workflow.get('workflow_id', 'N/A')}")
         print(f"   Status: {health_workflow.get('status', 'unknown')}")
 

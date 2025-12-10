@@ -89,7 +89,7 @@ async def analyze_integration_status():
     print("\n4. PREFECT INTEGRATION")
     print("   Original Issue: Implemented but falls back to direct execution")
 
-    from app.prefect_integration_enhanced import check_workflow_status
+    from app.prefect_integration_minimal import check_workflow_status
 
     try:
         workflow_status = await check_workflow_status()
@@ -113,7 +113,7 @@ async def analyze_integration_status():
     print("\n5. WORKFLOW AUTOMATION")
     print("   Original Issue: PDF processing workflow complete, other automations pending")
 
-    from app.prefect_integration_enhanced import get_workflow_capabilities
+    from app.prefect_integration_minimal import get_workflow_capabilities
 
     try:
         capabilities = await get_workflow_capabilities()

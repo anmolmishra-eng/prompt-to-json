@@ -1,6 +1,6 @@
 import logging
 
-from app.prefect_integration import check_workflow_status
+from app.prefect_integration_minimal import check_workflow_status
 from app.schemas import MessageResponse
 from app.service_monitor import get_service_health_summary, service_monitor
 from app.utils import get_uptime

@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.prefect_integration import PREFECT_AVAILABLE, check_workflow_status
+from app.prefect_integration_minimal import PREFECT_AVAILABLE, check_workflow_status
 
 
 async def main():

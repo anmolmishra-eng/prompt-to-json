@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 from app.config import settings
 from app.database import get_current_user, get_db
 from app.models import Spec
-from app.prefect_integration import check_workflow_status, trigger_pdf_workflow
+from app.prefect_integration_minimal import check_workflow_status, trigger_automation_workflow
 from app.schemas import ComplianceRequest, ComplianceResponse
 from app.service_monitor import should_use_mock_response
 from app.storage import get_signed_url, upload_to_bucket
@@ -171,7 +171,9 @@ async def ingest_pdf_rules(request: dict, current_user: str = Depends(get_curren
             raise HTTPException(status_code=400, detail="pdf_url is required")
 
         # Trigger PDF processing workflow
-        result = await trigger_pdf_workflow(pdf_url, city, SOHAM_URL)
+        result = await trigger_automation_workflow(
+            "pdf_compliance", {"pdf_url": pdf_url, "city": city, "sohum_url": SOHAM_URL}
+        )
 
         return {"message": "PDF processing initiated", "city": city, "workflow_result": result}
 
