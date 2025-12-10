@@ -22,7 +22,7 @@ def check_imports():
         return False
 
     try:
-        from app.prefect_integration_enhanced import check_workflow_status, trigger_pdf_workflow
+        from app.prefect_integration_minimal import check_workflow_status, trigger_pdf_workflow
 
         print("   ✅ Enhanced Prefect integration imported")
     except Exception as e:
@@ -118,7 +118,7 @@ def check_workflow_setup():
     print("\n🔄 CHECKING WORKFLOW SETUP...")
 
     try:
-        from app.prefect_integration_enhanced import PREFECT_AVAILABLE, PREFECT_CONFIGURED
+        from app.prefect_integration_minimal import PREFECT_AVAILABLE, PREFECT_CONFIGURED
 
         print(f"   Prefect Available: {PREFECT_AVAILABLE}")
         print(f"   Prefect Configured: {PREFECT_CONFIGURED}")

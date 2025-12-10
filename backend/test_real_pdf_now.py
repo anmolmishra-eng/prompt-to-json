@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.prefect_integration import trigger_pdf_workflow
+from app.prefect_integration_minimal import trigger_automation_workflow
 
 
 async def test_real_pdf():
@@ -45,7 +45,9 @@ async def test_real_pdf():
         print("-" * 30)
 
         try:
-            result = await trigger_pdf_workflow(pdf_url=test_case["url"], city=test_case["city"], sohum_url=sohum_url)
+            result = await trigger_automation_workflow(
+                "pdf_compliance", {"pdf_url": test_case["url"], "city": test_case["city"], "sohum_url": sohum_url}
+            )
 
             print(f"Status: {result['status']}")
             print(f"Workflow: {result.get('workflow', 'unknown')}")

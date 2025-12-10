@@ -21,7 +21,7 @@ def check_imports():
         return False
 
     try:
-        from app.prefect_integration_enhanced import check_workflow_status, trigger_pdf_workflow
+        from app.prefect_integration_minimal import check_workflow_status, trigger_pdf_workflow
 
         print("   [OK] Enhanced Prefect integration imported")
     except Exception as e:

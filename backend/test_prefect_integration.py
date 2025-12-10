@@ -10,7 +10,7 @@ from pathlib import Path
 # Add current directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.prefect_integration import (
+from app.prefect_integration_minimal import (
     PREFECT_AVAILABLE,
     check_workflow_status,
     deploy_flows,

@@ -140,18 +140,18 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Initialize Prometheus metrics
-instrumentator = Instrumentator(
-    should_group_status_codes=False,
-    should_ignore_untemplated=True,
-    should_respect_env_var=True,
-    should_instrument_requests_inprogress=True,
-    excluded_handlers=["/metrics"],
-    env_var_name="ENABLE_METRICS",
-    inprogress_name="inprogress",
-    inprogress_labels=True,
-)
-instrumentator.instrument(app).expose(app)
+# Essential metrics only for BHIV automations
+if settings.ENABLE_METRICS:
+    instrumentator = Instrumentator(
+        should_group_status_codes=False,
+        should_ignore_untemplated=True,
+        excluded_handlers=["/metrics", "/docs", "/openapi.json"],
+        env_var_name="ENABLE_METRICS",
+    )
+    instrumentator.instrument(app).expose(app)
+    logger.info("✅ Essential metrics enabled")
+else:
+    logger.info("📊 Metrics disabled")
 
 # CORS middleware - TODO: Update with actual frontend origins
 # Yash & Bhavesh: Provide your frontend URLs to replace ["*"]

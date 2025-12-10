@@ -62,7 +62,7 @@ async def check_workflow_status() -> Dict:
     return status
 
 
-async def trigger_pdf_workflow(pdf_url: str, city: str, sohum_url: str) -> Dict:
+async def trigger_pdf_compliance_workflow(pdf_url: str, city: str, sohum_url: str) -> Dict:
     """Trigger PDF to MCP workflow with intelligent routing"""
     workflow_id = f"pdf_workflow_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 

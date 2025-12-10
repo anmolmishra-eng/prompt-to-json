@@ -10,7 +10,7 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from app.prefect_integration import check_workflow_status, trigger_pdf_workflow
+from app.prefect_integration_minimal import check_workflow_status, trigger_pdf_workflow
 from app.service_monitor import get_service_health_summary, should_use_mock_response
 
 
@@ -27,8 +27,13 @@ async def test_workflow_system():
     # Test 2: Test PDF workflow (mock)
     print("\n2. Testing PDF workflow...")
     try:
-        result = await trigger_pdf_workflow(
-            pdf_url="https://example.com/test.pdf", city="Mumbai", sohum_url="https://ai-rule-api-w7z5.onrender.com"
+        result = await trigger_automation_workflow(
+            "pdf_compliance",
+            {
+                "pdf_url": "https://example.com/test.pdf",
+                "city": "Mumbai",
+                "sohum_url": "https://ai-rule-api-w7z5.onrender.com",
+            },
         )
         print(f"   Result: {json.dumps(result, indent=2)}")
     except Exception as e:
