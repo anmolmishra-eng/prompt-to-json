@@ -18,12 +18,16 @@ from app.api import (
     geometry_generator,
     health,
     history,
+    integration_layer,
     iterate,
     mcp_integration,
+    mock_rl,
     monitoring_system,
+    multi_city_testing,
     reports,
     rl,
     switch,
+    workflow_consolidation,
 )
 
 # BHIV AI Assistant: Both bhiv_assistant.py and bhiv_integrated.py are included
@@ -61,28 +65,21 @@ if settings.SENTRY_DSN:
 else:
     logger.warning("❌ Sentry not configured")
 
-# Check GPU availability
+# Lazy GPU detection - only when needed
 try:
     from app.gpu_detector import gpu_detector
 
-    gpu_info = gpu_detector.detect_gpu()
-    if gpu_info["cuda_available"]:
-        best_gpu = gpu_detector.get_best_gpu()
-        gpu_name = best_gpu["name"] if best_gpu else "Unknown GPU"
-        logger.info(f"GPU connected: {gpu_name} (Method: {gpu_info['detection_method']})")
-    else:
-        logger.info("Using CPU mode (GPU not available)")
+    logger.info("GPU detector loaded (detection deferred)")
 except ImportError:
     logger.info("GPU detector not available - using CPU mode")
 
-# Check Supabase connection
+# Lazy Supabase connection - only when needed
 try:
     from supabase import create_client
 
-    supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-    logger.info(f"✅ Supabase connected: {settings.SUPABASE_URL}")
+    logger.info(f"Supabase client loaded (connection deferred): {settings.SUPABASE_URL}")
 except Exception as e:
-    logger.error(f"❌ Supabase connection failed: {e}")
+    logger.error(f"❌ Supabase client loading failed: {e}")
 
 # Check Yotta configuration
 if settings.YOTTA_API_KEY and settings.YOTTA_URL:
@@ -90,27 +87,14 @@ if settings.YOTTA_API_KEY and settings.YOTTA_URL:
 else:
     logger.warning("❌ Yotta not configured")
 
-# Initialize storage and validate database
+# Lazy initialization - validate on first use
 try:
     from app.database_validator import validate_database
     from app.storage_manager import ensure_storage_ready
 
-    # Ensure all storage directories exist
-    storage_ready = ensure_storage_ready()
-    if storage_ready:
-        logger.info("✅ Storage system initialized")
-    else:
-        logger.warning("⚠️ Some storage paths failed validation")
-
-    # Validate database
-    db_ready = validate_database()
-    if db_ready:
-        logger.info("✅ Database validated and ready")
-    else:
-        logger.warning("⚠️ Database validation issues detected")
-
+    logger.info("Storage and database modules loaded (validation deferred)")
 except Exception as e:
-    logger.error(f"❌ Storage/Database initialization failed: {e}")
+    logger.error(f"❌ Storage/Database module loading failed: {e}")
 
 # JWT Security scheme
 security = HTTPBearer()
@@ -148,7 +132,7 @@ if settings.ENABLE_METRICS:
         excluded_handlers=["/metrics", "/docs", "/openapi.json"],
         env_var_name="ENABLE_METRICS",
     )
-    instrumentator.instrument(app).expose(app)
+    instrumentator.instrument(app).expose(app, tags=["📊 Metrics"])
     logger.info("✅ Essential metrics enabled")
 else:
     logger.info("📊 Metrics disabled")
@@ -191,69 +175,66 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# Basic public health check (no sensitive info)
+# ============================================================================
+# PUBLIC ENDPOINTS (No Authentication Required)
+# ============================================================================
+
+
+# Basic public health check
 @app.get("/health", tags=["📊 Public Health"])
 async def basic_health_check():
     """Basic health check - no authentication required"""
     return {"status": "ok", "service": "Design Engine API", "version": "0.1.0"}
 
 
-# SECURED API STRUCTURE WITH JWT AUTHENTICATION
-# Public endpoints (no authentication required)
+# Authentication endpoints
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["🔐 Authentication"])
 
-# Protected system monitoring (requires JWT authentication)
-app.include_router(
-    health.router, prefix="/api/v1", tags=["📊 Health & Monitoring"], dependencies=[Depends(get_current_user)]
-)
+# ============================================================================
+# PROTECTED ENDPOINTS (JWT Authentication Required)
+# ============================================================================
 
-# Protected endpoints (JWT authentication required)
+# 1. System Health & Monitoring
+app.include_router(health.router, prefix="/api/v1", tags=["📊 System Health"], dependencies=[Depends(get_current_user)])
+app.include_router(monitoring_system.router, dependencies=[Depends(get_current_user)])
+
+# 2. Data Privacy & Security
 app.include_router(
     data_privacy.router, prefix="/api/v1", tags=["🔐 Data Privacy"], dependencies=[Depends(get_current_user)]
 )
+
+# 3. Core Design Engine (Sequential Workflow)
 app.include_router(
-    generate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"], dependencies=[Depends(get_current_user)]
+    generate.router, prefix="/api/v1", tags=["🎨 Design Generation"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    evaluate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"], dependencies=[Depends(get_current_user)]
+    evaluate.router, prefix="/api/v1", tags=["📊 Design Evaluation"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    iterate.router, prefix="/api/v1", tags=["🎨 Core Design Engine"], dependencies=[Depends(get_current_user)]
+    iterate.router, prefix="/api/v1", tags=["🔄 Design Iteration"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(switch.router, dependencies=[Depends(get_current_user)])
 app.include_router(
-    history.router, prefix="/api/v1", tags=["🎨 Core Design Engine"], dependencies=[Depends(get_current_user)]
+    history.router, prefix="/api/v1", tags=["📚 Design History"], dependencies=[Depends(get_current_user)]
 )
+
+# 4. Compliance & Validation
 app.include_router(
     compliance.router,
     prefix="/api/v1/compliance",
     tags=["✅ Compliance & Validation"],
     dependencies=[Depends(get_current_user)],
 )
-app.include_router(city_router, prefix="/api/v1", dependencies=[Depends(get_current_user)])
-
-# BHIV AI Assistant Endpoints (Consolidated)
-app.include_router(bhiv_assistant.router, dependencies=[Depends(get_current_user)])
-app.include_router(bhiv_integrated.router, dependencies=[Depends(get_current_user)])
-
-from app.api import workflow_management
-
-app.include_router(workflow_management.router, prefix="/api/v1", dependencies=[Depends(get_current_user)])
-app.include_router(
-    reports.router, prefix="/api/v1", tags=["📁 File Management"], dependencies=[Depends(get_current_user)]
-)
-app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL Training"], dependencies=[Depends(get_current_user)])
-
-# New BHIV Feature APIs
 app.include_router(mcp_integration.router, dependencies=[Depends(get_current_user)])
-app.include_router(geometry_generator.router, dependencies=[Depends(get_current_user)])
-app.include_router(monitoring_system.router, dependencies=[Depends(get_current_user)])
+
+# 5. Multi-City Support
+app.include_router(city_router, prefix="/api/v1", tags=["🏙️ Multi-City"], dependencies=[Depends(get_current_user)])
 
 # Multi-city RL feedback endpoint
 from app.multi_city.rl_feedback_integration import multi_city_rl
 
 
-@app.post("/api/v1/rl/feedback/city")
+@app.post("/api/v1/rl/feedback/city", tags=["🏙️ Multi-City"])
 async def city_rl_feedback(
     city: str, design_spec: dict, user_rating: float, compliance_result: dict, current_user=Depends(get_current_user)
 ):
@@ -262,11 +243,42 @@ async def city_rl_feedback(
     return {"feedback_id": feedback_id, "city": city, "status": "success"}
 
 
-@app.get("/api/v1/rl/feedback/city/{city}/summary")
-async def get_city_feedback_summary(city: str, current_user=Depends(get_current_user)):
-    """Get feedback summary for specific city"""
-    summary = await multi_city_rl.get_city_feedback_summary(city)
-    return summary
+# 6. BHIV AI Assistant (Main Features)
+app.include_router(bhiv_assistant.router, dependencies=[Depends(get_current_user)])
+app.include_router(bhiv_integrated.router, dependencies=[Depends(get_current_user)])
+
+# 7. BHIV Automations & Workflows
+from app.api import workflow_management
+
+app.include_router(
+    workflow_management.router, prefix="/api/v1", tags=["🤖 BHIV Automations"], dependencies=[Depends(get_current_user)]
+)
+
+# 8. File Management
+app.include_router(
+    reports.router, prefix="/api/v1", tags=["📁 File Management"], dependencies=[Depends(get_current_user)]
+)
+
+# 9. Machine Learning & Training
+app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL Training"], dependencies=[Depends(get_current_user)])
+
+# 9.1 Mock RL System (Land Utilization - Ranjeet's service)
+app.include_router(mock_rl.router, tags=["🔄 Mock RL System"])
+
+# 9.2 Integration Layer (Modular Separation & Dependency Mapping)
+app.include_router(integration_layer.router, dependencies=[Depends(get_current_user)])
+
+# 9.3 Workflow Consolidation (Prefect-based, replaces N8N)
+app.include_router(workflow_consolidation.router, dependencies=[Depends(get_current_user)])
+
+# 9.4 Multi-City Testing & Integration
+app.include_router(multi_city_testing.router, dependencies=[Depends(get_current_user)])
+
+# 10. 3D Geometry Generation
+app.include_router(geometry_generator.router, dependencies=[Depends(get_current_user)])
+
+
+# Note: /api/v1/rl/feedback/city/{city}/summary endpoint is handled by rl.router
 
 
 if __name__ == "__main__":

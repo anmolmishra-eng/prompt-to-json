@@ -15,7 +15,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/v1/monitoring", tags=["Monitoring & Alerts"])
+router = APIRouter(prefix="/api/v1/monitoring", tags=["📊 Monitoring & Alerts"])
 
 
 # Configure structured logging

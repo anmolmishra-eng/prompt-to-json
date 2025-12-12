@@ -1,6 +1,5 @@
 """
-Robust GPU Detection Module
-Addresses inconsistent GPU detection for local AI processing
+GPU Detection Module for AI Processing
 """
 import logging
 import platform
@@ -11,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class GPUDetector:
-    """Comprehensive GPU detection with fallback mechanisms"""
+    """GPU detection and management utility"""
 
     def __init__(self):
         self._gpu_info = None
@@ -124,7 +123,7 @@ class GPUDetector:
                 ["wmic", "path", "win32_VideoController", "get", "name,driverversion"],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=5,
             )
 
             if result.returncode == 0:
@@ -137,6 +136,9 @@ class GPUDetector:
                             gpus.append(
                                 {"name": " ".join(parts[:-1]), "driver_version": parts[-1], "source": "windows_wmic"}
                             )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            logger.info("wmic command not available - using fallback")
+            gpus.append({"name": "Integrated Graphics", "driver_version": "unknown", "source": "fallback"})
         except Exception as e:
             logger.warning(f"Windows GPU detection failed: {e}")
 
@@ -147,7 +149,7 @@ class GPUDetector:
         gpus = []
 
         try:
-            result = subprocess.run(["lspci", "-nn"], capture_output=True, text=True, timeout=10)
+            result = subprocess.run(["lspci", "-nn"], capture_output=True, text=True, timeout=5)
 
             if result.returncode == 0:
                 for line in result.stdout.split("\n"):
@@ -165,7 +167,7 @@ class GPUDetector:
                 ["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader,nounits"],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=5,
             )
 
             if result.returncode == 0:
@@ -209,29 +211,6 @@ class GPUDetector:
         best_gpu = max(info["gpus"], key=lambda g: g.get("memory_total", 0))
         return best_gpu
 
-    def test_gpu_allocation(self) -> Dict:
-        """Test GPU memory allocation"""
-        if not self.is_gpu_available():
-            return {"success": False, "error": "No GPU available"}
-
-        try:
-            import torch
-
-            device = torch.device("cuda:0")
-
-            # Test small allocation
-            test_tensor = torch.randn(100, 100).to(device)
-            memory_allocated = torch.cuda.memory_allocated(0)
-
-            # Cleanup
-            del test_tensor
-            torch.cuda.empty_cache()
-
-            return {"success": True, "memory_allocated": memory_allocated, "device": str(device)}
-
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
 
 # Global instance
 gpu_detector = GPUDetector()
@@ -250,7 +229,3 @@ def is_gpu_available() -> bool:
 def get_device() -> str:
     """Get the best device for AI processing"""
     return "cuda" if is_gpu_available() else "cpu"
-
-
-# Add method to GPUDetector class
-GPUDetector.get_device = lambda self: "cuda" if self.is_gpu_available() else "cpu"

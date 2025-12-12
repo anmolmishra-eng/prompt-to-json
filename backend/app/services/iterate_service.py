@@ -10,7 +10,6 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, Tuple
 
-import torch
 from app.database import get_db
 from app.error_handler import APIException
 from app.lm_adapter import lm_run
@@ -208,6 +207,7 @@ class IterateService:
         """Use trained reward model to suggest improvements"""
 
         try:
+            import torch
             from app.rlhf.reward_model import SimpleRewardModel, score_spec
 
             device = "cuda" if torch.cuda.is_available() else "cpu"

@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v1/mcp", tags=["MCP Integration"])
+router = APIRouter(prefix="/api/v1/mcp", tags=["🔗 MCP Integration"])
 
 
 class MCPRequest(BaseModel):
@@ -41,6 +41,8 @@ class MCPResponse(BaseModel):
 @router.post("/check", response_model=MCPResponse)
 async def mcp_compliance_check(request: MCPRequest, background_tasks: BackgroundTasks):
     """Check design compliance using Sohum's MCP system"""
+    if not request or not request.spec_json:
+        raise HTTPException(status_code=422, detail="Request body with spec_json is required")
 
     try:
         # Call Sohum's MCP API
