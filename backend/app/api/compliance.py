@@ -22,8 +22,8 @@ API_KEY = settings.COMPLIANCE_API_KEY
 
 
 @router.get("/test")
-async def test_endpoint():
-    return {"message": "Compliance endpoint is working", "timestamp": "2024-01-01"}
+async def test_endpoint(current_user: str = Depends(get_current_user)):
+    return {"message": "Compliance endpoint is working", "timestamp": "2024-01-01", "user": current_user}
 
 
 @router.post("/run_case")

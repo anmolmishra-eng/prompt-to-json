@@ -24,7 +24,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/bhiv/v1", tags=["🤖 BHIV AI Assistant"])
+router = APIRouter(prefix="/bhiv/v1", tags=["🤖 BHIV Integrated"])
 
 
 # Request/Response Models
@@ -122,14 +122,13 @@ async def call_ranjeet_rl(spec_json: Dict, city: str) -> Optional[Dict]:
 
 @router.post("/design", response_model=BHIVResponse)
 async def create_design(request: DesignRequest):
-    """
-    Generate complete design with compliance and RL optimization
-
-    Orchestrates:
-    1. Task 7: Generate spec from natural language prompt (internal)
-    2. Sohum's MCP: Run compliance check
-    3. Ranjeet's RL: Optimize land utilization
-    """
+    """Generate complete design with compliance and RL optimization"""
+    if not request:
+        raise HTTPException(status_code=422, detail="Request body is required")
+    # Orchestrates:
+    # 1. Generate spec from natural language prompt (internal)
+    # 2. Sohum's MCP: Run compliance check
+    # 3. Ranjeet's RL: Optimize land utilization
     start_time = datetime.now()
     request_id = f"bhiv_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
@@ -241,41 +240,3 @@ async def process_with_workflow(request: DesignRequest):
     except Exception as e:
         logger.error(f"[{request_id}] Workflow processing failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/health")
-async def health_check():
-    """Comprehensive health check for BHIV Assistant and all integrated services"""
-    # Get external service health status
-    external_services = await get_service_health_status()
-
-    # Add workflow status
-    workflow_status = await check_workflow_status()
-
-    # Perform live health checks
-    sohum_status = await sohum_client.health_check()
-    ranjeet_status = await ranjeet_client.health_check()
-
-    return {
-        "bhiv_assistant": "operational",
-        "task7_internal": "operational",
-        "workflow_system": workflow_status,
-        "external_services": {
-            "sohum_mcp": {
-                "status": sohum_status,
-                "url": settings.SOHUM_MCP_URL,
-                "available": service_manager.should_use_service("sohum_mcp"),
-                "last_check": external_services["sohum_mcp"]["last_check"],
-            },
-            "ranjeet_rl": {
-                "status": ranjeet_status,
-                "url": settings.RANJEET_RL_URL,
-                "available": service_manager.should_use_service("ranjeet_rl"),
-                "last_check": external_services["ranjeet_rl"]["last_check"],
-            },
-        },
-        "timestamp": datetime.now().isoformat(),
-        "overall_status": "operational"
-        if sohum_status != "unhealthy" and ranjeet_status != "unhealthy"
-        else "degraded",
-    }

@@ -530,19 +530,25 @@ def log_usage(provider: str, tokens: int, cost_per_token: float, user_id: str = 
     # Log for monitoring and billing
     logger.info(f"BILLING: {usage_log}")
 
-    # Store in usage log file
-    with open("lm_usage.log", "a") as f:
-        f.write(f"{usage_log}\n")
+    # Store in usage log file (with error handling)
+    try:
+        with open("lm_usage.log", "a") as f:
+            f.write(f"{usage_log}\n")
+    except Exception as e:
+        logger.warning(f"Failed to write usage log: {e}")
 
-    # Log to audit system
-    from app.utils import log_audit_event
+    # Log to audit system (simplified)
+    try:
+        from app.utils import log_audit_event
 
-    if user_id:
-        log_audit_event(
-            "lm_usage",
-            user_id,
-            {"provider": provider, "tokens": tokens, "cost": total_cost},
-        )
+        if user_id:
+            log_audit_event(
+                "lm_usage",
+                user_id,
+                {"provider": provider, "tokens": tokens, "cost": total_cost},
+            )
+    except ImportError:
+        logger.debug("Audit logging not available - skipping")
 
 
 class LMAdapter:

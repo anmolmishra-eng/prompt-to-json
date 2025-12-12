@@ -176,12 +176,14 @@ class SohumMCPClient:
 
 
 class RanjeetRLClient:
-    """Client for Ranjeet's RL optimization system"""
+    """Client for Ranjeet's RL optimization system (Land Utilization)"""
 
     def __init__(self):
         self.base_url = settings.RANJEET_RL_URL
         self.api_key = settings.RANJEET_API_KEY
         self.timeout = settings.RANJEET_TIMEOUT
+        self.mock_mode = settings.LAND_UTILIZATION_MOCK_MODE
+        self.service_available = settings.RANJEET_SERVICE_AVAILABLE
 
     async def health_check(self) -> ServiceStatus:
         """Check Core-Bucket Data Bridge health"""
@@ -200,86 +202,56 @@ class RanjeetRLClient:
             return ServiceStatus.UNHEALTHY
 
     async def optimize_design(self, spec_json: Dict, city: str, constraints: Dict = None) -> Dict:
-        """Optimize design using Ranjeet's Core-Bucket Data Bridge API"""
+        """Optimize design using Ranjeet's Land Utilization RL System"""
+
+        # Check if we should use mock mode (service not available yet)
+        if self.mock_mode or not self.service_available:
+            logger.info(
+                f"🔄 Using mock Land Utilization RL for {city} - Ranjeet's service will be available in 3-4 days"
+            )
+            return self.get_mock_land_utilization_response(spec_json, city, constraints)
+
         try:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
-            # Format payload for Ranjeet's Core-Bucket Data Bridge API
-            # Using /core/update endpoint to send design data
+            # Format payload for Ranjeet's Land Utilization RL System
             payload = {
                 "payload": {
                     "design_spec": spec_json,
                     "city": city,
-                    "optimization_request": True,
+                    "land_utilization_request": True,
                     "constraints": constraints or {},
-                    "module_type": "design_optimization",
+                    "module_type": "land_utilization_optimization",
                     "timestamp": datetime.now().isoformat(),
                 },
-                "signature": "design_optimization_request",  # This would be properly signed in production
+                "signature": "land_utilization_request",
                 "nonce": f"nonce_{datetime.now().timestamp()}",
             }
 
             async with httpx.AsyncClient(timeout=60.0) as client:
-                # Try Core-Bucket Data Bridge endpoints from his API docs
                 try:
-                    logger.info(f"Calling Ranjeet's Core-Bucket Data Bridge: {self.base_url}/core/update")
-                    response = await client.post(f"{self.base_url}/core/update", json=payload, headers=headers)
+                    logger.info(f"Calling Ranjeet's Land Utilization RL: {self.base_url}/land/optimize")
+                    response = await client.post(f"{self.base_url}/land/optimize", json=payload, headers=headers)
 
                     if response.status_code == 200:
                         result = response.json()
-                        logger.info(f"✅ Ranjeet's Core-Bucket bridge responded successfully")
-
-                        # Check bucket status for optimization results
-                        status_response = await client.get(f"{self.base_url}/bucket/status", headers=headers)
-                        if status_response.status_code == 200:
-                            status_data = status_response.json()
-
-                            return {
-                                "optimized_layout": {
-                                    "layout_type": "core_bucket_optimized",
-                                    "efficiency_score": 0.92,
-                                    "space_utilization": 0.88,
-                                    "cost_optimization": 0.85,
-                                    "city": city,
-                                    "sync_status": result.get("status", "completed"),
-                                    "session_id": result.get("session_id"),
-                                    "bucket_sync_count": status_data.get("total_sync_count", 0),
-                                },
-                                "confidence": 0.92,
-                                "reward_score": 0.88,
-                                "processing_time_ms": 2000,
-                                "service_status": "live",
-                                "bridge_status": result.get("status"),
-                                "endpoint_used": "/core/update",
-                            }
-                        else:
-                            # Fallback response if bucket status fails
-                            return {
-                                "optimized_layout": {
-                                    "layout_type": "core_bridge_optimized",
-                                    "efficiency_score": 0.90,
-                                    "space_utilization": 0.85,
-                                    "city": city,
-                                    "bridge_response": result,
-                                },
-                                "confidence": 0.90,
-                                "reward_score": 0.85,
-                                "service_status": "live",
-                                "endpoint_used": "/core/update",
-                            }
+                        logger.info(f"✅ Ranjeet's Land Utilization RL responded successfully")
+                        return result
                     else:
-                        logger.error(f"Core-Bucket bridge returned {response.status_code}: {response.text}")
-                        raise Exception(f"Bridge API returned {response.status_code}")
+                        logger.error(f"Land Utilization RL returned {response.status_code}: {response.text}")
+                        raise Exception(f"Land Utilization API returned {response.status_code}")
 
                 except Exception as e:
-                    logger.error(f"Core-Bucket bridge call failed: {e}")
+                    logger.error(f"Land Utilization RL call failed: {e}")
                     raise
 
         except Exception as e:
-            logger.error(f"Ranjeet's Core-Bucket Data Bridge failed: {e}")
-            raise  # This will trigger the fallback in the calling function
+            logger.error(f"Ranjeet's Land Utilization RL failed: {e}")
+            # Fallback to mock response
+            logger.warning(f"⚠️ Falling back to mock Land Utilization response for {city}")
+            return self.get_mock_land_utilization_response(spec_json, city, constraints)
 
     async def predict_reward(self, spec_json: Dict, prompt: str) -> Dict:
         """Predict reward for design"""
@@ -299,23 +271,75 @@ class RanjeetRLClient:
             logger.error(f"RL prediction error: {e}")
             raise
 
-    def get_mock_rl_response(self, spec_json: Dict, city: str) -> Dict:
-        """Generate mock RL response when service unavailable"""
+    def get_mock_land_utilization_response(self, spec_json: Dict, city: str, constraints: Dict = None) -> Dict:
+        """Generate mock Land Utilization RL response when service unavailable"""
+
+        # City-specific land utilization patterns
+        city_patterns = {
+            "Mumbai": {
+                "density_optimization": 0.92,
+                "vertical_efficiency": 0.88,
+                "land_coverage_ratio": 0.65,
+                "green_space_ratio": 0.15,
+                "transportation_access": 0.85,
+            },
+            "Pune": {
+                "density_optimization": 0.87,
+                "vertical_efficiency": 0.82,
+                "land_coverage_ratio": 0.60,
+                "green_space_ratio": 0.25,
+                "transportation_access": 0.78,
+            },
+            "Ahmedabad": {
+                "density_optimization": 0.85,
+                "vertical_efficiency": 0.80,
+                "land_coverage_ratio": 0.58,
+                "green_space_ratio": 0.22,
+                "transportation_access": 0.75,
+            },
+            "Nashik": {
+                "density_optimization": 0.83,
+                "vertical_efficiency": 0.78,
+                "land_coverage_ratio": 0.55,
+                "green_space_ratio": 0.30,
+                "transportation_access": 0.72,
+            },
+        }
+
+        pattern = city_patterns.get(city, city_patterns["Mumbai"])
+
         return {
             "optimized_layout": {
-                "layout_type": "optimized",
-                "efficiency_score": 0.85,
-                "space_utilization": 0.82,
-                "cost_optimization": 0.78,
+                "layout_type": "land_utilization_optimized",
                 "city": city,
-                "optimization_notes": f"Mock RL optimization for {city}",
+                "land_utilization_metrics": {
+                    "density_optimization": pattern["density_optimization"],
+                    "vertical_efficiency": pattern["vertical_efficiency"],
+                    "land_coverage_ratio": pattern["land_coverage_ratio"],
+                    "green_space_ratio": pattern["green_space_ratio"],
+                    "transportation_access": pattern["transportation_access"],
+                    "overall_utilization_score": sum(pattern.values()) / len(pattern),
+                },
+                "optimization_recommendations": [
+                    f"Optimize building density for {city} urban planning standards",
+                    "Implement vertical growth strategies to maximize land use",
+                    "Balance green spaces with development requirements",
+                    "Enhance transportation connectivity",
+                ],
+                "constraints_applied": constraints or {},
+                "mock_service_note": "Land Utilization RL system - Ranjeet's service will be available in 3-4 days",
             },
-            "confidence": 0.3,
-            "reward_score": 0.75,
-            "status": "mock",
-            "processing_time_ms": 50,
+            "confidence": 0.85,
+            "reward_score": pattern["density_optimization"],
+            "status": "mock_land_utilization",
+            "processing_time_ms": 150,
             "mock_response": True,
+            "service_availability": "Available in 3-4 days",
         }
+
+    def get_mock_rl_response(self, spec_json: Dict, city: str) -> Dict:
+        """Generate mock RL response when service unavailable (legacy method)"""
+        return self.get_mock_land_utilization_response(spec_json, city)
 
 
 # Global client instances

@@ -14,7 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v1/geometry", tags=["Geometry Generation"])
+router = APIRouter(prefix="/api/v1/geometry", tags=["📐 Geometry Generation"])
 
 
 class GeometryRequest(BaseModel):

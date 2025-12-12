@@ -144,7 +144,7 @@ async def delete_user_data(
 
 
 @router.post("/auth/refresh")
-async def refresh_token(current_user: str = Depends(get_current_user)):
+async def refresh_user_token(current_user: str = Depends(get_current_user)):
     """Refresh JWT token for short-lived token strategy"""
     from app.utils import create_access_token
 

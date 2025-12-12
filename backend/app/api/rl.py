@@ -1,7 +1,6 @@
 import logging
 import os
 
-import torch
 from app.compute_routing import route, run_yotta
 from app.database import get_current_user, get_db
 from app.opt_rl.env_spec import SpecEditEnv
@@ -18,12 +17,18 @@ router = APIRouter()
 @router.post("/rl/feedback")
 async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """Submit RL feedback for training"""
+    if not feedback:
+        raise HTTPException(400, "Feedback data is required")
+
     # Validate spec IDs exist before saving
     from app.models import RLFeedback, Spec
 
     # Handle both field name formats
     spec_a_id = feedback.get("design_a_id") or feedback.get("spec_a_id")
     spec_b_id = feedback.get("design_b_id") or feedback.get("spec_b_id")
+
+    if not spec_a_id or not spec_b_id:
+        raise HTTPException(400, "Both design_a_id and design_b_id are required")
 
     spec_a = db.query(Spec).filter(Spec.spec_id == spec_a_id).first()
     spec_b = db.query(Spec).filter(Spec.spec_id == spec_b_id).first()
@@ -44,6 +49,73 @@ async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Sessio
     db.commit()
 
     return {"ok": True, "message": "Feedback recorded"}
+
+
+@router.get("/rl/feedback/city/{city}/summary")
+async def get_city_feedback_summary(city: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get feedback summary for specific city"""
+    from app.models import RLFeedback
+    from sqlalchemy import func
+
+    try:
+        # Query feedback data for the specific city
+        feedback_query = db.query(RLFeedback).filter(RLFeedback.spec_json.op("->>")("city") == city)
+
+        total_feedback = feedback_query.count()
+
+        if total_feedback == 0:
+            return {
+                "city": city,
+                "total_feedback": 0,
+                "average_rating": 0,
+                "feedback_distribution": {},
+                "recent_feedback_count": 0,
+                "message": f"No feedback data available for {city}",
+            }
+
+        # Calculate statistics
+        avg_rating = (
+            db.query(func.avg(RLFeedback.user_rating)).filter(RLFeedback.spec_json.op("->>")("city") == city).scalar()
+            or 0
+        )
+
+        # Get rating distribution
+        rating_dist = (
+            db.query(RLFeedback.user_rating, func.count(RLFeedback.user_rating))
+            .filter(RLFeedback.spec_json.op("->>")("city") == city)
+            .group_by(RLFeedback.user_rating)
+            .all()
+        )
+
+        distribution = {str(rating): count for rating, count in rating_dist}
+
+        # Recent feedback (last 30 days)
+        from datetime import datetime, timedelta
+
+        recent_date = datetime.now() - timedelta(days=30)
+        recent_count = feedback_query.filter(RLFeedback.created_at >= recent_date).count()
+
+        return {
+            "city": city,
+            "total_feedback": total_feedback,
+            "average_rating": round(float(avg_rating), 2),
+            "feedback_distribution": distribution,
+            "recent_feedback_count": recent_count,
+            "status": "success",
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting feedback summary for {city}: {e}")
+        # Return mock data as fallback
+        return {
+            "city": city,
+            "total_feedback": 25,
+            "average_rating": 4.2,
+            "feedback_distribution": {"5": 12, "4": 8, "3": 3, "2": 1, "1": 1},
+            "recent_feedback_count": 8,
+            "status": "mock_data",
+            "note": f"Mock feedback summary for {city} - database query failed",
+        }
 
 
 @router.post("/rl/train/rlhf")
@@ -99,6 +171,8 @@ async def train_rlhf_ep(params: dict, user=Depends(get_current_user), db: Sessio
             print(f"[RM] epoch {epoch+1} loss={loss:.4f}")
 
         # Mock save reward model
+        import torch
+
         torch.save({"mock": "reward_model"}, "models_ckpt/rm.pt")
 
         # Mock RLHF training
@@ -160,33 +234,34 @@ async def rl_optimize(req: dict, user=Depends(get_current_user)):
         city = req.get("city", "Mumbai")
         mode = req.get("mode", "optimize")
 
-        logger.info(f"RL optimization request for {city}: {mode} - using Ranjeet's LIVE service")
+        logger.info(f"RL optimization request for {city}: {mode} - using Land Utilization RL System")
 
-        # Use Ranjeet's live Core-Bucket Data Bridge service
+        # Use Ranjeet's Land Utilization RL System (currently in mock mode)
         from app.external_services import ranjeet_client
 
         try:
             result = await ranjeet_client.optimize_design(spec_json, city)
-            logger.info(f"✅ Ranjeet's live RL service responded successfully")
+            logger.info(f"✅ Land Utilization RL system responded successfully")
             return result
         except Exception as e:
-            logger.error(f"❌ Ranjeet's live RL service failed: {e}")
-            # Fallback to mock only if live service completely fails
-            logger.warning(f"⚠️ Using fallback mock response for {city}")
+            logger.error(f"❌ Land Utilization RL system failed: {e}")
+            # Fallback to basic mock response
+            logger.warning(f"⚠️ Using basic fallback response for {city}")
             return {
                 "optimized_layout": {
-                    "layout_type": "fallback_optimized",
-                    "efficiency_score": 0.85,
-                    "space_utilization": 0.82,
-                    "cost_optimization": 0.78,
+                    "layout_type": "basic_fallback",
+                    "efficiency_score": 0.75,
+                    "space_utilization": 0.70,
+                    "cost_optimization": 0.68,
                     "city": city,
-                    "optimization_notes": f"Fallback optimization for {city} - live service unavailable",
+                    "optimization_notes": f"Basic fallback for {city} - Land Utilization RL unavailable",
                 },
-                "confidence": 0.75,
-                "reward_score": 0.80,
-                "status": "fallback",
-                "processing_time_ms": 100,
+                "confidence": 0.60,
+                "reward_score": 0.65,
+                "status": "basic_fallback",
+                "processing_time_ms": 50,
                 "fallback_reason": str(e),
+                "service_note": "Ranjeet's Land Utilization RL service will be available in 3-4 days",
             }
 
     except Exception as e:
@@ -205,11 +280,15 @@ async def suggest_iterate(req: dict, user=Depends(get_current_user)):
 
     spec = req["spec"]
     strategy = req.get("strategy", "auto_optimize")
+    import torch
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     try:
         # score current
         rm = SimpleRewardModel()
+        import torch
+
         rm.load_state_dict(torch.load("models_ckpt/rm.pt", map_location=device))
         rm.to(device).eval()
         base_score = score_spec(rm, "Improve design", spec, device=device)
