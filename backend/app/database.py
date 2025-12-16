@@ -133,6 +133,35 @@ def get_db_context():
 # ============================================================================
 
 
+def create_test_user():
+    """
+    Create test user for API testing
+    """
+    try:
+        from app.models import User
+
+        with get_db_context() as db:
+            # Check if test user already exists
+            existing_user = db.query(User).filter(User.username == "test_user").first()
+            if existing_user:
+                return
+
+            # Create test user
+            test_user = User(
+                id="test_user",
+                username="test_user",
+                email="test@example.com",
+                password_hash="dummy_hash",
+                full_name="Test User",
+                is_active=True,
+            )
+            db.add(test_user)
+            db.commit()
+            logger.info("Test user created successfully")
+    except Exception as e:
+        logger.warning(f"Failed to create test user: {e}")
+
+
 def init_db():
     """
     Initialize database tables
@@ -161,6 +190,10 @@ def init_db():
                         conn.commit()
 
         ModelsBase.metadata.create_all(bind=engine)
+
+        # Create test user for API testing
+        create_test_user()
+
         logger.info("Database tables initialized successfully")
         return True
     except Exception as e:

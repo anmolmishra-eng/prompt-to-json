@@ -20,7 +20,7 @@ async def get_report(
 ):
     try:
         # Step 1: Check if spec exists
-        spec = db.query(Spec).filter(Spec.spec_id == spec_id).first()
+        spec = db.query(Spec).filter(Spec.id == spec_id).first()
         if not spec:
             raise HTTPException(status_code=404, detail="Spec not found")
 
