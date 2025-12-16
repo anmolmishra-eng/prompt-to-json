@@ -11,21 +11,21 @@ def build_preferences_from_db(db: Session, min_delta: float = 0.5):
     rows = db.execute(
         text(
             """
-      SELECT i.spec_id, i.before_spec, i.after_spec, e.score AS new_score, e.ts AS ets
+      SELECT i.spec_id, i.spec_json, e.rating AS new_score, e.created_at AS ets
       FROM iterations i
       JOIN evaluations e ON e.spec_id = i.spec_id
-      ORDER BY e.ts DESC
+      ORDER BY e.created_at DESC
     """
         )
     ).fetchall()
 
-    for spec_id, before, after, new_score, ets in rows:
+    for spec_id, spec_json, new_score, ets in rows:
         prev = db.execute(
             text(
                 """
-           SELECT score FROM evaluations
-           WHERE spec_id=:sid AND ts < :ets
-           ORDER BY ts DESC LIMIT 1
+           SELECT rating FROM evaluations
+           WHERE spec_id=:sid AND created_at < :ets
+           ORDER BY created_at DESC LIMIT 1
         """
             ),
             {"sid": spec_id, "ets": ets},
@@ -37,5 +37,6 @@ def build_preferences_from_db(db: Session, min_delta: float = 0.5):
         if abs(delta) < min_delta:
             continue
         preferred = "B" if delta > 0 else "A"
-        pairs.append(("Improve design", before, after, preferred))
+        # Use current spec_json as both before and after for now
+        pairs.append(("Improve design", spec_json, spec_json, preferred))
     return pairs

@@ -208,7 +208,7 @@ async def compliance_check(
     db: Session = Depends(get_db),
 ):
     # Get spec for compliance check
-    spec = db.query(Spec).filter(Spec.spec_id == request.spec_id).first()
+    spec = db.query(Spec).filter(Spec.id == request.spec_id).first()
     if not spec:
         raise HTTPException(status_code=404, detail="Spec not found")
 

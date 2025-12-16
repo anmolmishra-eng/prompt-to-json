@@ -30,8 +30,8 @@ async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Sessio
     if not spec_a_id or not spec_b_id:
         raise HTTPException(400, "Both design_a_id and design_b_id are required")
 
-    spec_a = db.query(Spec).filter(Spec.spec_id == spec_a_id).first()
-    spec_b = db.query(Spec).filter(Spec.spec_id == spec_b_id).first()
+    spec_a = db.query(Spec).filter(Spec.id == spec_a_id).first()
+    spec_b = db.query(Spec).filter(Spec.id == spec_b_id).first()
 
     if not spec_a or not spec_b:
         raise HTTPException(400, "One or both spec IDs not found")
@@ -278,7 +278,15 @@ async def suggest_iterate(req: dict, user=Depends(get_current_user)):
     if not os.path.exists("models_ckpt/rm.pt"):
         raise HTTPException(400, "Reward model not found. Train RLHF first.")
 
-    spec = req["spec"]
+    spec_id = req.get("spec_id")
+    if not spec_id:
+        raise HTTPException(400, "spec_id is required")
+
+    spec = db.query(Spec).filter(Spec.id == spec_id).first()
+    if not spec:
+        raise HTTPException(404, "Spec not found")
+
+    spec_json = spec.spec_json
     strategy = req.get("strategy", "auto_optimize")
     import torch
 

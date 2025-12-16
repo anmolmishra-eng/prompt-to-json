@@ -29,7 +29,7 @@ class ExternalServiceManager:
         self.last_health_check = {}
         self.health_check_interval = 300  # 5 minutes
 
-    async def check_service_health(self, service_name: str, url: str, timeout: int = 10) -> ServiceStatus:
+    async def check_service_health(self, service_name: str, url: str, timeout: int = 60) -> ServiceStatus:
         """Check health of external service"""
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
@@ -230,7 +230,7 @@ class RanjeetRLClient:
                 "nonce": f"nonce_{datetime.now().timestamp()}",
             }
 
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 try:
                     logger.info(f"Calling Ranjeet's Land Utilization RL: {self.base_url}/land/optimize")
                     response = await client.post(f"{self.base_url}/land/optimize", json=payload, headers=headers)

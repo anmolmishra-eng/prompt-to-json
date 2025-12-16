@@ -108,14 +108,14 @@ class Settings(BaseSettings):
     SOHAM_URL: str = Field(default="https://ai-rule-api-w7z5.onrender.com", description="Legacy Soham URL alias")
     SOHUM_API_KEY: Optional[str] = Field(default=None, description="Sohum API key (if required)")
     COMPLIANCE_API_KEY: Optional[str] = Field(default=None, description="Compliance API key")
-    SOHUM_TIMEOUT: int = Field(default=30, description="Timeout for MCP calls in seconds")
+    SOHUM_TIMEOUT: int = Field(default=120, description="Timeout for MCP calls in seconds")
 
     # Ranjeet's RL System (Mock Mode - Live URL will be available in 3-4 days)
     RANJEET_RL_URL: str = Field(
         default="http://localhost:8000/mock/rl", description="Ranjeet RL service URL (currently mock)"
     )
     RANJEET_API_KEY: Optional[str] = Field(default=None, description="Ranjeet API key (if required)")
-    RANJEET_TIMEOUT: int = Field(default=30, description="Timeout for RL calls in seconds")
+    RANJEET_TIMEOUT: int = Field(default=120, description="Timeout for RL calls in seconds")
 
     # Land Utilization RL System Configuration
     LAND_UTILIZATION_ENABLED: bool = Field(default=True, description="Enable land utilization RL features")

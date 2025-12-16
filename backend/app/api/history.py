@@ -18,49 +18,57 @@ async def get_spec_history(
     """Get complete history for a specific spec including iterations and evaluations"""
 
     # Get the spec
-    spec = db.query(Spec).filter(Spec.spec_id == spec_id).first()
+    spec = db.query(Spec).filter(Spec.id == spec_id).first()
     if not spec:
         raise HTTPException(status_code=404, detail="Spec not found")
 
     # Get iterations
     iterations = (
-        db.query(Iteration).filter(Iteration.spec_id == spec_id).order_by(Iteration.ts.desc()).limit(limit).all()
+        db.query(Iteration)
+        .filter(Iteration.spec_id == spec_id)
+        .order_by(Iteration.created_at.desc())
+        .limit(limit)
+        .all()
     )
 
     # Get evaluations
     evaluations = (
-        db.query(Evaluation).filter(Evaluation.spec_id == spec_id).order_by(Evaluation.ts.desc()).limit(limit).all()
+        db.query(Evaluation)
+        .filter(Evaluation.spec_id == spec_id)
+        .order_by(Evaluation.created_at.desc())
+        .limit(limit)
+        .all()
     )
 
     return {
         "spec_id": spec_id,
         "spec": {
-            "spec_id": spec.spec_id,
+            "spec_id": spec.id,
             "user_id": spec.user_id,
             "project_id": spec.project_id,
             "prompt": spec.prompt,
             "spec_json": spec.spec_json,
-            "spec_version": spec.spec_version,
+            "version": spec.version,
             "created_at": spec.created_at,
             "updated_at": spec.updated_at,
         },
         "iterations": [
             {
-                "iter_id": iter.iter_id,
-                "before_spec": iter.before_spec,
-                "after_spec": iter.after_spec,
-                "feedback": iter.feedback,
-                "timestamp": iter.ts,
+                "iter_id": iter.id,
+                "query": iter.query,
+                "diff": iter.diff,
+                "spec_json": iter.spec_json,
+                "timestamp": iter.created_at,
             }
             for iter in iterations
         ],
         "evaluations": [
             {
-                "eval_id": eval.eval_id,
+                "eval_id": eval.id,
                 "user_id": eval.user_id,
-                "score": eval.score,
+                "rating": eval.rating,
                 "notes": eval.notes,
-                "timestamp": eval.ts,
+                "timestamp": eval.created_at,
             }
             for eval in evaluations
         ],
@@ -89,10 +97,10 @@ async def get_user_history(
         "user_id": current_user,
         "specs": [
             {
-                "spec_id": spec.spec_id,
+                "spec_id": spec.id,
                 "project_id": spec.project_id,
                 "prompt": spec.prompt,
-                "spec_version": spec.spec_version,
+                "version": spec.version,
                 "created_at": spec.created_at,
                 "updated_at": spec.updated_at,
             }
