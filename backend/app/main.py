@@ -106,6 +106,19 @@ app = FastAPI(
 )
 
 
+# Startup event to ensure logging is working
+@app.on_event("startup")
+async def startup_event():
+    print("\n" + "=" * 70)
+    print("🚀 Design Engine API Server Starting...")
+    print(f"🌍 Server URL: http://0.0.0.0:8000")
+    print(f"📄 API Docs: http://0.0.0.0:8000/docs")
+    print(f"🔍 Health Check: http://0.0.0.0:8000/health")
+    print("📝 Request logging is ENABLED")
+    print("=" * 70 + "\n")
+    logger.info("🚀 Design Engine API Server Started Successfully")
+
+
 # Global exception handler for consistent error responses
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -159,18 +172,19 @@ app.add_middleware(
 async def log_requests(request: Request, call_next):
     start_time = time.time()
 
-    # Log incoming request
-    logger.info(
-        f"Request: {request.method} {request.url.path} " f"from {request.client.host if request.client else 'unknown'}"
-    )
+    # Log incoming request with print and logger
+    request_log = f"🌐 {request.method} {request.url.path} from {request.client.host if request.client else 'unknown'}"
+    print(request_log)
+    logger.info(request_log)
 
     response = await call_next(request)
 
     # Log response with timing
     process_time = time.time() - start_time
-    logger.info(
-        f"Response: {request.method} {request.url.path} " f"status={response.status_code} duration={process_time:.3f}s"
-    )
+    status_emoji = "✅" if 200 <= response.status_code < 300 else "❌" if response.status_code >= 400 else "⚠️"
+    response_log = f"{status_emoji} {request.method} {request.url.path} → {response.status_code} ({process_time:.3f}s)"
+    print(response_log)
+    logger.info(response_log)
 
     return response
 

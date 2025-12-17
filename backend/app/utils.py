@@ -40,9 +40,16 @@ def verify_token(token: str) -> dict:
 # Logging setup
 def setup_logging():
     logging.basicConfig(
-        level=logging.INFO if settings.DEBUG else logging.WARNING,
+        level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(),  # Console output
+        ],
+        force=True,  # Override any existing configuration
     )
+    # Ensure uvicorn logs are visible
+    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+    logging.getLogger("uvicorn").setLevel(logging.INFO)
 
 
 # Spec utilities

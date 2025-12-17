@@ -24,6 +24,9 @@ async def iterate(
 ):
     """Iterate and improve a design spec"""
 
+    print(f"🔄 ITERATE REQUEST: user_id={request.user_id}, spec_id={request.spec_id}, strategy={request.strategy}")
+    logger.info(f"🔄 ITERATE REQUEST: user_id={request.user_id}, spec_id={request.spec_id}, strategy={request.strategy}")
+
     try:
         # Validate
         if not request.spec_id:
@@ -56,6 +59,7 @@ async def iterate(
             preview_url=result["preview_url"],
             spec_version=result["spec_version"],
             training_triggered=result.get("training_triggered", False),
+            strategy=result.get("strategy", request.strategy),
         )
 
     except APIException:
