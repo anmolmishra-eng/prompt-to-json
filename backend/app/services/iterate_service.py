@@ -38,79 +38,171 @@ class IterateService:
         Returns: {before, after, feedback, iteration_id, training_triggered, ...}
         """
 
-        # 1. Load spec
-        try:
-            spec = self.db.query(Spec).filter(Spec.spec_id == spec_id).first()
-            if not spec:
-                raise APIException(status_code=404, error_code=ErrorCode.NOT_FOUND, message=f"Spec {spec_id} not found")
-        except APIException:
-            raise
-        except Exception as e:
-            logger.error(f"Database error loading spec: {str(e)}")
-            logger.warning("Database tables not available, using mock response for testing")
+        # 1. Load spec from storage or database
+        from app.spec_storage import get_spec
 
-            # Check if this is a "not found" test case
-            if "nonexistent" in spec_id or "invalid" in spec_id:
-                raise APIException(status_code=404, error_code=ErrorCode.NOT_FOUND, message=f"Spec {spec_id} not found")
+        # Try in-memory storage first (for genuine responses)
+        stored_spec = get_spec(spec_id)
+        if stored_spec:
+            print(f"✅ Found spec {spec_id} in storage - generating GENUINE response")
+            spec_json = stored_spec["spec_json"]
+            spec_version = stored_spec.get("spec_version", 1)
+        else:
+            # Fallback to database
+            try:
+                spec = self.db.query(Spec).filter(Spec.spec_id == spec_id).first()
+                if not spec:
+                    raise APIException(
+                        status_code=404, error_code=ErrorCode.NOT_FOUND, message=f"Spec {spec_id} not found"
+                    )
+                spec_json = spec.spec_json
+                spec_version = spec.spec_version
+            except APIException:
+                raise
+            except Exception as e:
+                logger.error(f"Database error loading spec: {str(e)}")
+                logger.warning("Database tables not available, using mock response for testing")
 
-            # Check for invalid strategy test case
-            if "invalid_strategy" in strategy:
-                raise APIException(
-                    status_code=400,
-                    error_code=ErrorCode.INVALID_INPUT,
-                    message=f"Unknown strategy: {strategy}",
-                    details={
-                        "valid_strategies": ["auto_optimize", "improve_materials", "improve_layout", "improve_colors"]
-                    },
-                )
+                # Check if this is a "not found" test case
+                if "nonexistent" in spec_id or "invalid" in spec_id:
+                    raise APIException(
+                        status_code=404, error_code=ErrorCode.NOT_FOUND, message=f"Spec {spec_id} not found"
+                    )
 
-            # Mock spec for testing
-            mock_spec = {
-                "objects": [
-                    {
-                        "id": "floor_1",
-                        "type": "floor",
-                        "material": "wood_oak",
-                        "color_hex": "#8B4513",
-                        "dimensions": {"width": 5.0, "length": 7.0},
-                    }
-                ]
-            }
+                # Check for invalid strategy test case
+                if "invalid_strategy" in strategy:
+                    raise APIException(
+                        status_code=400,
+                        error_code=ErrorCode.INVALID_INPUT,
+                        message=f"Unknown strategy: {strategy}",
+                        details={
+                            "valid_strategies": [
+                                "auto_optimize",
+                                "improve_materials",
+                                "improve_layout",
+                                "improve_colors",
+                            ]
+                        },
+                    )
 
-            # Apply mock improvement based on strategy
+                print(f"⚠️ Spec {spec_id} not found in storage or database - using mock response")
+                # Use realistic office cabin spec based on your generate endpoint
+                spec_json = {
+                    "objects": [
+                        {
+                            "id": "cabin_floor",
+                            "type": "floor",
+                            "material": "vinyl_plank",
+                            "color_hex": "#D2B48C",
+                            "dimensions": {"width": 3.6, "length": 10},
+                        },
+                        {
+                            "id": "executive_desk",
+                            "type": "furniture",
+                            "subtype": "desk",
+                            "material": "wood_oak",
+                            "color_hex": "#8B4513",
+                            "dimensions": {"width": 1.5, "depth": 0.8, "height": 0.75},
+                        },
+                        {
+                            "id": "office_chair",
+                            "type": "furniture",
+                            "subtype": "chair",
+                            "material": "leather",
+                            "color_hex": "#000000",
+                            "dimensions": {"width": 0.6, "depth": 0.6, "height": 1.2},
+                        },
+                        {
+                            "id": "storage_cabinet",
+                            "type": "storage",
+                            "subtype": "cabinet",
+                            "material": "wood_oak",
+                            "color_hex": "#8B4513",
+                            "dimensions": {"width": 1.2, "depth": 0.4, "height": 1.8},
+                        },
+                        {
+                            "id": "meeting_table",
+                            "type": "furniture",
+                            "subtype": "table",
+                            "material": "wood_oak",
+                            "color_hex": "#8B4513",
+                            "dimensions": {"width": 1.0, "depth": 0.6, "height": 0.75},
+                        },
+                    ],
+                    "design_type": "office_cabin",
+                    "style": "executive",
+                    "dimensions": {"width": 3.6, "length": 10, "height": 2.7},
+                    "estimated_cost": {"total": 125000, "currency": "INR"},
+                }
+
+            # Apply realistic improvements based on strategy
             improved_spec = copy.deepcopy(mock_spec)
+
             if strategy == "improve_materials":
-                improved_spec["objects"][0]["material"] = "wood_walnut"
+                # Upgrade all wood materials
+                for obj in improved_spec["objects"]:
+                    if obj.get("material") == "wood_oak":
+                        obj["material"] = "wood_walnut"
+                    elif obj.get("material") == "vinyl_plank":
+                        obj["material"] = "hardwood_premium"
+                    elif obj.get("material") == "leather":
+                        obj["material"] = "leather_premium"
+
             elif strategy == "improve_colors":
-                improved_spec["objects"][0]["color_hex"] = "#D2691E"
+                # Improve color scheme
+                for obj in improved_spec["objects"]:
+                    if obj.get("color_hex") == "#8B4513":  # Brown wood
+                        obj["color_hex"] = "#654321"  # Darker brown
+                    elif obj.get("color_hex") == "#D2B48C":  # Tan floor
+                        obj["color_hex"] = "#DEB887"  # Burlywood
+
             elif strategy == "improve_layout":
-                improved_spec["objects"][0]["dimensions"]["width"] = 6.0
-            else:  # auto_optimize
-                improved_spec["objects"][0]["material"] = "premium_oak"
+                # Optimize furniture placement and sizes
+                for obj in improved_spec["objects"]:
+                    if obj.get("id") == "executive_desk":
+                        obj["dimensions"]["width"] = 1.8  # Larger desk
+                    elif obj.get("id") == "storage_cabinet":
+                        obj["dimensions"]["width"] = 1.5  # More storage
 
-            return {
-                "before": mock_spec,
-                "after": improved_spec,
-                "feedback": f"Successfully applied {strategy} improvement (mock)",
-                "iteration_id": "iter_mock_123",
-                "preview_url": "https://mock-preview.glb",
-                "spec_version": 2,
-                "training_triggered": False,
-                "strategy": strategy,
-            }
+            else:  # auto_optimize - comprehensive improvements
+                # Upgrade materials
+                for obj in improved_spec["objects"]:
+                    if obj.get("material") == "wood_oak":
+                        obj["material"] = "wood_mahogany"
+                    elif obj.get("material") == "vinyl_plank":
+                        obj["material"] = "engineered_hardwood"
+                    elif obj.get("material") == "leather":
+                        obj["material"] = "leather_executive"
 
-        before_spec = copy.deepcopy(spec.spec_json)
+                # Update cost for premium materials
+                improved_spec["estimated_cost"]["total"] = 165000
+
+                return {
+                    "before": spec_json,
+                    "after": improved_spec,
+                    "feedback": f"Successfully applied {strategy} improvement (mock)",
+                    "iteration_id": "iter_mock_123",
+                    "preview_url": "https://mock-preview.glb",
+                    "spec_version": 2,
+                    "training_triggered": False,
+                    "strategy": strategy,
+                }
+
+        # Continue with genuine processing using stored spec
+        before_spec = copy.deepcopy(spec_json)
+
+        # before_spec already set above
 
         # 2. Apply improvement based on strategy
         try:
             if strategy == "auto_optimize":
-                improved_spec = await self._improve_with_rl_or_fallback(spec.spec_json)
+                improved_spec = await self._improve_with_rl_or_fallback(spec_json)
             elif strategy == "improve_materials":
-                improved_spec = await self._improve_materials(spec.spec_json)
+                improved_spec = await self._improve_materials(spec_json)
             elif strategy == "improve_layout":
-                improved_spec = await self._improve_layout(spec.spec_json)
+                improved_spec = await self._improve_layout(spec_json)
             elif strategy == "improve_colors":
-                improved_spec = await self._improve_colors(spec.spec_json)
+                improved_spec = await self._improve_colors(spec_json)
             else:
                 raise APIException(
                     status_code=400,
@@ -127,31 +219,45 @@ class IterateService:
             logger.error(f"Error improving spec: {str(e)}", exc_info=True)
             raise APIException(status_code=500, error_code=ErrorCode.INTERNAL_ERROR, message="Failed to improve spec")
 
-        # 3. Save iteration
-        try:
-            iter_id = create_iter_id()
-            iteration = Iteration(
-                iter_id=iter_id,
-                spec_id=spec_id,
-                before_spec=before_spec,
-                after_spec=improved_spec,
-                feedback=f"Applied {strategy} improvement",
-            )
-            self.db.add(iteration)
+        # 3. Save iteration and update stored spec
+        iter_id = create_iter_id()
 
-            # Update spec version
-            spec.spec_json = improved_spec
-            spec.spec_version += 1
-            spec.updated_at = datetime.now(timezone.utc)
+        # Update in-memory storage if spec was found there
+        if stored_spec:
+            from app.spec_storage import save_spec
 
-            self.db.commit()
+            stored_spec["spec_json"] = improved_spec
+            stored_spec["spec_version"] = spec_version + 1
+            stored_spec["updated_at"] = datetime.now(timezone.utc).isoformat()
+            save_spec(spec_id, stored_spec)
+            print(f"✅ Updated spec {spec_id} in storage with improvements")
+            spec_version = stored_spec["spec_version"]
+        else:
+            # Try database save
+            try:
+                iteration = Iteration(
+                    iter_id=iter_id,
+                    spec_id=spec_id,
+                    before_spec=before_spec,
+                    after_spec=improved_spec,
+                    feedback=f"Applied {strategy} improvement",
+                )
+                self.db.add(iteration)
 
-        except Exception as e:
-            self.db.rollback()
-            logger.error(f"Error saving iteration: {str(e)}")
-            logger.warning("Database tables not available, using mock iteration ID for testing")
-            iter_id = "iter_mock_123"
-            # Continue with mock response
+                # Update spec version
+                spec.spec_json = improved_spec
+                spec.spec_version += 1
+                spec.updated_at = datetime.now(timezone.utc)
+
+                self.db.commit()
+                spec_version = spec.spec_version
+
+            except Exception as e:
+                self.db.rollback()
+                logger.error(f"Error saving iteration: {str(e)}")
+                logger.warning("Database tables not available, using mock iteration ID for testing")
+                iter_id = "iter_mock_123"
+                spec_version = 2
 
         # 4. Generate preview
         preview_url = None
@@ -182,7 +288,7 @@ class IterateService:
             "feedback": f"Successfully applied {strategy} improvement",
             "iteration_id": iter_id,
             "preview_url": preview_url or "https://mock-preview.glb",
-            "spec_version": spec.spec_version,
+            "spec_version": spec_version,
             "training_triggered": training_triggered,
             "strategy": strategy,
         }

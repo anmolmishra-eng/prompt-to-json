@@ -117,7 +117,7 @@ def generate_kitchen_design(prompt: str, params: dict) -> dict:
         "design_type": "kitchen",
         "style": style,
         "dimensions": {"width": width, "length": length, "height": 2.7},
-        "estimated_cost": {"total": 45000, "currency": "USD"},
+        "estimated_cost": {"total": 450000, "currency": "INR"},
     }
 
 
@@ -223,7 +223,7 @@ def generate_house_design(prompt: str, params: dict) -> dict:
         "style": style,
         "stories": stories,
         "dimensions": {"width": width, "length": length, "height": height * stories},
-        "estimated_cost": {"total": 250000 * stories, "currency": "USD"},
+        "estimated_cost": {"total": 2500000 * stories, "currency": "INR"},
         "tech_stack": ["Local GPU"],
         "model_used": "local-rtx-3060",
     }
@@ -236,50 +236,142 @@ def generate_office_design(prompt: str, params: dict) -> dict:
     """Generate office design"""
     prompt_lower = prompt.lower()
     extracted_dims = params.get("extracted_dimensions", {})
-    width = extracted_dims.get("width", 20)
-    length = extracted_dims.get("length", 30)
+    context = params.get("context", {})
 
-    objects = [
-        {
-            "id": "office_floor",
-            "type": "floor",
-            "material": "carpet_commercial",
-            "color_hex": "#708090",
-            "dimensions": {"width": width, "length": length},
-        },
-        {
-            "id": "workstations",
-            "type": "furniture",
-            "subtype": "desk",
-            "material": "laminate",
-            "color_hex": "#F5F5DC",
-            "count": 12,
-            "dimensions": {"width": 1.5, "depth": 0.8, "height": 0.75},
-        },
-        {
-            "id": "conference_room",
-            "type": "room",
-            "subtype": "meeting",
-            "material": "glass_partition",
-            "dimensions": {"width": 6, "length": 4, "height": 2.7},
-        },
-        {
-            "id": "reception_desk",
-            "type": "furniture",
-            "subtype": "reception",
-            "material": "wood_veneer",
-            "color_hex": "#8B4513",
-            "dimensions": {"width": 3, "depth": 1.2, "height": 1.1},
-        },
-    ]
+    logger.info(f"OFFICE_DEBUG: Prompt='{prompt}', Dims={extracted_dims}, Context={context}")
 
-    return {
-        "objects": objects,
-        "design_type": "office",
-        "style": "corporate",
-        "dimensions": {"width": width, "length": length, "height": 2.7},
-        "estimated_cost": {"total": 75000, "currency": "USD"},
-    }
+    # Enhanced detection for executive/private offices
+    is_cabin = (
+        any(word in prompt_lower for word in ["cabin", "small", "executive", "private", "individual"])
+        or context.get("style_preference") == "executive"
+        or context.get("space_type") == "private"
+    )
+
+    if is_cabin:
+        # Small office cabin design
+        width = extracted_dims.get("width", 3.6)  # 12 feet default
+        length = extracted_dims.get("length", 3.0)  # 10 feet default
+
+        # Convert feet to meters if needed
+        if "feet" in prompt_lower or "ft" in prompt_lower:
+            # Always convert if feet are mentioned, regardless of value
+            width = width * 0.3048
+            length = length * 0.3048
+            logger.info(
+                f"OFFICE_DEBUG: Converted {extracted_dims.get('width', 3.6)}x{extracted_dims.get('length', 3.0)} feet to {width:.2f}x{length:.2f} meters"
+            )
+
+        objects = [
+            {
+                "id": "cabin_floor",
+                "type": "floor",
+                "material": "vinyl_plank",
+                "color_hex": "#D2B48C",
+                "dimensions": {"width": width, "length": length},
+            },
+            {
+                "id": "executive_desk",
+                "type": "furniture",
+                "subtype": "desk",
+                "material": "wood_oak",
+                "color_hex": "#8B4513",
+                "dimensions": {"width": 1.5, "depth": 0.8, "height": 0.75},
+            },
+            {
+                "id": "office_chair",
+                "type": "furniture",
+                "subtype": "chair",
+                "material": "leather",
+                "color_hex": "#000000",
+                "dimensions": {"width": 0.6, "depth": 0.6, "height": 1.2},
+            },
+            {
+                "id": "storage_cabinet",
+                "type": "storage",
+                "subtype": "cabinet",
+                "material": "wood_oak",
+                "color_hex": "#8B4513",
+                "dimensions": {"width": 1.2, "depth": 0.4, "height": 1.8},
+            },
+            {
+                "id": "meeting_table",
+                "type": "furniture",
+                "subtype": "table",
+                "material": "wood_oak",
+                "color_hex": "#8B4513",
+                "dimensions": {"width": 1.0, "depth": 0.6, "height": 0.75},
+            },
+        ]
+
+        # Add bookcase if mentioned in prompt
+        if "bookcase" in prompt_lower or "book" in prompt_lower:
+            objects.append(
+                {
+                    "id": "executive_bookcase",
+                    "type": "storage",
+                    "subtype": "bookcase",
+                    "material": "wood_oak",
+                    "color_hex": "#8B4513",
+                    "dimensions": {"width": 1.0, "depth": 0.3, "height": 2.0},
+                }
+            )
+            logger.info("OFFICE_DEBUG: Added bookcase to executive office")
+
+        result = {
+            "objects": objects,
+            "design_type": "office_cabin",
+            "style": "executive",
+            "dimensions": {"width": width, "length": length, "height": 2.7},
+            "estimated_cost": {"total": 125000, "currency": "INR"},
+        }
+
+        logger.info(
+            f"OFFICE_DEBUG: Generated EXECUTIVE office with {len(objects)} objects: {[obj['id'] for obj in objects]}"
+        )
+        return result
+    else:
+        # Large office design
+        width = extracted_dims.get("width", 20)
+        length = extracted_dims.get("length", 30)
+
+        objects = [
+            {
+                "id": "office_floor",
+                "type": "floor",
+                "material": "carpet_commercial",
+                "color_hex": "#708090",
+                "dimensions": {"width": width, "length": length},
+            },
+            {
+                "id": "workstations",
+                "type": "furniture",
+                "subtype": "desk",
+                "material": "laminate",
+                "color_hex": "#F5F5DC",
+                "count": 12,
+                "dimensions": {"width": 1.5, "depth": 0.8, "height": 0.75},
+            },
+            {
+                "id": "conference_room",
+                "type": "room",
+                "subtype": "meeting",
+                "material": "glass_partition",
+                "dimensions": {"width": 6, "length": 4, "height": 2.7},
+            },
+        ]
+
+        result = {
+            "objects": objects,
+            "design_type": "office",
+            "style": "corporate",
+            "dimensions": {"width": width, "length": length, "height": 2.7},
+            "estimated_cost": {"total": 750000, "currency": "INR"},
+        }
+
+        logger.info(
+            f"OFFICE_DEBUG: Generated CORPORATE office with {len(objects)} objects: {[obj['id'] for obj in objects]}"
+        )
+        return result
 
 
 def generate_bathroom_design(prompt: str, params: dict) -> dict:
@@ -322,7 +414,7 @@ def generate_bathroom_design(prompt: str, params: dict) -> dict:
         "design_type": "bathroom",
         "style": "modern",
         "dimensions": {"width": 3, "length": 2.5, "height": 2.4},
-        "estimated_cost": {"total": 15000, "currency": "USD"},
+        "estimated_cost": {"total": 150000, "currency": "INR"},
     }
 
 
@@ -366,7 +458,7 @@ def generate_bedroom_design(prompt: str, params: dict) -> dict:
         "design_type": "bedroom",
         "style": "modern",
         "dimensions": {"width": 4, "length": 4.5, "height": 2.4},
-        "estimated_cost": {"total": 8000, "currency": "USD"},
+        "estimated_cost": {"total": 80000, "currency": "INR"},
     }
 
 
@@ -411,7 +503,7 @@ def generate_living_room_design(prompt: str, params: dict) -> dict:
         "design_type": "living_room",
         "style": "modern",
         "dimensions": {"width": 5, "length": 6, "height": 2.4},
-        "estimated_cost": {"total": 12000, "currency": "USD"},
+        "estimated_cost": {"total": 120000, "currency": "INR"},
     }
 
 
@@ -430,7 +522,7 @@ def generate_generic_design(prompt: str, params: dict) -> dict:
         "design_type": "generic",
         "style": "modern",
         "dimensions": {"width": 10, "length": 10, "height": 3},
-        "estimated_cost": {"total": 25000, "currency": "USD"},
+        "estimated_cost": {"total": 250000, "currency": "INR"},
     }
 
 
@@ -482,8 +574,8 @@ def extract_dimensions_from_prompt(prompt: str) -> dict:
                 break
             elif len(matches[0]) >= 2:  # 2D dimensions
                 dimensions = {
-                    "length": float(matches[0][0]),
-                    "width": float(matches[0][1]),
+                    "width": float(matches[0][0]),  # First number is width
+                    "length": float(matches[0][1]),  # Second number is length
                     "height": 3.0,  # default height
                 }
                 break
