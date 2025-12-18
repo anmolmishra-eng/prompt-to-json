@@ -56,7 +56,7 @@ class ServiceMonitor:
         """Refresh status for a specific service"""
         service_urls = {
             "sohum_mcp": getattr(settings, "SOHAM_URL", ""),
-            "ranjeet_rl": getattr(settings, "YOTTA_URL", ""),
+            "ranjeet_rl": getattr(settings, "RANJEET_RL_URL", ""),
             "openai": "https://api.openai.com",
         }
 

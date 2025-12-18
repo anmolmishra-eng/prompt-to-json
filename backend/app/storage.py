@@ -168,7 +168,7 @@ def upload_geometry(spec_id: str, glb_data: bytes) -> str:
     Returns:
         Geometry URL
     """
-    destination = f"geometry/{spec_id}.glb"
+    destination = f"{spec_id}.glb"
 
     try:
         actual_bucket = get_bucket_name(settings.STORAGE_BUCKET_GEOMETRY)
