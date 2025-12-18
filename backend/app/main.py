@@ -41,6 +41,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -188,6 +189,27 @@ async def log_requests(request: Request, call_next):
 
     return response
 
+
+# ============================================================================
+# STATIC FILE SERVING
+# ============================================================================
+
+# Mount static files for geometry previews
+try:
+    import os
+
+    geometry_dir = os.path.join(os.path.dirname(__file__), "..", "data", "geometry_outputs")
+    geometry_dir = os.path.abspath(geometry_dir)
+
+    if os.path.exists(geometry_dir):
+        app.mount("/static/geometry", StaticFiles(directory=geometry_dir), name="geometry")
+        logger.info(f"✅ Static geometry files mounted at /static/geometry -> {geometry_dir}")
+    else:
+        os.makedirs(geometry_dir, exist_ok=True)
+        app.mount("/static/geometry", StaticFiles(directory=geometry_dir), name="geometry")
+        logger.info(f"✅ Created and mounted geometry directory: {geometry_dir}")
+except Exception as e:
+    logger.warning(f"⚠️ Static files mount failed: {e}")
 
 # ============================================================================
 # PUBLIC ENDPOINTS (No Authentication Required)

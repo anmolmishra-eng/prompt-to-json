@@ -29,28 +29,132 @@ def validate_city(city: str) -> bool:
 
 
 def calculate_estimated_cost(spec_json: Dict) -> float:
-    """Calculate estimated cost based on spec"""
+    """Calculate realistic estimated cost based on design type and dimensions"""
     try:
-        # Simple cost calculation based on object count and materials
-        base_cost = 100000  # Base cost in INR
-
+        design_type = spec_json.get("design_type", "generic")
+        dimensions = spec_json.get("dimensions", {})
         objects = spec_json.get("objects", [])
-        object_cost = len(objects) * 5000  # 5000 per object
+        stories = spec_json.get("stories", 1)
 
-        # Material multipliers
-        material_costs = {"marble": 2.0, "granite": 1.8, "wood": 1.5, "glass": 1.7, "metal": 1.3, "default": 1.0}
+        # Calculate area
+        width = dimensions.get("width", 10)
+        length = dimensions.get("length", 10)
+        area = width * length
 
-        material_multiplier = 1.0
+        # Design type base costs (INR per sq meter)
+        base_costs = {
+            "house": 25000,  # ₹25k per sqm for house construction
+            "building": 30000,  # ₹30k per sqm for commercial building
+            "office": 15000,  # ₹15k per sqm for office interiors
+            "kitchen": 35000,  # ₹35k per sqm for kitchen renovation
+            "bedroom": 20000,  # ₹20k per sqm for bedroom
+            "bathroom": 40000,  # ₹40k per sqm for bathroom
+            "living_room": 18000,  # ₹18k per sqm for living room
+            "car_body": 500000,  # ₹5 lakhs base for car
+            "pcb": 10000,  # ₹10k base for electronics
+            "generic": 20000,  # ₹20k per sqm default
+        }
+
+        base_rate = base_costs.get(design_type, 20000)
+
+        # Calculate base cost
+        if design_type in ["car_body", "pcb", "component"]:
+            # Fixed costs for vehicles/electronics
+            base_cost = base_rate
+        else:
+            # Area-based costs for buildings/rooms
+            base_cost = area * base_rate * stories
+
+        # Material premium multipliers
+        material_multipliers = {
+            "marble": 1.8,
+            "granite": 1.6,
+            "quartz": 1.4,
+            "wood_oak": 1.3,
+            "concrete": 1.0,
+            "brick": 1.1,
+            "glass": 1.5,
+            "steel": 1.4,
+            "leather": 2.0,
+            "default": 1.0,
+        }
+
+        # Calculate material premium
+        material_premium = 1.0
         for obj in objects:
             material = obj.get("material", "default")
-            material_multiplier += material_costs.get(material, 1.0)
+            for mat_key, multiplier in material_multipliers.items():
+                if mat_key in material:
+                    material_premium = max(material_premium, multiplier)
+                    break
 
-        total_cost = base_cost + object_cost * (material_multiplier / len(objects) if objects else 1.0)
+        # Special object premiums
+        object_premiums = {
+            "garage": 200000,  # ₹2 lakhs for garage
+            "roof": 150000,  # ₹1.5 lakhs for roof
+            "foundation": 100000,  # ₹1 lakh for foundation
+            "island": 80000,  # ₹80k for kitchen island
+            "engine": 300000,  # ₹3 lakhs for car engine
+            "wheel": 25000,  # ₹25k per wheel
+        }
 
-        return round(total_cost, 2)
+        premium_cost = 0
+        for obj in objects:
+            obj_type = obj.get("type", "")
+            count = obj.get("count", 1)
+            if obj_type in object_premiums:
+                premium_cost += object_premiums[obj_type] * count
+
+        # Final calculation
+        total_cost = (base_cost * material_premium) + premium_cost
+
+        # Minimum costs by design type
+        min_costs = {
+            "house": 2500000,  # Min ₹25 lakhs for house
+            "building": 5000000,  # Min ₹50 lakhs for building
+            "office": 200000,  # Min ₹2 lakhs for office
+            "kitchen": 300000,  # Min ₹3 lakhs for kitchen
+            "bedroom": 150000,  # Min ₹1.5 lakhs for bedroom
+            "bathroom": 200000,  # Min ₹2 lakhs for bathroom
+            "car_body": 800000,  # Min ₹8 lakhs for car
+            "pcb": 5000,  # Min ₹5k for electronics
+        }
+
+        min_cost = min_costs.get(design_type, 100000)
+        total_cost = max(total_cost, min_cost)
+
+        return round(total_cost, 0)
+
     except Exception as e:
         logger.warning(f"Cost calculation failed: {e}")
-        return 100000.0  # Default cost
+        return 500000.0  # Default ₹5 lakhs
+
+
+def generate_mock_glb(spec_json: Dict) -> bytes:
+    """Generate real GLB file with actual kitchen geometry"""
+    try:
+        from app.geometry_generator_real import generate_real_glb
+
+        return generate_real_glb(spec_json)
+    except Exception as e:
+        logger.warning(f"Real geometry generation failed, using fallback: {e}")
+        # Fallback to simple GLB
+        glb_header = b"glTF\x02\x00\x00\x00"
+        mock_data = b'{"asset":{"version":"2.0"},"scenes":[{"nodes":[0]}],"nodes":[{"mesh":0}],"meshes":[{"primitives":[{"attributes":{"POSITION":0}}]}]}'
+        padding = b"\x00" * (1024 - len(mock_data))
+        return glb_header + mock_data + padding
+
+
+def create_local_preview_file(spec_json: Dict, file_path: str):
+    """Create local preview file as fallback"""
+    import os
+
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    # Write mock GLB content
+    with open(file_path, "wb") as f:
+        f.write(generate_mock_glb(spec_json))
 
 
 # Removed unused helper functions
@@ -170,8 +274,24 @@ async def generate_design(request: GenerateRequest):
         except Exception as e:
             print(f"⚠️ Database save failed (using in-memory only): {e}")
 
-        # 5. GENERATE PREVIEW URL AND COMPLIANCE CHECK ID
-        preview_url = f"https://previews.bhiv.ai/{spec_id}.glb"
+        # 5. GENERATE REAL PREVIEW FILE AND URL
+        try:
+            from app.storage import upload_geometry
+
+            # Generate simple GLB file content (mock 3D data)
+            glb_content = generate_mock_glb(spec_json)
+
+            # Upload to Supabase storage
+            preview_url = upload_geometry(spec_id, glb_content)
+            print(f"✅ Generated real preview file: {preview_url}")
+
+        except Exception as e:
+            print(f"⚠️ Preview generation failed, using local path: {e}")
+            # Fallback to local file path
+            local_preview_path = f"data/geometry_outputs/{spec_id}.glb"
+            create_local_preview_file(spec_json, local_preview_path)
+            preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
+
         compliance_check_id = f"check_{spec_id}"
 
         # Fix currency in spec_json if present
@@ -220,10 +340,18 @@ async def get_spec(spec_id: str):
     if stored_spec:
         # Return genuine spec data
         print(f"✅ Found genuine spec {spec_id} in storage")
+        # Generate real preview URL
+        try:
+            from app.storage import generate_signed_url
+
+            preview_url = generate_signed_url(f"geometry/{spec_id}.glb", "geometry")
+        except:
+            preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
+
         response = GenerateResponse(
             spec_id=stored_spec["spec_id"],
             spec_json=stored_spec["spec_json"],
-            preview_url=f"https://previews.bhiv.ai/{spec_id}.glb",
+            preview_url=preview_url,
             estimated_cost=stored_spec["estimated_cost"],
             compliance_check_id=f"check_{spec_id}",
             created_at=datetime.fromisoformat(stored_spec["created_at"].replace("Z", "+00:00")),

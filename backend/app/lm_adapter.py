@@ -37,13 +37,13 @@ def generate_design_from_prompt(prompt: str, params: dict) -> dict:
     prompt_lower = prompt.lower()
     logger.info(f"DESIGN_DEBUG: Analyzing prompt: {prompt_lower}")
 
-    # Detect design type
-    if any(word in prompt_lower for word in ["kitchen", "cook", "cabinet", "countertop"]):
-        logger.info("DESIGN_DEBUG: Detected KITCHEN design")
-        return generate_kitchen_design(prompt, params)
-    elif any(word in prompt_lower for word in ["house", "home", "building", "residential"]):
+    # Detect design type - prioritize larger structures first
+    if any(word in prompt_lower for word in ["house", "home", "building", "residential", "story", "floor"]):
         logger.info("DESIGN_DEBUG: Detected HOUSE design")
         return generate_house_design(prompt, params)
+    elif any(word in prompt_lower for word in ["kitchen", "cook", "cabinet", "countertop"]):
+        logger.info("DESIGN_DEBUG: Detected KITCHEN design")
+        return generate_kitchen_design(prompt, params)
     elif any(word in prompt_lower for word in ["office", "commercial", "workspace", "corporate"]):
         logger.info("DESIGN_DEBUG: Detected OFFICE design")
         return generate_office_design(prompt, params)
@@ -62,11 +62,23 @@ def generate_design_from_prompt(prompt: str, params: dict) -> dict:
 
 
 def generate_kitchen_design(prompt: str, params: dict) -> dict:
-    """Generate kitchen design"""
+    """Generate budget-aware kitchen design"""
     prompt_lower = prompt.lower()
     extracted_dims = params.get("extracted_dimensions", {})
-    width = extracted_dims.get("width", 12)
-    length = extracted_dims.get("length", 15)
+    context = params.get("context", {})
+    budget = context.get("budget", 800000)  # Default ₹8L
+
+    # Budget-based kitchen sizing
+    if budget <= 500000:  # ₹5L: Small kitchen
+        width, length = 8, 10
+    elif budget <= 1000000:  # ₹10L: Medium kitchen
+        width, length = 10, 12
+    else:  # ₹10L+: Large kitchen
+        width, length = 12, 15
+
+    # Use extracted dims if provided
+    width = extracted_dims.get("width", width)
+    length = extracted_dims.get("length", length)
 
     if "feet" in prompt_lower or "ft" in prompt_lower:
         width *= 0.3048
@@ -117,26 +129,30 @@ def generate_kitchen_design(prompt: str, params: dict) -> dict:
         "design_type": "kitchen",
         "style": style,
         "dimensions": {"width": width, "length": length, "height": 2.7},
-        "estimated_cost": {"total": 450000, "currency": "INR"},
+        "estimated_cost": {"total": min(budget * 1.1, width * length * 35000), "currency": "INR"},
     }
 
 
 def generate_house_design(prompt: str, params: dict) -> dict:
-    """Generate house/building design"""
+    """Generate house/building design with budget optimization"""
     logger.info("DESIGN_DEBUG: Generating HOUSE design")
     prompt_lower = prompt.lower()
     extracted_dims = params.get("extracted_dimensions", {})
-    width = extracted_dims.get("width", 30)
-    length = extracted_dims.get("length", 40)
-    height = extracted_dims.get("height", 8)
+    context = params.get("context", {})
+    budget = context.get("budget", 15000000)  # Default ₹1.5 crores
 
-    logger.info(f"DESIGN_DEBUG: Initial dimensions - width: {width}, length: {length}, height: {height}")
+    # Budget-based dimension optimization
+    width, length, height = optimize_house_dimensions_for_budget(budget, extracted_dims)
+
+    logger.info(f"DESIGN_DEBUG: Budget ₹{budget:,} → Optimized dimensions {width}x{length}x{height}")
 
     if "feet" in prompt_lower or "ft" in prompt_lower:
         width *= 0.3048
         length *= 0.3048
         height *= 0.3048
         logger.info(f"DESIGN_DEBUG: Converted to meters - width: {width}, length: {length}, height: {height}")
+
+    logger.info(f"DESIGN_DEBUG: Final dimensions - width: {width}, length: {length}, height: {height}")
 
     style = "modern"
     if "traditional" in prompt_lower:
@@ -223,7 +239,10 @@ def generate_house_design(prompt: str, params: dict) -> dict:
         "style": style,
         "stories": stories,
         "dimensions": {"width": width, "length": length, "height": height * stories},
-        "estimated_cost": {"total": 2500000 * stories, "currency": "INR"},
+        "estimated_cost": {
+            "total": min(budget * 1.05, calculate_actual_house_cost(width, length, stories, objects)),
+            "currency": "INR",
+        },
         "tech_stack": ["Local GPU"],
         "model_used": "local-rtx-3060",
     }
@@ -317,12 +336,15 @@ def generate_office_design(prompt: str, params: dict) -> dict:
             )
             logger.info("OFFICE_DEBUG: Added bookcase to executive office")
 
+        budget = context.get("budget", 400000)
+        actual_cost = width * length * 15000  # ₹15k per sqm for office
+
         result = {
             "objects": objects,
             "design_type": "office_cabin",
             "style": "executive",
             "dimensions": {"width": width, "length": length, "height": 2.7},
-            "estimated_cost": {"total": 125000, "currency": "INR"},
+            "estimated_cost": {"total": min(budget * 1.1, actual_cost), "currency": "INR"},
         }
 
         logger.info(
@@ -360,12 +382,15 @@ def generate_office_design(prompt: str, params: dict) -> dict:
             },
         ]
 
+        budget = context.get("budget", 1500000)
+        actual_cost = width * length * 15000  # ₹15k per sqm for office
+
         result = {
             "objects": objects,
             "design_type": "office",
             "style": "corporate",
             "dimensions": {"width": width, "length": length, "height": 2.7},
-            "estimated_cost": {"total": 750000, "currency": "INR"},
+            "estimated_cost": {"total": min(budget * 1.1, actual_cost), "currency": "INR"},
         }
 
         logger.info(
@@ -414,7 +439,7 @@ def generate_bathroom_design(prompt: str, params: dict) -> dict:
         "design_type": "bathroom",
         "style": "modern",
         "dimensions": {"width": 3, "length": 2.5, "height": 2.4},
-        "estimated_cost": {"total": 150000, "currency": "INR"},
+        "estimated_cost": {"total": 400000, "currency": "INR"},
     }
 
 
@@ -458,7 +483,7 @@ def generate_bedroom_design(prompt: str, params: dict) -> dict:
         "design_type": "bedroom",
         "style": "modern",
         "dimensions": {"width": 4, "length": 4.5, "height": 2.4},
-        "estimated_cost": {"total": 80000, "currency": "INR"},
+        "estimated_cost": {"total": 300000, "currency": "INR"},
     }
 
 
@@ -503,7 +528,7 @@ def generate_living_room_design(prompt: str, params: dict) -> dict:
         "design_type": "living_room",
         "style": "modern",
         "dimensions": {"width": 5, "length": 6, "height": 2.4},
-        "estimated_cost": {"total": 120000, "currency": "INR"},
+        "estimated_cost": {"total": 400000, "currency": "INR"},
     }
 
 
@@ -522,7 +547,7 @@ def generate_generic_design(prompt: str, params: dict) -> dict:
         "design_type": "generic",
         "style": "modern",
         "dimensions": {"width": 10, "length": 10, "height": 3},
-        "estimated_cost": {"total": 250000, "currency": "INR"},
+        "estimated_cost": {"total": 500000, "currency": "INR"},
     }
 
 
@@ -603,6 +628,57 @@ async def lm_run(prompt: str, params: dict = None) -> dict:
     else:  # Yotta for heavy jobs
         logger.info("LM_RUN_DEBUG: Using YOTTA cloud")
         return await run_yotta_lm(prompt, params)
+
+
+def optimize_house_dimensions_for_budget(budget: float, extracted_dims: dict) -> tuple:
+    """Optimize house dimensions to fit within budget"""
+    # Budget tiers with corresponding dimensions (optimized for realistic costs)
+    budget_tiers = [
+        (5000000, (12, 15, 6)),  # ₹50L: 12x15m, 6m height (180 sqm)
+        (8000000, (14, 18, 7)),  # ₹80L: 14x18m, 7m height (252 sqm)
+        (12000000, (16, 22, 7)),  # ₹1.2Cr: 16x22m, 7m height (352 sqm)
+        (20000000, (20, 28, 8)),  # ₹2Cr: 20x28m, 8m height (560 sqm)
+        (50000000, (25, 35, 8)),  # ₹5Cr: 25x35m, 8m height (875 sqm)
+        (float("inf"), (30, 40, 10)),  # ₹5Cr+: 30x40m, 10m height (1200 sqm)
+    ]
+
+    # Find appropriate tier for budget
+    for budget_limit, (w, l, h) in budget_tiers:
+        if budget <= budget_limit:
+            # Use extracted dimensions if provided and reasonable
+            width = extracted_dims.get("width", w)
+            length = extracted_dims.get("length", l)
+            height = extracted_dims.get("height", h)
+
+            # Scale down if extracted dims would exceed budget
+            if width * length > w * l * 1.5:  # 50% tolerance
+                scale = ((w * l) / (width * length)) ** 0.5
+                width *= scale
+                length *= scale
+
+            return width, length, height
+
+    return 30, 40, 8  # Default fallback
+
+
+def calculate_actual_house_cost(width: float, length: float, stories: int, objects: list) -> float:
+    """Calculate budget-optimized house cost"""
+    area = width * length
+
+    # Reduced construction cost for budget optimization
+    cost_per_sqm = 15000  # Reduced from ₹25k to ₹15k per sqm
+    base_cost = area * stories * cost_per_sqm
+
+    # Reduced object premiums
+    premiums = {
+        "garage": 100000,  # Reduced from ₹2L to ₹1L
+        "roof": 75000,  # Reduced from ₹1.5L to ₹75k
+        "foundation": 50000,  # Reduced from ₹1L to ₹50k
+    }
+
+    premium_cost = sum(premiums.get(obj.get("type"), 0) for obj in objects)
+
+    return base_cost + premium_cost
 
 
 def log_usage(provider: str, tokens: int, cost_per_token: float, user_id: str = None):
