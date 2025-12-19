@@ -445,7 +445,7 @@ def get_current_user(token: str = Depends(HTTPBearer())) -> str:
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.JWTError:
+    except (jwt.InvalidTokenError, jwt.DecodeError, jwt.InvalidSignatureError):
         raise HTTPException(
             status_code=401,
             detail="Could not validate credentials",

@@ -245,36 +245,12 @@ async def generate_design(request: GenerateRequest):
             }
         )
 
-        # 4. CREATE SPEC ID AND SAVE TO STORAGE + DATABASE
+        # 4. CREATE SPEC ID AND GENERATE PREVIEW FIRST
         import uuid
-
-        from app.spec_storage import save_spec
 
         spec_id = f"spec_{uuid.uuid4().hex[:12]}"
 
-        # Save complete spec data for iterate endpoint
-        complete_spec_data = {
-            "spec_id": spec_id,
-            "spec_json": spec_json,
-            "user_id": request.user_id,
-            "estimated_cost": estimated_cost,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "spec_version": 1,
-        }
-        save_spec(spec_id, complete_spec_data)
-        print(f"💾 Saved spec {spec_id} to in-memory storage")
-
-        # Also try to save to database
-        try:
-            from app.database import get_db
-            from app.models import Spec
-
-            # This is a simplified approach - in production you'd inject the db session
-            print(f"💾 Attempting to save spec {spec_id} to database...")
-        except Exception as e:
-            print(f"⚠️ Database save failed (using in-memory only): {e}")
-
-        # 5. GENERATE REAL PREVIEW FILE AND URL
+        # 5. GENERATE PREVIEW FILE AND URL FIRST
         try:
             from app.storage import upload_geometry
 
@@ -292,6 +268,74 @@ async def generate_design(request: GenerateRequest):
             create_local_preview_file(spec_json, local_preview_path)
             preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
 
+        # 6. SAVE TO STORAGE AND DATABASE
+        from app.spec_storage import save_spec
+
+        # Save complete spec data for iterate endpoint
+        complete_spec_data = {
+            "spec_id": spec_id,
+            "spec_json": spec_json,
+            "user_id": request.user_id,
+            "estimated_cost": estimated_cost,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "spec_version": 1,
+        }
+        save_spec(spec_id, complete_spec_data)
+        print(f"💾 Saved spec {spec_id} to in-memory storage")
+
+        # Save to database
+        try:
+            import json
+
+            from app.database import get_db_context
+            from app.models import Spec, User
+
+            print(f"💾 Saving spec {spec_id} to database...")
+
+            with get_db_context() as db:
+                # Ensure user exists or create one
+                user = db.query(User).filter(User.id == request.user_id).first()
+                if not user:
+                    # Create user if doesn't exist
+                    user = User(
+                        id=request.user_id,
+                        username=request.user_id,
+                        email=f"{request.user_id}@example.com",
+                        password_hash="dummy_hash",
+                        full_name=f"User {request.user_id}",
+                        is_active=True,
+                    )
+                    db.add(user)
+                    db.flush()  # Flush to get the user ID
+                    print(f"✅ Created user {request.user_id}")
+
+                # Create new spec record
+                db_spec = Spec(
+                    id=spec_id,
+                    user_id=request.user_id,
+                    project_id=request.project_id,
+                    prompt=request.prompt,
+                    city=getattr(request, "city", "Mumbai"),
+                    spec_json=spec_json,
+                    design_type=spec_json.get("design_type", "generic"),
+                    preview_url=preview_url,
+                    estimated_cost=estimated_cost,
+                    currency="INR",
+                    compliance_status="pending",
+                    status="draft",
+                    version=1,
+                    generation_time_ms=int((time.time() - start_time) * 1000),
+                    lm_provider=lm_provider,
+                )
+
+                db.add(db_spec)
+                db.commit()
+                print(f"✅ Successfully saved spec {spec_id} to database")
+
+        except Exception as e:
+            print(f"⚠️ Database save failed: {e}")
+            logger.error(f"Database save failed for spec {spec_id}: {e}", exc_info=True)
+
         compliance_check_id = f"check_{spec_id}"
 
         # Fix currency in spec_json if present
@@ -303,7 +347,7 @@ async def generate_design(request: GenerateRequest):
         print(f"🎉 Generated spec {spec_id} for user {request.user_id} in {generation_time}ms")
         logger.info(f"Generated spec {spec_id} for user {request.user_id} in {generation_time}ms")
 
-        # 6. RETURN RESPONSE
+        # 7. RETURN RESPONSE
         response = GenerateResponse(
             spec_id=spec_id,
             spec_json=spec_json,
@@ -332,20 +376,55 @@ async def get_spec(spec_id: str):
     print(f"📄 GET SPEC REQUEST: spec_id={spec_id}")
     logger.info(f"📄 GET SPEC REQUEST: spec_id={spec_id}")
 
-    # Try to get genuine spec from storage
+    # Try to get spec from database first
+    try:
+        from app.database import get_db_context
+        from app.models import Spec
+
+        with get_db_context() as db:
+            db_spec = db.query(Spec).filter(Spec.id == spec_id).first()
+
+            if db_spec:
+                print(f"✅ Found spec {spec_id} in database")
+
+                # Generate preview URL
+                try:
+                    from app.storage import supabase
+
+                    preview_url = supabase.storage.from_("geometry").get_public_url(f"{spec_id}.glb")
+                except Exception as e:
+                    print(f"⚠️ Supabase URL generation failed: {e}")
+                    preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
+
+                response = GenerateResponse(
+                    spec_id=db_spec.id,
+                    spec_json=db_spec.spec_json,
+                    preview_url=preview_url,
+                    estimated_cost=db_spec.estimated_cost,
+                    compliance_check_id=f"check_{spec_id}",
+                    created_at=db_spec.created_at,
+                    spec_version=db_spec.version,
+                    user_id=db_spec.user_id,
+                )
+                print(f"✅ Returning database spec for {spec_id}")
+                return response
+
+    except Exception as e:
+        print(f"⚠️ Database query failed: {e}")
+        logger.error(f"Database query failed for spec {spec_id}: {e}")
+
+    # Fallback to in-memory storage
     from app.spec_storage import get_spec as get_stored_spec
 
     stored_spec = get_stored_spec(spec_id)
 
     if stored_spec:
-        # Return genuine spec data
-        print(f"✅ Found genuine spec {spec_id} in storage")
-        # Generate real preview URL
+        print(f"✅ Found spec {spec_id} in memory storage")
         try:
-            from app.storage import generate_signed_url
+            from app.storage import supabase
 
-            preview_url = generate_signed_url(f"geometry/{spec_id}.glb", "geometry")
-        except:
+            preview_url = supabase.storage.from_("geometry").get_public_url(f"{spec_id}.glb")
+        except Exception as e:
             preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
 
         response = GenerateResponse(
@@ -358,12 +437,11 @@ async def get_spec(spec_id: str):
             spec_version=stored_spec["spec_version"],
             user_id=stored_spec["user_id"],
         )
-        print(f"✅ Returning GENUINE spec for {spec_id} with {len(stored_spec['spec_json'].get('objects', []))} objects")
         return response
-    else:
-        # Spec not found - return 404
-        print(f"❌ Spec {spec_id} not found in storage")
-        raise HTTPException(
-            status_code=404,
-            detail=f"Specification '{spec_id}' not found. Generate a design first using /api/v1/generate",
-        )
+
+    # Spec not found anywhere
+    print(f"❌ Spec {spec_id} not found in database or memory")
+    raise HTTPException(
+        status_code=404,
+        detail=f"Specification '{spec_id}' not found. Generate a design first using /api/v1/generate",
+    )
