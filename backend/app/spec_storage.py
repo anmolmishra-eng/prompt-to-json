@@ -20,7 +20,7 @@ def get_spec(spec_id: str) -> Optional[Dict]:
     if spec:
         logger.info(f"📖 Retrieved spec {spec_id} from memory storage")
     else:
-        logger.warning(f"❌ Spec {spec_id} not found in memory storage")
+        logger.debug(f"Spec {spec_id} not in memory storage, will check database")
     return spec
 
 

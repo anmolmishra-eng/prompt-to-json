@@ -4,6 +4,7 @@ Complete implementation with enhanced NLP
 """
 import logging
 import time
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from app.config import settings
@@ -58,26 +59,42 @@ class SwitchResponse(BaseModel):
 
 
 def parse_simple_query(query: str) -> Optional[Dict]:
-    """Simple NLP parsing for common material switch patterns"""
+    """Enhanced NLP parsing for material switch patterns"""
     query_lower = query.lower()
 
-    # Pattern: "change floor to marble"
-    if "change" in query_lower and "floor" in query_lower and "to" in query_lower:
+    # Pattern: "change X to Y" - Generic material changes
+    if "change" in query_lower and "to" in query_lower:
         parts = query_lower.split("to")
         if len(parts) == 2:
+            target_part = parts[0].replace("change", "").strip()
             material = parts[1].strip()
-            return {"target_type": "floor", "property": "material", "value": material, "confidence": 0.9}
 
-    # Pattern: "make desk mahogany" or "replace desk with mahogany"
-    if ("make" in query_lower or "replace" in query_lower) and "desk" in query_lower:
-        if "mahogany" in query_lower:
-            return {
-                "target_type": "furniture",
-                "target_subtype": "desk",
-                "property": "material",
-                "value": "wood_mahogany",
-                "confidence": 0.8,
+            # Map common object names
+            object_mapping = {
+                "floor": "foundation",
+                "foundation": "foundation",
+                "wall": "wall",
+                "walls": "wall",
+                "roof": "roof",
+                "roofing": "roof",
+                "door": "door",
+                "doors": "door",
+                "window": "window",
+                "windows": "window",
             }
+
+            target_type = object_mapping.get(target_part, target_part)
+            return {"target_type": target_type, "property": "material", "value": material, "confidence": 0.9}
+
+    # Pattern: "make X Y" - Direct material assignment
+    if "make" in query_lower:
+        words = query_lower.split()
+        if len(words) >= 3:
+            target = words[1]
+            material = " ".join(words[2:])
+            object_mapping = {"walls": "wall", "roof": "roof", "door": "door"}
+            target_type = object_mapping.get(target, target)
+            return {"target_type": target_type, "property": "material", "value": material, "confidence": 0.8}
 
     # Pattern: "update color to #xxx" or "change color to xxx"
     if ("update" in query_lower or "change" in query_lower) and "color" in query_lower:
@@ -89,7 +106,7 @@ def parse_simple_query(query: str) -> Optional[Dict]:
 
 
 def apply_simple_changes(spec_json: Dict, command: Dict) -> tuple:
-    """Apply simple parsed command to spec"""
+    """Apply enhanced parsed command to spec with better matching"""
     import copy
 
     updated_spec = copy.deepcopy(spec_json)
@@ -101,11 +118,29 @@ def apply_simple_changes(spec_json: Dict, command: Dict) -> tuple:
     for obj in objects:
         should_change = False
 
-        # Match target
+        # Enhanced matching logic
         if command.get("target_type") == "all":
             should_change = True
-        elif command.get("target_type") and obj.get("type") == command["target_type"]:
-            should_change = True
+        elif command.get("target_type"):
+            target_type = command["target_type"]
+            obj_type = obj.get("type", "")
+            obj_subtype = obj.get("subtype", "")
+            obj_id = obj.get("id", "")
+
+            # Direct type match
+            if obj_type == target_type:
+                should_change = True
+            # Partial matches for common terms
+            elif target_type == "wall" and ("wall" in obj_type or "wall" in obj_id):
+                should_change = True
+            elif target_type == "roof" and ("roof" in obj_type or "roof" in obj_id):
+                should_change = True
+            elif target_type == "door" and ("door" in obj_type or "door" in obj_id):
+                should_change = True
+            elif target_type == "window" and ("window" in obj_type or "window" in obj_id):
+                should_change = True
+            elif target_type == "foundation" and ("foundation" in obj_type or "foundation" in obj_id):
+                should_change = True
         elif command.get("target_subtype") and obj.get("subtype") == command["target_subtype"]:
             should_change = True
 
@@ -192,7 +227,7 @@ async def switch_material(request: SwitchRequest, db: Session = Depends(get_db))
     else:
         # Fallback to database
         try:
-            spec = db.query(Spec).filter(Spec.spec_id == request.spec_id).first()
+            spec = db.query(Spec).filter(Spec.id == request.spec_id).first()
             if not spec:
                 print(f"❌ Spec {request.spec_id} not found in storage or database")
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Specification not found")
@@ -230,6 +265,41 @@ async def switch_material(request: SwitchRequest, db: Session = Depends(get_db))
 
         iteration_id = f"iter_{uuid.uuid4().hex[:8]}"
 
+        # Save iteration to database
+        try:
+            from app.models import Iteration
+
+            iteration = Iteration(
+                id=iteration_id,
+                spec_id=request.spec_id,
+                user_id=user_id,
+                query=request.query,
+                nlp_confidence=command.get("confidence", 0.8),
+                diff={"changes": [change.dict() for change in changes]},
+                spec_json=updated_spec,
+                changed_objects=",".join(changed_objects),
+                preview_url=preview_url,
+                cost_delta=cost_impact.get("delta", 0),
+                new_total_cost=cost_impact.get("new_total", 0),
+                processing_time_ms=int((time.time() - start_time) * 1000),
+            )
+
+            db.add(iteration)
+
+            # Update spec version in database
+            spec_db = db.query(Spec).filter(Spec.id == request.spec_id).first()
+            if spec_db:
+                spec_db.spec_json = updated_spec
+                spec_db.version += 1
+                spec_db.updated_at = datetime.now(timezone.utc)
+
+            db.commit()
+            print(f"✅ Saved iteration {iteration_id} to database")
+
+        except Exception as e:
+            db.rollback()
+            print(f"⚠️ Database save failed: {e}")
+
         # Update stored spec if found in storage
         if stored_spec:
             from app.spec_storage import save_spec
@@ -239,8 +309,22 @@ async def switch_material(request: SwitchRequest, db: Session = Depends(get_db))
             save_spec(request.spec_id, stored_spec)
             print(f"✅ Updated spec {request.spec_id} in storage")
 
-        # Generate preview (placeholder)
-        preview_url = f"https://previews.bhiv.ai/{iteration_id}.png"
+        # Generate real preview URL
+        try:
+            from app.storage import get_signed_url, upload_to_bucket
+            from app.utils import generate_glb_from_spec
+
+            # Generate GLB file
+            preview_bytes = generate_glb_from_spec(updated_spec)
+            preview_path = f"{iteration_id}.glb"
+
+            # Upload to Supabase
+            await upload_to_bucket("previews", preview_path, preview_bytes)
+            preview_url = get_signed_url("previews", preview_path, expires=600)
+
+        except Exception as e:
+            logger.warning(f"Preview generation failed: {e}")
+            preview_url = f"https://mock-preview-{iteration_id}.glb"
 
         print(f"✅ Switch completed: {len(changes)} changes made")
 
