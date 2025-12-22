@@ -1,0 +1,34 @@
+# Simple Prefect deployment configuration without Docker
+name: bhiv-ai-assistant
+version: 1.0.0
+
+# Prefect version
+prefect-version: 2.14.0
+
+# Build configuration - no Docker
+build: null
+
+# Push configuration - no Docker
+push: null
+
+# Pull configuration - simple working directory
+pull:
+  - prefect.deployments.steps.set_working_directory:
+      directory: /tmp/bhiv-workspace
+
+# Deployment configurations
+deployments:
+  - name: bhiv-simple
+    version: 1.0.0
+    tags:
+      - production
+      - ai-assistant
+      - bhiv
+    description: BHIV AI Assistant simple deployment
+    entrypoint: bhiv_workflow.py:bhiv_workflow
+    parameters:
+      prompt: "Create a modern kitchen design"
+      user_id: "default"
+    work_pool:
+      name: default-work-pool
+      work_queue_name: default
