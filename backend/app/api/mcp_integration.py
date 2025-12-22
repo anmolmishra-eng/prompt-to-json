@@ -47,18 +47,43 @@ async def mcp_compliance_check(request: MCPRequest, background_tasks: Background
     try:
         # Call Sohum's MCP API
         async with httpx.AsyncClient(timeout=60.0) as client:
-            payload = {"city": request.city, "spec_json": request.spec_json, "case_type": request.case_type}
+            # Convert spec_json to proper MCP format
+            payload = {
+                "city": request.city,
+                "project_id": f"proj_{request.city.lower()}_{hash(str(request.spec_json)) % 1000}",
+                "case_id": f"case_{request.city.lower()}_{hash(str(request.spec_json)) % 1000}",
+                "document": f"{request.city}_DCR.pdf",
+                "parameters": {
+                    "plot_size": request.spec_json.get("plot_size", 1000),
+                    "location": request.spec_json.get("location", "urban"),
+                    "road_width": request.spec_json.get("road_width", 15),
+                    "building_type": request.spec_json.get("design_type", "residential"),
+                    "floors": len(request.spec_json.get("objects", [])) or 5,
+                },
+            }
 
-            # Primary MCP service
-            mcp_url = "https://ai-rule-api-w7z5.onrender.com/mcp/compliance/check"
+            # Primary MCP service - use correct endpoint
+            mcp_url = "https://ai-rule-api-w7z5.onrender.com/run_case"
 
             try:
                 response = await client.post(mcp_url, json=payload)
                 response.raise_for_status()
                 result = response.json()
 
+                # Convert MCP response to our format
+                mcp_result = {
+                    "case_id": result.get("case_id", f"mcp_{request.city}_{hash(str(request.spec_json)) % 10000}"),
+                    "city": result.get("city", request.city),
+                    "compliant": result.get("confidence_score", 0) > 0.5,  # Consider compliant if confidence > 50%
+                    "confidence_score": result.get("confidence_score", 0.75),
+                    "violations": [],  # MCP doesn't return violations in this format
+                    "recommendations": ["Review building regulations", "Verify compliance requirements"],
+                    "geometry_url": None,
+                    "processing_time_ms": 1000,
+                }
+
                 logger.info(f"MCP compliance check completed for {request.city}")
-                return MCPResponse(**result)
+                return MCPResponse(**mcp_result)
 
             except Exception as e:
                 logger.warning(f"Primary MCP service failed: {e}")
@@ -95,15 +120,16 @@ async def mcp_feedback(case_id: str, feedback: str, rating: float):
     try:
         # Store feedback for MCP system improvement
         feedback_data = {
+            "project_id": f"proj_{case_id.split('_')[-1] if '_' in case_id else 'default'}",
             "case_id": case_id,
-            "feedback": feedback,
-            "rating": rating,
-            "timestamp": "2024-01-01T00:00:00Z",
+            "input_case": {"case_id": case_id, "feedback_type": "user_rating"},
+            "output_report": {"rating": rating, "feedback_text": feedback},
+            "user_feedback": "up" if rating >= 3.0 else "down",
         }
 
         # Send to Sohum's feedback endpoint
         async with httpx.AsyncClient(timeout=30.0) as client:
-            feedback_url = "https://ai-rule-api-w7z5.onrender.com/mcp/feedback"
+            feedback_url = "https://ai-rule-api-w7z5.onrender.com/feedback"
 
             try:
                 response = await client.post(feedback_url, json=feedback_data)

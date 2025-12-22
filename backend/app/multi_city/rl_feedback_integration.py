@@ -97,7 +97,11 @@ class MultiCityRLFeedback:
     def _check_coastal_zone(self, design_spec: Dict[str, Any]) -> bool:
         """Check coastal zone regulations"""
         location = design_spec.get("location", {})
-        return location.get("coastal_zone", False)
+        if isinstance(location, str):
+            return "coastal" in location.lower() or "marine" in location.lower()
+        elif isinstance(location, dict):
+            return location.get("coastal_zone", False)
+        return False
 
     def _check_high_rise_mumbai(self, design_spec: Dict[str, Any]) -> bool:
         """Check high-rise compliance for Mumbai"""

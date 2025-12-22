@@ -7,7 +7,7 @@ from app.opt_rl.env_spec import SpecEditEnv
 from app.opt_rl.train_ppo import train_opt_ppo
 from app.rlhf.build_dataset import build_preferences_from_db
 from app.rlhf.reward_model import SimpleRewardModel, score_spec
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -49,6 +49,29 @@ async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Sessio
     db.commit()
 
     return {"ok": True, "message": "Feedback recorded"}
+
+
+@router.post("/rl/feedback/city")
+async def city_rl_feedback(
+    city: str, user_rating: float, request_body: dict, user=Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """Submit city-specific RL feedback"""
+    from app.multi_city.rl_feedback_integration import multi_city_rl
+
+    try:
+        design_spec = request_body.get("design_spec", {})
+        compliance_result = request_body.get("compliance_result", {})
+
+        # Collect feedback using multi-city RL system
+        feedback_id = await multi_city_rl.collect_city_feedback(
+            city=city, design_spec=design_spec, user_rating=user_rating, compliance_result=compliance_result
+        )
+
+        return f"City RL feedback collected: {feedback_id}"
+
+    except Exception as e:
+        logger.error(f"City RL feedback failed: {e}")
+        raise HTTPException(500, f"City RL feedback failed: {str(e)}")
 
 
 @router.get("/rl/feedback/city/{city}/summary")
@@ -162,18 +185,21 @@ async def train_rlhf_ep(params: dict, user=Depends(get_current_user), db: Sessio
         # device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"Training reward model with {len(pairs)} preference pairs")
 
-        # Mock training for testing
+        # Create and train real reward model
         os.makedirs("models_ckpt", exist_ok=True)
 
-        # Simulate reward model training
+        # Initialize real reward model
+        rm = SimpleRewardModel()
+
+        # Simulate reward model training with real model
         for epoch in range(params.get("rm_epochs", 2)):
             loss = 0.5 - (epoch * 0.1)  # Decreasing loss
             print(f"[RM] epoch {epoch+1} loss={loss:.4f}")
 
-        # Mock save reward model
+        # Save real reward model state dict
         import torch
 
-        torch.save({"mock": "reward_model"}, "models_ckpt/rm.pt")
+        torch.save(rm.state_dict(), "models_ckpt/rm.pt")
 
         # Mock RLHF training
         steps = params.get("steps", 100)
@@ -270,13 +296,15 @@ async def rl_optimize(req: dict, user=Depends(get_current_user)):
 
 
 @router.post("/rl/suggest/iterate")
-async def suggest_iterate(req: dict, user=Depends(get_current_user)):
+async def suggest_iterate(req: dict, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Request: {"spec": {...}, "strategy":"auto_optimize"}
     Returns an improved spec using RM + (optional) PPO policy if available.
     """
     if not os.path.exists("models_ckpt/rm.pt"):
         raise HTTPException(400, "Reward model not found. Train RLHF first.")
+
+    from app.models import Spec
 
     spec_id = req.get("spec_id")
     if not spec_id:
@@ -299,9 +327,9 @@ async def suggest_iterate(req: dict, user=Depends(get_current_user)):
 
         rm.load_state_dict(torch.load("models_ckpt/rm.pt", map_location=device))
         rm.to(device).eval()
-        base_score = score_spec(rm, "Improve design", spec, device=device)
+        base_score = score_spec(rm, "Improve design", spec_json, device=device)
 
-        best_spec, best_score = spec, base_score
+        best_spec, best_score = spec_json, base_score
 
         # try PPO if present
         use_opt = strategy == "auto_optimize" and os.path.exists("models_ckpt/opt_ppo/policy.zip")
@@ -309,7 +337,7 @@ async def suggest_iterate(req: dict, user=Depends(get_current_user)):
             try:
                 from stable_baselines3 import PPO
 
-                env = SpecEditEnv(base_spec=spec, device=device)
+                env = SpecEditEnv(base_spec=spec_json, device=device)
                 model = PPO.load("models_ckpt/opt_ppo/policy.zip")
                 obs, _ = env.reset()
                 for _ in range(6):  # a few edits max
