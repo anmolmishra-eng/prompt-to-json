@@ -21,12 +21,13 @@ from app.api import (
     integration_layer,
     iterate,
     mcp_integration,
-    mock_rl,
+    mobile,
     monitoring_system,
     multi_city_testing,
     reports,
     rl,
     switch,
+    vr,
     workflow_consolidation,
 )
 
@@ -271,10 +272,11 @@ from app.multi_city.rl_feedback_integration import multi_city_rl
 
 
 @app.post("/api/v1/rl/feedback/city", tags=["🏙️ Multi-City"])
-async def city_rl_feedback(
-    city: str, design_spec: dict, user_rating: float, compliance_result: dict, current_user=Depends(get_current_user)
-):
+async def city_rl_feedback(city: str, user_rating: float, request_body: dict, current_user=Depends(get_current_user)):
     """Submit city-specific RL feedback"""
+    design_spec = request_body.get("design_spec", {})
+    compliance_result = request_body.get("compliance_result", {})
+
     feedback_id = await multi_city_rl.collect_city_feedback(city, design_spec, user_rating, compliance_result)
     return {"feedback_id": feedback_id, "city": city, "status": "success"}
 
@@ -298,8 +300,9 @@ app.include_router(
 # 9. Machine Learning & Training
 app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL Training"], dependencies=[Depends(get_current_user)])
 
-# 9.1 Mock RL System (Land Utilization - Ranjeet's service)
-app.include_router(mock_rl.router, tags=["🔄 Mock RL System"])
+# 9.1 Mobile & VR Endpoints
+app.include_router(mobile.router, prefix="/api/v1", tags=["📱 Mobile API"], dependencies=[Depends(get_current_user)])
+app.include_router(vr.router, prefix="/api/v1", tags=["🥽 VR API"], dependencies=[Depends(get_current_user)])
 
 # 9.2 Integration Layer (Modular Separation & Dependency Mapping)
 app.include_router(integration_layer.router, dependencies=[Depends(get_current_user)])

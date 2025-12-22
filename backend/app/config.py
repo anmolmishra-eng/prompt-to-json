@@ -85,8 +85,14 @@ class Settings(BaseSettings):
     # ============================================================================
     # JWT AUTHENTICATION
     # ============================================================================
-    JWT_SECRET_KEY: str = Field(default="bhiv-jwt-secret-2024", min_length=16, description="JWT secret key")
-    JWT_SECRET: str = Field(default="bhiv-jwt-secret-2024", min_length=16, description="JWT secret key (alias)")
+    JWT_SECRET_KEY: str = Field(
+        default="bhiv-jwt-secret-2024-super-secure-key-for-production", min_length=16, description="JWT secret key"
+    )
+    JWT_SECRET: str = Field(
+        default="bhiv-jwt-secret-2024-super-secure-key-for-production",
+        min_length=16,
+        description="JWT secret key (alias)",
+    )
     JWT_ALGORITHM: str = Field(default="HS256", description="JWT algorithm")
     JWT_EXPIRATION_HOURS: int = Field(default=24, description="JWT token lifetime in hours")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=1440, description="Access token lifetime (24h)")
@@ -108,7 +114,8 @@ class Settings(BaseSettings):
     SOHAM_URL: str = Field(default="https://ai-rule-api-w7z5.onrender.com", description="Legacy Soham URL alias")
     SOHUM_API_KEY: Optional[str] = Field(default=None, description="Sohum API key (if required)")
     COMPLIANCE_API_KEY: Optional[str] = Field(default=None, description="Compliance API key")
-    SOHUM_TIMEOUT: int = Field(default=120, description="Timeout for MCP calls in seconds")
+    SOHUM_TIMEOUT: int = Field(default=30, description="Timeout for MCP calls in seconds")
+    SOHUM_MCP_ENABLED: bool = Field(default=True, description="Enable external MCP service")
 
     # Ranjeet's RL System (LIVE URL)
     RANJEET_RL_URL: str = Field(
@@ -186,6 +193,7 @@ class Settings(BaseSettings):
     PREFECT_API_URL: str = Field(default="https://api.prefect.cloud/api/accounts/", description="Prefect API base URL")
     PREFECT_WORKSPACE: Optional[str] = Field(default=None, description="Prefect workspace ID")
     PREFECT_QUEUE: str = Field(default="default", description="Default work queue")
+    PREFECT_WEBHOOK_URL: Optional[str] = Field(default=None, description="Prefect webhook URL for notifications")
 
     # ============================================================================
     # REDIS CONFIGURATION
@@ -229,7 +237,9 @@ class Settings(BaseSettings):
     # ============================================================================
     # SECURITY CONFIGURATION
     # ============================================================================
-    ENCRYPTION_KEY: Optional[str] = Field(default=None, description="AES-256 key for data encryption")
+    ENCRYPTION_KEY: Optional[str] = Field(
+        default="bhiv-aes256-encryption-key-32chr", description="AES-256 key for data encryption"
+    )
 
     # ============================================================================
     # DEMO CONFIGURATION
@@ -272,44 +282,93 @@ def validate_settings():
         errors.append("Supabase configuration incomplete (URL, KEY required)")
 
     # Check JWT secret strength
-    if len(settings.JWT_SECRET_KEY) < 16:
-        errors.append("JWT_SECRET_KEY must be at least 16 characters")
+    if not settings.JWT_SECRET_KEY or len(settings.JWT_SECRET_KEY) < 16:
+        errors.append("JWT_SECRET_KEY must be at least 16 characters long")
 
-    # Check external services (warnings only)
+    # Check encryption key
+    if settings.ENCRYPTION_KEY and len(settings.ENCRYPTION_KEY) != 32:
+        warnings.append("ENCRYPTION_KEY should be exactly 32 characters for AES-256")
+
+    # Check external service URLs
+    if settings.LM_PROVIDER == "yotta" and not settings.YOTTA_API_KEY:
+        warnings.append("Yotta API key missing but provider is set to yotta")
+
+    if settings.LM_PROVIDER == "openai" and not settings.OPENAI_API_KEY:
+        warnings.append("OpenAI API key missing but provider is set to openai")
+
+    # Check compliance service
     if not settings.SOHUM_MCP_URL:
-        warnings.append("SOHUM_MCP_URL not configured - compliance features may not work")
-    if not settings.RANJEET_RL_URL:
-        warnings.append("RANJEET_RL_URL not configured - RL features may not work")
+        warnings.append("Compliance service URL not configured")
 
-    # Check GPU configuration
-    if settings.LOCAL_GPU_ENABLED and not settings.YOTTA_API_KEY:
-        warnings.append("Local GPU enabled but no Yotta fallback configured")
+    # Check Sentry configuration
+    if not settings.SENTRY_DSN:
+        warnings.append("Sentry DSN not configured - error tracking disabled")
 
-    # Check Prefect configuration (optional)
-    if settings.PREFECT_API_KEY and not settings.PREFECT_WORKSPACE:
-        warnings.append("Prefect API key provided but workspace not configured")
-
-    if errors:
-        raise ValueError(f"Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
-
-    # Print configuration summary
-    print("=" * 70)
-    print(f"Configuration validated successfully")
-    print(f"  Environment: {settings.ENVIRONMENT}")
-    print(f"  Debug Mode: {settings.DEBUG}")
-    print(f"  Database: {'configured' if settings.DATABASE_URL else 'missing'}")
-    print(f"  Local GPU: {'enabled' if settings.LOCAL_GPU_ENABLED else 'disabled'}")
-    print(f"  Supabase: {'configured' if settings.SUPABASE_URL else 'missing'}")
-    print(
-        f"  Monitoring: Sentry={'enabled' if settings.SENTRY_DSN else 'disabled'}, Prometheus={'enabled' if settings.METRICS_ENABLED else 'disabled'}"
-    )
-
+    # Log warnings
     if warnings:
-        print(f"  Warnings: {len(warnings)} configuration warnings")
-        for warning in warnings:
-            print(f"    WARNING: {warning}")
+        import logging
 
-    print("=" * 70)
+        logger = logging.getLogger(__name__)
+        for warning in warnings:
+            logger.warning(f"Configuration warning: {warning}")
+
+    # Raise errors if any
+    if errors:
+        raise ValueError(f"Configuration errors: {'; '.join(errors)}")
+
+    return True
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+
+def get_database_url() -> str:
+    """Get the database URL with fallback logic"""
+    return settings.DATABASE_URL
+
+
+def get_supabase_config() -> dict:
+    """Get Supabase configuration"""
+    return {"url": settings.SUPABASE_URL, "key": settings.SUPABASE_KEY}
+
+
+def get_lm_config() -> dict:
+    """Get language model configuration based on provider"""
+    config = {
+        "provider": settings.LM_PROVIDER,
+        "temperature": settings.DEFAULT_TEMPERATURE,
+        "top_p": settings.DEFAULT_TOP_P,
+        "max_length": settings.MAX_PROMPT_LENGTH,
+    }
+
+    if settings.LM_PROVIDER == "local":
+        config.update(
+            {
+                "device": settings.LOCAL_GPU_DEVICE,
+                "model_path": settings.LOCAL_MODEL_PATH,
+                "model_name": settings.LOCAL_GPU_MODEL,
+            }
+        )
+    elif settings.LM_PROVIDER == "yotta":
+        config.update(
+            {"api_key": settings.YOTTA_API_KEY, "base_url": settings.YOTTA_URL, "model": settings.YOTTA_MODEL}
+        )
+    elif settings.LM_PROVIDER == "openai":
+        config.update({"api_key": settings.OPENAI_API_KEY})
+
+    return config
+
+
+def is_development() -> bool:
+    """Check if running in development mode"""
+    return settings.ENVIRONMENT == "development"
+
+
+def is_production() -> bool:
+    """Check if running in production mode"""
+    return settings.ENVIRONMENT == "production"
 
 
 # Validate on import (only if not in test mode)

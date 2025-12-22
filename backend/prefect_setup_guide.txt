@@ -1,0 +1,37 @@
+PREFECT CLOUD CONNECTION STEPS
+==============================
+
+STEP 1: Get API Key and Workspace
+---------------------------------
+1. Go to: https://app.prefect.cloud/
+2. Sign in to your account
+3. Go to Settings > API Keys
+4. Create new API key (copy it)
+5. Note your workspace name from the URL or dashboard
+
+STEP 2: Connect using CLI
+------------------------
+Run this command with YOUR details:
+
+python -m prefect cloud login --key YOUR_API_KEY --workspace YOUR_WORKSPACE_NAME
+
+STEP 3: Create Webhook
+---------------------
+1. In Prefect Cloud UI: Go to Webhooks
+2. Click "Create Webhook"
+3. Name: "BHIV-AI-Assistant"
+4. Copy the webhook URL
+5. Add to .env file:
+   PREFECT_WEBHOOK_URL=https://api.prefect.cloud/hooks/YOUR_WEBHOOK_ID
+
+STEP 4: Test Connection
+----------------------
+python -m prefect cloud workspace ls
+
+ALTERNATIVE: Manual Setup
+========================
+If you don't have Prefect Cloud account:
+1. Use webhook.site for testing
+2. Go to https://webhook.site/
+3. Copy your unique URL
+4. Add to .env: PREFECT_WEBHOOK_URL=https://webhook.site/YOUR_ID

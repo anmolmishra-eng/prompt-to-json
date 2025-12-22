@@ -1,44 +1,47 @@
 # Prefect deployment configuration
-name: backend-health-monitor
+name: bhiv-ai-assistant
 version: 1.0.0
 
-# Default work pool
-work_pool:
-  name: default
-  work_queue_name: default
+# Prefect version
+prefect-version: 2.14.0
 
 # Build configuration
 build:
-  - prefect.deployments.steps.run_shell_script:
-      script: echo "Building deployment..."
+  - prefect_docker.deployments.steps.build_docker_image:
+      id: build-image
+      requires: prefect-docker>=0.3.0
+      image_name: bhiv-ai-assistant
+      tag: latest
+      dockerfile: auto
 
 # Push configuration
 push:
-  - prefect.deployments.steps.run_shell_script:
-      script: echo "Pushing deployment..."
+  - prefect_docker.deployments.steps.push_docker_image:
+      requires: prefect-docker>=0.3.0
+      image_name: "{{ build-image.image_name }}"
+      tag: "{{ build-image.tag }}"
 
 # Pull configuration
 pull:
-  - prefect.deployments.steps.git_clone:
-      repository: https://github.com/anmolmishra-eng/prompt-to-json.git
-      branch: main
-  - prefect.deployments.steps.run_shell_script:
-      script: pip install -r backend/workflows/requirements.txt
+  - prefect.deployments.steps.set_working_directory:
+      directory: /opt/prefect/bhiv-ai-assistant
 
 # Deployment configurations
 deployments:
-  - name: backend-health-monitor
+  - name: bhiv-production
     version: 1.0.0
-    tags: ["monitoring", "health", "system"]
-    description: "System health monitoring workflow"
-    entrypoint: backend/workflows/system_health_flow.py:system_health_flow
-    work_pool:
-      name: default
+    tags:
+      - production
+      - ai-assistant
+      - bhiv
+    description: BHIV AI Assistant production deployment
+    entrypoint: bhiv_workflow.py:bhiv_workflow
     parameters:
-      db_url: "postgresql://postgres.dntmhjlbxirtgslzwbui:Anmol%4025703@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
-      redis_url: "redis://localhost:6379/0"
-      api_url: "http://localhost:8000"
-      sohum_url: "http://localhost:8001"
-      ranjeet_url: "http://localhost:8002"
+      prompt: "Create a modern kitchen design"
+      user_id: "default"
+    work_pool:
+      name: default-agent-pool
+      work_queue_name: default
     schedule:
-      interval: 300  # 5 minutes
+      cron: "0 */6 * * *"  # Run every 6 hours
+      timezone: "UTC"
