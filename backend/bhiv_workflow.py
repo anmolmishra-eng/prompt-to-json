@@ -39,17 +39,19 @@ def evaluate_design(design_data: Dict[str, Any]) -> Dict[str, Any]:
 
 @task
 async def send_webhook_notification(design_data: Dict[str, Any]):
-    """Send webhook notification"""
+    """Send webhook notification using the bhiv-webhook block"""
     try:
-        webhook = await Webhook.load("bhiv-webhook")
-        response = await webhook.call(payload=design_data)
-        print(f"✅ Webhook sent successfully: {response.status_code}")
+        from prefect.blocks.webhook import Webhook
+
+        webhook_block = await Webhook.load("bhiv-webhook")
+        response = await webhook_block.call(payload=design_data)
+        print(f"Webhook sent successfully: {response.status_code}")
     except Exception as e:
-        print(f"⚠️ Webhook failed: {e}")
+        print(f"Webhook failed: {e}")
 
 
 @flow(name="bhiv-ai-assistant")
-def bhiv_workflow(prompt: str = "Create a modern kitchen design", user_id: str = "user123"):
+async def bhiv_workflow(prompt: str = "Create a modern kitchen design", user_id: str = "user123"):
     """Main BHIV AI Assistant workflow"""
 
     # Process design request
@@ -59,12 +61,12 @@ def bhiv_workflow(prompt: str = "Create a modern kitchen design", user_id: str =
     evaluated_design = evaluate_design(design_data)
 
     # Send notification
-    send_webhook_notification(evaluated_design)
+    await send_webhook_notification(evaluated_design)
 
     return evaluated_design
 
 
 if __name__ == "__main__":
     # Run the workflow locally for testing
-    result = bhiv_workflow()
+    result = asyncio.run(bhiv_workflow())
     print(f"Workflow completed: {result}")
