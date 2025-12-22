@@ -1,44 +1,40 @@
 #!/usr/bin/env python3
-import os
-import sys
+"""
+Create test user for BHIV endpoint testing
+"""
+import asyncio
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-import uuid
-
-from app.auth import hash_password
-from app.database import SessionLocal
+from app.database import get_db
 from app.models import User
+from sqlalchemy.orm import Session
 
 
-def create_test_user():
-    db = SessionLocal()
-    try:
-        # Create test user
-        user_id = str(uuid.uuid4())
-        user = User(
-            id=user_id,
-            username="admin",
-            email="admin@bhiv.com",
-            password_hash=hash_password("bhiv2024"),
-            full_name="Admin User",
-            is_active=True,
-        )
+async def create_test_user():
+    """Create test user in database"""
+    db = next(get_db())
 
-        db.add(user)
-        db.commit()
+    # Check if user exists
+    existing_user = db.query(User).filter(User.id == "test_user_123").first()
+    if existing_user:
+        print("Test user already exists")
+        return
 
-        print(f"Created user with ID: {user_id}")
-        print(f"Username: admin")
-        print(f"Password: bhiv2024")
-        return user_id
+    # Create new user
+    test_user = User(
+        id="test_user_123",
+        username="testuser123",
+        email="test@bhiv.com",
+        password_hash="dummy_hash",
+        full_name="Test User",
+        is_active=True,
+        is_verified=True,
+    )
 
-    except Exception as e:
-        print(f"Error: {e}")
-        db.rollback()
-    finally:
-        db.close()
+    db.add(test_user)
+    db.commit()
+    print("Test user created successfully")
+    db.close()
 
 
 if __name__ == "__main__":
-    create_test_user()
+    asyncio.run(create_test_user())

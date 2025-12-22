@@ -287,9 +287,13 @@ app.include_router(bhiv_integrated.router, dependencies=[Depends(get_current_use
 
 # 7. BHIV Automations & Workflows
 from app.api import workflow_management
+from prefect_triggers import router as prefect_router
 
 app.include_router(
     workflow_management.router, prefix="/api/v1", tags=["🤖 BHIV Automations"], dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    prefect_router, prefix="/api/v1/prefect", tags=["🚀 Event Triggers"], dependencies=[Depends(get_current_user)]
 )
 
 # 8. File Management
