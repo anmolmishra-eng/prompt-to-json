@@ -1,0 +1,8 @@
+{
+  "workflow_id": "workflow_20251223_213439_admin_enhanced_test",
+  "timestamp": "2025-12-23T21:34:40.723678",
+  "prompt": "Create a modern living room with smart home features",
+  "user_id": "admin_enhanced_test",
+  "trigger_type": "api_call",
+  "status": "triggered"
+}

@@ -1,0 +1,12 @@
+{
+  "upload_id": "compliance_1766507706_mumbai_001",
+  "case_id": "mumbai_001",
+  "original_filename": "test_compliance.zip",
+  "stored_filename": "mumbai_001_1766507706.zip",
+  "file_path": "compliance/mumbai_001_1766507706.zip",
+  "file_size": 388,
+  "signed_url": "https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/sign/compliance/compliance/mumbai_001_1766507706.zip?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81YTkzMzE2NC1hNTgyLTRhNGEtYmFjZS04M2QyZGJiYTZkZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJjb21wbGlhbmNlL2NvbXBsaWFuY2UvbXVtYmFpXzAwMV8xNzY2NTA3NzA2LnppcCIsImlhdCI6MTc2NjUwNzcwOCwiZXhwIjoxNzY2NTA4MzA4fQ.hbKeiwX1_e_bTkSCTcf1oqytG9ouxtdvi1CxkB0T2W0",
+  "user": "admin",
+  "local_path": "data/compliance\\mumbai_001_1766507706.zip",
+  "uploaded_at": "2025-12-23T22:05:09.902280"
+}

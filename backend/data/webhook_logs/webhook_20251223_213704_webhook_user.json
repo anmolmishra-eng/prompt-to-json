@@ -1,0 +1,14 @@
+{
+  "workflow_id": "webhook_20251223_213704_webhook_user",
+  "timestamp": "2025-12-23T21:37:06.024309",
+  "prompt": "Create a modern design",
+  "user_id": "webhook_user",
+  "trigger_type": "webhook",
+  "status": "triggered",
+  "original_request": {
+    "external_system": "CRM",
+    "lead_id": "LEAD_12345",
+    "customer_name": "John Doe",
+    "requirements": "3BHK apartment with garden view"
+  }
+}

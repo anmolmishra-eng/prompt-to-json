@@ -1,40 +1,36 @@
 #!/usr/bin/env python3
-"""
-Create test user for BHIV endpoint testing
-"""
-import asyncio
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import get_db
 from app.models import User
-from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-async def create_test_user():
-    """Create test user in database"""
+def create_test_user():
     db = next(get_db())
 
-    # Check if user exists
-    existing_user = db.query(User).filter(User.id == "test_user_123").first()
-    if existing_user:
-        print("Test user already exists")
+    # Check if test user exists
+    existing = db.query(User).filter(User.username == "testflow").first()
+    if existing:
+        print("Test user 'testflow' already exists")
         return
 
-    # Create new user
-    test_user = User(
-        id="test_user_123",
-        username="testuser123",
-        email="test@bhiv.com",
-        password_hash="dummy_hash",
-        full_name="Test User",
-        is_active=True,
-        is_verified=True,
+    # Create new test user
+    hashed_password = pwd_context.hash("test123")
+
+    new_user = User(
+        id="testflow_id", username="testflow", email="testflow@example.com", hashed_password=hashed_password
     )
 
-    db.add(test_user)
+    db.add(new_user)
     db.commit()
-    print("Test user created successfully")
-    db.close()
+    print("Created test user: testflow / test123")
 
 
 if __name__ == "__main__":
-    asyncio.run(create_test_user())
+    create_test_user()

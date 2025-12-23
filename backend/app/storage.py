@@ -191,6 +191,21 @@ def upload_geometry(spec_id: str, glb_data: bytes) -> str:
 # ============================================================================
 
 
+def file_exists(bucket: str, file_path: str) -> bool:
+    """Check if file exists in storage"""
+    try:
+        actual_bucket = get_bucket_name(bucket)
+        files = supabase.storage.from_(actual_bucket).list()
+        # Check if file exists in the list
+        for f in files:
+            if hasattr(f, "name") and f.name == file_path:
+                return True
+        return False
+    except Exception as e:
+        logger.debug(f"File existence check failed: {e}")
+        return False
+
+
 def generate_signed_url(file_path: str, bucket: Optional[str] = None, expires_in: int = 3600) -> str:
     """
     Generate signed URL for private file access

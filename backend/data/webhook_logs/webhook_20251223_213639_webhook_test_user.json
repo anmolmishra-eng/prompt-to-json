@@ -1,0 +1,14 @@
+{
+  "workflow_id": "webhook_20251223_213639_webhook_test_user",
+  "timestamp": "2025-12-23T21:36:40.712084",
+  "prompt": "Design a modern office space with collaborative areas",
+  "user_id": "webhook_test_user",
+  "trigger_type": "webhook",
+  "status": "triggered",
+  "original_request": {
+    "prompt": "Design a modern office space with collaborative areas",
+    "user_id": "webhook_test_user",
+    "project_type": "commercial",
+    "budget": 100000
+  }
+}
