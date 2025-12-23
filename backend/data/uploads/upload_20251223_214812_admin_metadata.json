@@ -1,0 +1,11 @@
+{
+  "upload_id": "upload_20251223_214812_admin",
+  "filename": "test_report.txt",
+  "file_path": "reports/test_report.txt",
+  "file_size": 382,
+  "content_type": "text/plain",
+  "user": "admin",
+  "local_path": "data/uploads\\test_report.txt",
+  "signed_url": null,
+  "uploaded_at": "2025-12-23T21:48:16.573491"
+}

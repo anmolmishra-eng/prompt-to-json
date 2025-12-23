@@ -1,0 +1,25 @@
+{
+  "workflow_id": "webhook_20251223_213741_premium_client_001",
+  "timestamp": "2025-12-23T21:37:43.107361",
+  "prompt": "Design a luxury villa with pool and garden",
+  "user_id": "premium_client_001",
+  "trigger_type": "webhook",
+  "status": "triggered",
+  "original_request": {
+    "prompt": "Design a luxury villa with pool and garden",
+    "user_id": "premium_client_001",
+    "metadata": {
+      "source": "mobile_app",
+      "version": "2.1.0",
+      "location": {
+        "city": "Mumbai",
+        "area": "Bandra"
+      }
+    },
+    "preferences": [
+      "modern",
+      "eco-friendly",
+      "smart-home"
+    ]
+  }
+}

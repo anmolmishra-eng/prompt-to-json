@@ -1,0 +1,12 @@
+{
+  "upload_id": "upload_20251223_215027_admin",
+  "original_filename": "test_report.txt",
+  "stored_filename": "test_report_20251223_215027.txt",
+  "file_path": "reports/test_report_20251223_215027.txt",
+  "file_size": 382,
+  "content_type": "text/plain",
+  "user": "admin",
+  "local_path": "data/uploads\\test_report_20251223_215027.txt",
+  "signed_url": "https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/sign/Files/reports/test_report_20251223_215027.txt?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81YTkzMzE2NC1hNTgyLTRhNGEtYmFjZS04M2QyZGJiYTZkZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJGaWxlcy9yZXBvcnRzL3Rlc3RfcmVwb3J0XzIwMjUxMjIzXzIxNTAyNy50eHQiLCJpYXQiOjE3NjY1MDY4MjgsImV4cCI6MTc2NjUwNzQyOH0.JjnCEh1-Jhqsrg99RmuBpt3S7n4_OfyBKWm7amKbvXk",
+  "uploaded_at": "2025-12-23T21:50:30.431258"
+}

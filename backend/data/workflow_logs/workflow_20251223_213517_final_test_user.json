@@ -1,0 +1,8 @@
+{
+  "workflow_id": "workflow_20251223_213517_final_test_user",
+  "timestamp": "2025-12-23T21:35:18.813234",
+  "prompt": "Design a luxury bathroom with jacuzzi and marble finishes",
+  "user_id": "final_test_user",
+  "trigger_type": "api_call",
+  "status": "triggered"
+}
