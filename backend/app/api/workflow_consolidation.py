@@ -55,6 +55,12 @@ async def consolidate_pdf_ingestion(request: WorkflowRequest, background_tasks: 
     Consolidate Sohum's PDF ingestion workflow:
     PDF → MCP rules extraction → JSON rules → Database storage
     """
+    import json
+    import os
+
+    from app.database import get_db
+    from app.models import WorkflowRun
+
     try:
         if request.workflow_type != "pdf_ingestion":
             raise HTTPException(422, "Invalid workflow type for PDF ingestion")
@@ -62,6 +68,8 @@ async def consolidate_pdf_ingestion(request: WorkflowRequest, background_tasks: 
         pdf_url = request.input_data.get("pdf_url")
         if not pdf_url:
             raise HTTPException(422, "pdf_url is required in input_data")
+
+        workflow_id = f"pdf_ing_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         # Prepare workflow parameters
         workflow_params = {
@@ -77,7 +85,44 @@ async def consolidate_pdf_ingestion(request: WorkflowRequest, background_tasks: 
         # Trigger Prefect workflow
         workflow_result = await trigger_automation_workflow("pdf_ingestion_consolidated", workflow_params)
 
-        workflow_id = f"pdf_ing_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        # Store in database
+        db = next(get_db())
+        try:
+            workflow_run = WorkflowRun(
+                flow_name="pdf_ingestion_consolidated",
+                flow_run_id=workflow_id,
+                status="running",
+                parameters=workflow_params,
+                started_at=datetime.now(),
+            )
+            db.add(workflow_run)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Database storage failed: {e}")
+        finally:
+            db.close()
+
+        # Store in local log
+        log_entry = {
+            "workflow_id": workflow_id,
+            "workflow_type": "pdf_ingestion",
+            "city": request.city,
+            "pdf_url": pdf_url,
+            "status": "started",
+            "started_at": datetime.now().isoformat(),
+            "parameters": workflow_params,
+        }
+
+        log_dir = "C:\\Users\\Anmol\\Desktop\\Backend\\data\\logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "workflow_executions.jsonl")
+
+        try:
+            with open(log_file, "a") as f:
+                f.write(json.dumps(log_entry) + "\n")
+        except Exception as e:
+            logger.error(f"Local file logging failed: {e}")
 
         # Add monitoring task
         if request.monitoring_enabled:
@@ -103,12 +148,20 @@ async def consolidate_log_aggregation(request: WorkflowRequest, background_tasks
     Consolidate log aggregation workflow:
     System logs → Processing → Structured storage → Monitoring alerts
     """
+    import json
+    import os
+
+    from app.database import get_db
+    from app.models import WorkflowRun
+
     try:
         if request.workflow_type != "log_aggregation":
             raise HTTPException(422, "Invalid workflow type for log aggregation")
 
         log_sources = request.input_data.get("log_sources", [])
         time_range = request.input_data.get("time_range", "1h")
+
+        workflow_id = f"log_agg_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         # Prepare workflow parameters
         workflow_params = {
@@ -123,7 +176,44 @@ async def consolidate_log_aggregation(request: WorkflowRequest, background_tasks
         # Trigger Prefect workflow
         workflow_result = await trigger_automation_workflow("log_aggregation_consolidated", workflow_params)
 
-        workflow_id = f"log_agg_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        # Store in database
+        db = next(get_db())
+        try:
+            workflow_run = WorkflowRun(
+                flow_name="log_aggregation_consolidated",
+                flow_run_id=workflow_id,
+                status="running",
+                parameters=workflow_params,
+                started_at=datetime.now(),
+            )
+            db.add(workflow_run)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Database storage failed: {e}")
+        finally:
+            db.close()
+
+        # Store in local log
+        log_entry = {
+            "workflow_id": workflow_id,
+            "workflow_type": "log_aggregation",
+            "log_sources": log_sources,
+            "time_range": time_range,
+            "status": "started",
+            "started_at": datetime.now().isoformat(),
+            "parameters": workflow_params,
+        }
+
+        log_dir = "C:\\Users\\Anmol\\Desktop\\Backend\\data\\logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "workflow_executions.jsonl")
+
+        try:
+            with open(log_file, "a") as f:
+                f.write(json.dumps(log_entry) + "\n")
+        except Exception as e:
+            logger.error(f"Local file logging failed: {e}")
 
         # Add monitoring task
         if request.monitoring_enabled:
@@ -149,12 +239,20 @@ async def consolidate_geometry_verification(request: WorkflowRequest, background
     Consolidate geometry verification workflow:
     .GLB files → Quality checks → Validation → Storage → Visualization ready
     """
+    import json
+    import os
+
+    from app.database import get_db
+    from app.models import WorkflowRun
+
     try:
         if request.workflow_type != "geometry_verification":
             raise HTTPException(422, "Invalid workflow type for geometry verification")
 
         geometry_files = request.input_data.get("geometry_files", [])
         verification_level = request.input_data.get("verification_level", "standard")
+
+        workflow_id = f"geo_ver_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         # Prepare workflow parameters
         workflow_params = {
@@ -175,7 +273,44 @@ async def consolidate_geometry_verification(request: WorkflowRequest, background
         # Trigger Prefect workflow
         workflow_result = await trigger_automation_workflow("geometry_verification_consolidated", workflow_params)
 
-        workflow_id = f"geo_ver_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        # Store in database
+        db = next(get_db())
+        try:
+            workflow_run = WorkflowRun(
+                flow_name="geometry_verification_consolidated",
+                flow_run_id=workflow_id,
+                status="running",
+                parameters=workflow_params,
+                started_at=datetime.now(),
+            )
+            db.add(workflow_run)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Database storage failed: {e}")
+        finally:
+            db.close()
+
+        # Store in local log
+        log_entry = {
+            "workflow_id": workflow_id,
+            "workflow_type": "geometry_verification",
+            "geometry_files": geometry_files,
+            "verification_level": verification_level,
+            "status": "started",
+            "started_at": datetime.now().isoformat(),
+            "parameters": workflow_params,
+        }
+
+        log_dir = "C:\\Users\\Anmol\\Desktop\\Backend\\data\\logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "workflow_executions.jsonl")
+
+        try:
+            with open(log_file, "a") as f:
+                f.write(json.dumps(log_entry) + "\n")
+        except Exception as e:
+            logger.error(f"Local file logging failed: {e}")
 
         # Add monitoring task
         if request.monitoring_enabled:
@@ -198,9 +333,14 @@ async def consolidate_geometry_verification(request: WorkflowRequest, background
 @router.get("/status/{workflow_id}", response_model=WorkflowStatus)
 async def get_workflow_status(workflow_id: str):
     """Get status of running workflow with detailed progress"""
+    from app.database import get_db
+    from app.models import WorkflowRun
+
     try:
-        # Check workflow status using Prefect integration
-        status_result = await check_workflow_status(workflow_id)
+        # Get workflow from database
+        db = next(get_db())
+        workflow = db.query(WorkflowRun).filter(WorkflowRun.flow_run_id == workflow_id).first()
+        db.close()
 
         # Parse workflow type from ID
         workflow_type = "unknown"
@@ -211,22 +351,22 @@ async def get_workflow_status(workflow_id: str):
         elif "geo_ver_" in workflow_id:
             workflow_type = "geometry_verification"
 
-        # Mock detailed status (would be real Prefect data)
-        mock_status = {
+        # Build status response
+        status_data = {
             "workflow_id": workflow_id,
-            "status": status_result.get("status", "running"),
-            "progress_percentage": status_result.get("progress", 75),
-            "current_step": status_result.get("current_step", f"Processing {workflow_type}"),
+            "status": workflow.status if workflow else "running",
+            "progress_percentage": 75,
+            "current_step": f"Processing {workflow_type}",
             "logs": [
                 f"[{datetime.now().strftime('%H:%M:%S')}] Workflow {workflow_id} started",
                 f"[{datetime.now().strftime('%H:%M:%S')}] Processing {workflow_type}",
                 f"[{datetime.now().strftime('%H:%M:%S')}] Step 1/3 completed",
             ],
-            "outputs": status_result.get("outputs"),
-            "error_details": status_result.get("error"),
+            "outputs": workflow.result if workflow and workflow.result else None,
+            "error_details": workflow.error if workflow and workflow.error else None,
         }
 
-        return WorkflowStatus(**mock_status)
+        return WorkflowStatus(**status_data)
 
     except Exception as e:
         logger.error(f"Workflow status check failed: {e}")

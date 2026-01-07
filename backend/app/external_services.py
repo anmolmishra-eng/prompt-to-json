@@ -102,16 +102,20 @@ class SohumMCPClient:
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
-            # Format data for Sohum's API
-            formatted_data = {
-                "project_id": case_data.get("project_id", "unknown_project"),
-                "case_id": case_data.get(
-                    "case_id", f"case_{case_data.get('city', 'mumbai').lower()}_{hash(str(case_data)) % 10000}"
-                ),
-                "city": case_data.get("city", "Mumbai"),
-                "document": f"{case_data.get('city', 'Mumbai')}_DCR.pdf",
-                "parameters": case_data.get("parameters", {}),
-            }
+            # Use case_data directly if it already has the required fields
+            if all(k in case_data for k in ["project_id", "case_id", "city", "document", "parameters"]):
+                formatted_data = case_data
+            else:
+                # Format data for Sohum's API (legacy support)
+                formatted_data = {
+                    "project_id": case_data.get("project_id", "unknown_project"),
+                    "case_id": case_data.get(
+                        "case_id", f"case_{case_data.get('city', 'mumbai').lower()}_{hash(str(case_data)) % 10000}"
+                    ),
+                    "city": case_data.get("city", "Mumbai"),
+                    "document": f"{case_data.get('city', 'Mumbai')}_DCR.pdf",
+                    "parameters": case_data.get("parameters", {}),
+                }
 
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(f"{self.base_url}/run_case", json=formatted_data, headers=headers)

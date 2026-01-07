@@ -114,7 +114,7 @@ class Settings(BaseSettings):
     SOHAM_URL: str = Field(default="https://ai-rule-api-w7z5.onrender.com", description="Legacy Soham URL alias")
     SOHUM_API_KEY: Optional[str] = Field(default=None, description="Sohum API key (if required)")
     COMPLIANCE_API_KEY: Optional[str] = Field(default=None, description="Compliance API key")
-    SOHUM_TIMEOUT: int = Field(default=30, description="Timeout for MCP calls in seconds")
+    SOHUM_TIMEOUT: int = Field(default=90, description="Timeout for MCP calls in seconds")
     SOHUM_MCP_ENABLED: bool = Field(default=True, description="Enable external MCP service")
 
     # Ranjeet's RL System (LIVE URL)

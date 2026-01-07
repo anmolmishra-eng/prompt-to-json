@@ -144,12 +144,20 @@ async def activate_bhiv_assistant(request: Dict):
     """
     Activate BHIV AI Assistant layer through central bucket/core
     """
+    import json
+    import os
+
+    from app.database import get_db
+    from app.models import AuditLog, BHIVActivation
+
     user_id = request.get("user_id")
     prompt = request.get("prompt")
     city = request.get("city", "Mumbai")
 
     if not user_id or not prompt:
         raise HTTPException(422, "user_id and prompt are required")
+
+    activation_id = f"bhiv_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
     # Step 1: Fetch MCP rules
     mcp_rules = await fetch_mcp_rules(city)
@@ -160,8 +168,72 @@ async def activate_bhiv_assistant(request: Dict):
     # Step 3: Log user interaction
     feedback_id = await log_user_feedback(user_id, prompt, city)
 
+    # Step 4: Store in database
+    db = next(get_db())
+    try:
+        bhiv_activation = BHIVActivation(
+            activation_id=activation_id,
+            user_id=user_id,
+            prompt=prompt,
+            city=city,
+            mcp_rules=mcp_rules,
+            mcp_source=mcp_rules.get("source"),
+            rl_optimization=rl_result,
+            rl_confidence=rl_result.get("confidence"),
+            feedback_id=feedback_id,
+            status="activated",
+        )
+        db.add(bhiv_activation)
+        db.commit()
+
+        # Add audit log only if user exists in users table
+        from app.models import User
+
+        user_exists = (
+            db.query(User).filter(User.id == user_id).first() or db.query(User).filter(User.username == user_id).first()
+        )
+        if user_exists:
+            audit_log = AuditLog(
+                user_id=user_exists.id,
+                action="bhiv_activation",
+                resource_type="bhiv_assistant",
+                resource_id=activation_id,
+                details={"prompt": prompt, "city": city},
+                status="success",
+            )
+            db.add(audit_log)
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Database storage failed: {e}")
+    finally:
+        db.close()
+
+    # Step 5: Store in local log file
+    log_entry = {
+        "activation_id": activation_id,
+        "user_id": user_id,
+        "prompt": prompt,
+        "city": city,
+        "mcp_rules": mcp_rules,
+        "rl_optimization": rl_result,
+        "feedback_id": feedback_id,
+        "timestamp": datetime.now().isoformat(),
+        "status": "activated",
+    }
+
+    log_dir = "C:\\Users\\Anmol\\Desktop\\Backend\\data\\logs"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "bhiv_assistant.jsonl")
+
+    try:
+        with open(log_file, "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception as e:
+        logger.error(f"Local file logging failed: {e}")
+
     return {
-        "activation_id": f"bhiv_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        "activation_id": activation_id,
         "mcp_rules": mcp_rules,
         "rl_optimization": rl_result,
         "feedback_logged": feedback_id,
@@ -175,6 +247,12 @@ async def validate_city_integration(city: str, request: Dict):
     Validate multi-city integration for Mumbai, Pune, Ahmedabad, Nashik
     Tests MCP rules, RL optimization, and geometry pipeline
     """
+    import json
+    import os
+
+    from app.database import get_db
+    from app.models import CityValidation
+
     plot_size = request.get("plot_size", 1000)
     location = request.get("location", "urban")
     road_width = request.get("road_width", 12)
@@ -200,7 +278,7 @@ async def validate_city_integration(city: str, request: Dict):
         f"{city.upper()}-HEIGHT-LIMIT",
     ]
 
-    return {
+    response = {
         "city": city,
         "validation_status": "passed",
         "rules_applied": rules_applied,
@@ -209,6 +287,49 @@ async def validate_city_integration(city: str, request: Dict):
         "geometry_pipeline": geometry_result,
         "parameters": {"plot_size": plot_size, "location": location, "road_width": road_width},
     }
+
+    # Store in database
+    db = next(get_db())
+    try:
+        validation = CityValidation(
+            city=city,
+            plot_size=plot_size,
+            location=location,
+            road_width=road_width,
+            validation_status="passed",
+            rules_applied=rules_applied,
+            mcp_integration=mcp_result,
+            rl_feedback_loop=rl_result,
+            geometry_pipeline=geometry_result,
+        )
+        db.add(validation)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Database storage failed: {e}")
+    finally:
+        db.close()
+
+    # Store in local log
+    log_entry = {
+        "city": city,
+        "validation_status": "passed",
+        "parameters": {"plot_size": plot_size, "location": location, "road_width": road_width},
+        "rules_applied": rules_applied,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    log_dir = "C:\\Users\\Anmol\\Desktop\\Backend\\data\\logs"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "city_validations.jsonl")
+
+    try:
+        with open(log_file, "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception as e:
+        logger.error(f"Local file logging failed: {e}")
+
+    return response
 
 
 async def fetch_mcp_rules(city: str) -> Dict:
@@ -279,17 +400,26 @@ async def accept_live_feedback(feedback_data: Dict):
     """
     Ensure RL agent can accept live feedback and update weights dynamically
     """
+    import json
+    import os
+
+    from app.database import get_db
+    from app.models import RLLiveFeedback
+
     try:
         user_id = feedback_data.get("user_id")
         design_rating = feedback_data.get("rating", 0.0)
         city = feedback_data.get("city", "Mumbai")
+        design_id = feedback_data.get("design_id")
 
         if not user_id:
             raise HTTPException(422, "user_id is required")
 
+        feedback_id = f"live_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
         # Process live feedback
         feedback_result = {
-            "feedback_id": f"live_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "feedback_id": feedback_id,
             "user_id": user_id,
             "rating": design_rating,
             "city": city,
@@ -301,6 +431,48 @@ async def accept_live_feedback(feedback_data: Dict):
 
         # Trigger background training if enough feedback
         training_triggered = await trigger_rl_training_if_ready(city)
+
+        # Store in database
+        db = next(get_db())
+        try:
+            rl_feedback = RLLiveFeedback(
+                feedback_id=feedback_id,
+                user_id=user_id,
+                rating=design_rating,
+                city=city,
+                design_id=design_id,
+                weights_updated=weight_update,
+                training_triggered=training_triggered,
+            )
+            db.add(rl_feedback)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Database storage failed: {e}")
+        finally:
+            db.close()
+
+        # Store in local log
+        log_entry = {
+            "feedback_id": feedback_id,
+            "user_id": user_id,
+            "rating": design_rating,
+            "city": city,
+            "design_id": design_id,
+            "weights_updated": weight_update,
+            "training_triggered": training_triggered,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        log_dir = "C:\\Users\\Anmol\\Desktop\\Backend\\data\\logs"
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "rl_live_feedback.jsonl")
+
+        try:
+            with open(log_file, "a") as f:
+                f.write(json.dumps(log_entry) + "\n")
+        except Exception as e:
+            logger.error(f"Local file logging failed: {e}")
 
         return {
             "feedback_processed": feedback_result,
