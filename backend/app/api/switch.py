@@ -265,6 +265,9 @@ async def switch_material(request: SwitchRequest, db: Session = Depends(get_db))
 
         iteration_id = f"iter_{uuid.uuid4().hex[:8]}"
 
+        # Initialize preview_url early
+        preview_url = f"https://mock-preview-{iteration_id}.glb"
+
         # Save iteration to database
         try:
             from app.models import Iteration

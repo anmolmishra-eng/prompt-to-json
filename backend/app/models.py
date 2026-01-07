@@ -352,6 +352,56 @@ class RLFeedback(Base):
 
 
 # ============================================================================
+# VR RENDER MODELS
+# ============================================================================
+
+
+class VRRender(Base):
+    """VR rendering jobs and results"""
+
+    __tablename__ = "vr_renders"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    spec_id = Column(String, ForeignKey("specs.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Render Settings
+    quality = Column(String(20), default="high", nullable=False)
+    resolution = Column(String(20))
+
+    # Status
+    status = Column(String(20), default="queued", index=True, nullable=False)
+    progress = Column(Integer, default=0)
+
+    # Output
+    render_url = Column(String(512))
+    local_path = Column(String(512))
+    file_size_bytes = Column(Integer)
+
+    # Performance
+    estimated_time_seconds = Column(Integer)
+    actual_time_seconds = Column(Integer)
+
+    # Error Handling
+    error_message = Column(Text)
+    retry_count = Column(Integer, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_vr_renders_spec_status", "spec_id", "status"),
+        Index("ix_vr_renders_user_created", "user_id", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<VRRender {self.id[:8]}... spec={self.spec_id[:8]}... status={self.status}>"
+
+
+# ============================================================================
 # AUDIT & LOGGING MODELS
 # ============================================================================
 
@@ -396,6 +446,112 @@ class AuditLog(Base):
 
     def __repr__(self):
         return f"<AuditLog {self.action} user={self.user_id} at={self.created_at}>"
+
+
+# ============================================================================
+# BHIV ACTIVATION MODELS
+# ============================================================================
+
+
+class BHIVActivation(Base):
+    """Track BHIV AI Assistant activations"""
+
+    __tablename__ = "bhiv_activations"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    activation_id = Column(String(100), unique=True, nullable=False, index=True)
+    user_id = Column(String, nullable=False, index=True)
+
+    # Request
+    prompt = Column(Text, nullable=False)
+    city = Column(String(50), nullable=False, index=True)
+
+    # MCP Rules
+    mcp_rules = Column(JSON)
+    mcp_source = Column(String(50))
+
+    # RL Optimization
+    rl_optimization = Column(JSON)
+    rl_confidence = Column(Float)
+
+    # Feedback
+    feedback_id = Column(String(100))
+
+    # Status
+    status = Column(String(20), default="activated", index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_bhiv_user_created", "user_id", "created_at"),
+        Index("ix_bhiv_city", "city"),
+    )
+
+    def __repr__(self):
+        return f"<BHIVActivation {self.activation_id} user={self.user_id}>"
+
+
+class CityValidation(Base):
+    """Track city integration validations"""
+
+    __tablename__ = "city_validations"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    city = Column(String(50), nullable=False, index=True)
+
+    # Parameters
+    plot_size = Column(Float)
+    location = Column(String(50))
+    road_width = Column(Float)
+
+    # Results
+    validation_status = Column(String(20), index=True)
+    rules_applied = Column(JSON)
+    mcp_integration = Column(JSON)
+    rl_feedback_loop = Column(JSON)
+    geometry_pipeline = Column(JSON)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+
+    # Indexes
+    __table_args__ = (Index("ix_city_val_city_created", "city", "created_at"),)
+
+    def __repr__(self):
+        return f"<CityValidation {self.city} status={self.validation_status}>"
+
+
+class RLLiveFeedback(Base):
+    """Track RL live feedback submissions"""
+
+    __tablename__ = "rl_live_feedback"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    feedback_id = Column(String(100), unique=True, nullable=False, index=True)
+    user_id = Column(String, nullable=False, index=True)
+
+    # Feedback
+    rating = Column(Float, nullable=False)
+    city = Column(String(50), nullable=False, index=True)
+    design_id = Column(String(100))
+
+    # Weights Updated
+    weights_updated = Column(JSON)
+    training_triggered = Column(Boolean, default=False)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_rl_live_feedback_user_created", "user_id", "created_at"),
+        Index("ix_rl_live_feedback_city", "city"),
+    )
+
+    def __repr__(self):
+        return f"<RLLiveFeedback {self.feedback_id} rating={self.rating}>"
 
 
 # ============================================================================

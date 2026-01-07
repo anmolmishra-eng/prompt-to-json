@@ -22,7 +22,7 @@ async def mobile_generate(
     # Import locally to avoid circular dependency
     from app.api.generate import generate_design
 
-    return await generate_design(req, db)
+    return await generate_design(req)
 
 
 @router.post("/mobile/evaluate")
@@ -51,11 +51,25 @@ async def mobile_switch(
     current_user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Mobile wrapper for switch endpoint"""
-    # Import locally to avoid circular dependency
+    """Mobile wrapper for switch endpoint - converts to query format"""
+    from app.api.switch import SwitchRequest as SwitchReq
     from app.api.switch import switch_material
 
-    return await switch_material(req, db)
+    # Convert target/update format to natural language query
+    target = req.target.object_id or req.target.object_query or "object"
+
+    query_parts = [f"change {target}"]
+
+    if req.update.material:
+        query_parts.append(f"material to {req.update.material}")
+    if req.update.color_hex:
+        query_parts.append(f"color to {req.update.color_hex}")
+
+    query = " ".join(query_parts)
+
+    # Create request with query format
+    switch_req = SwitchReq(spec_id=req.spec_id, query=query)
+    return await switch_material(switch_req, db)
 
 
 @router.get("/mobile/health")

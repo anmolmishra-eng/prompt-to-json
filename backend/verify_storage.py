@@ -1,45 +1,42 @@
 #!/usr/bin/env python3
-"""
-Verify BHIV endpoint data storage in database
-"""
+import json
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from app.database import get_db
-from app.models import Spec, WorkflowRun
-from sqlalchemy.orm import Session
+from app.models import AuditLog, BHIVActivation
+from sqlalchemy import desc
 
+db = next(get_db())
 
-def verify_database_storage():
-    """Check if BHIV request was stored in database"""
-    db = next(get_db())
+print("=== BHIV Activations (Database) ===")
+activations = db.query(BHIVActivation).order_by(desc(BHIVActivation.created_at)).limit(3).all()
+for act in activations:
+    print(f"{act.created_at} | {act.activation_id} | {act.user_id} | {act.city} | {act.status}")
 
-    # Check latest spec for test user
-    latest_spec = db.query(Spec).filter(Spec.user_id == "test_user_123").order_by(Spec.created_at.desc()).first()
+print("\n=== Audit Logs (Database) ===")
+logs = (
+    db.query(AuditLog).filter(AuditLog.action == "bhiv_activation").order_by(desc(AuditLog.created_at)).limit(3).all()
+)
+for log in logs:
+    print(f"{log.created_at} | {log.action} | {log.resource_id} | {log.status}")
 
-    if latest_spec:
-        print(f"SPEC FOUND:")
-        print(f"  ID: {latest_spec.id}")
-        print(f"  Prompt: {latest_spec.prompt}")
-        print(f"  City: {latest_spec.city}")
-        print(f"  Design Type: {latest_spec.design_type}")
-        print(f"  Status: {latest_spec.status}")
-        print(f"  Cost: {latest_spec.estimated_cost} {latest_spec.currency}")
-        print(f"  Created: {latest_spec.created_at}")
-        print(f"  Spec JSON Keys: {list(latest_spec.spec_json.keys()) if latest_spec.spec_json else 'None'}")
-    else:
-        print("NO SPEC FOUND for test_user_123")
+print("\n=== Local Log File ===")
+log_file = "C:\\Users\\Anmol\\Desktop\\Backend\\data\\logs\\bhiv_assistant.jsonl"
+if os.path.exists(log_file):
+    with open(log_file, "r") as f:
+        lines = f.readlines()
+        print(f"Total entries: {len(lines)}")
+        if lines:
+            print("\nLast 2 entries:")
+            for line in lines[-2:]:
+                entry = json.loads(line)
+                print(f"  {entry['activation_id']} | {entry['user_id']} | {entry['city']} | {entry['status']}")
+        else:
+            print("Log file is empty")
+else:
+    print("Log file does not exist")
 
-    # Check workflow runs
-    workflow_runs = db.query(WorkflowRun).order_by(WorkflowRun.created_at.desc()).limit(3).all()
-
-    print(f"\nWORKFLOW RUNS ({len(workflow_runs)} found):")
-    for run in workflow_runs:
-        print(f"  Flow: {run.flow_name}")
-        print(f"  Status: {run.status}")
-        print(f"  Created: {run.created_at}")
-        print(f"  Parameters: {run.parameters}")
-        print("  ---")
-
-    db.close()
-
-
-if __name__ == "__main__":
-    verify_database_storage()
+db.close()
