@@ -14,23 +14,81 @@ Complete FastAPI backend for design generation, evaluation, and optimization wit
 - **Monitoring**: Health checks, metrics, and Sentry error tracking
 - **Security**: Data encryption, GDPR compliance, audit logging
 
-## 📋 How to Run This Project
+## 📋 Complete Setup Guide
 
 ### Prerequisites
-- Python 3.11+
-- PostgreSQL database (Supabase account)
-- NVIDIA GPU (optional, for local AI processing)
-- Git installed
+- **Python 3.11+** (Download from [python.org](https://www.python.org/downloads/))
+- **PostgreSQL Database** (Supabase account - free tier available)
+- **Git** (Download from [git-scm.com](https://git-scm.com/))
+- **NVIDIA GPU** (Optional, for local AI processing)
+- **Code Editor** (VS Code recommended)
 
-### Step-by-Step Setup
+---
 
-1. **Clone the Repository**
+## 🗄️ Database Setup (Supabase)
+
+### Step 1: Create Supabase Account
+1. Go to [supabase.com](https://supabase.com)
+2. Click "Start your project" and sign up
+3. Create a new project:
+   - **Project Name**: `design-engine-api`
+   - **Database Password**: Choose a strong password (save it!)
+   - **Region**: Select closest to your location
+   - Wait 2-3 minutes for project creation
+
+### Step 2: Get Database Credentials
+1. In Supabase Dashboard, go to **Settings** → **Database**
+2. Copy these values:
+   - **Connection String** (URI format)
+   - **Host**
+   - **Database name**
+   - **Port** (usually 6543 for pooler)
+   - **User** (usually `postgres`)
+
+3. Go to **Settings** → **API**
+4. Copy these values:
+   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
+   - **anon public** key
+   - **service_role** key (keep this secret!)
+
+### Step 3: Create Database Tables
+The application will auto-create tables on first run, but you can verify:
+
+1. In Supabase Dashboard, go to **Table Editor**
+2. You should see these tables after first run:
+   - `users` - User accounts
+   - `specs` - Design specifications
+   - `iterations` - Design iterations
+   - `evaluations` - Design evaluations
+   - `compliance_checks` - Compliance validations
+   - `rl_feedback` - RL training data
+   - `audit_logs` - Security audit trail
+
+### Step 4: Create Storage Buckets
+1. In Supabase Dashboard, go to **Storage**
+2. Create these buckets (click "New bucket"):
+   - `files` - User uploaded files
+   - `previews` - Design preview images
+   - `geometry` - 3D geometry files (.glb, .obj)
+   - `compliance` - Compliance documents
+
+3. For each bucket, set policies:
+   - Go to bucket → **Policies**
+   - Add policy: "Enable read access for authenticated users"
+   - Add policy: "Enable insert for authenticated users"
+
+---
+
+## 🚀 Application Setup
+
+### Step 1: Clone Repository
 ```bash
+# Clone the project
 git clone https://github.com/anmolmishra-eng/prompt-to-json.git
 cd prompt-to-json
 ```
 
-2. **Create Virtual Environment**
+### Step 2: Create Virtual Environment
 ```bash
 # Windows
 python -m venv venv
@@ -39,45 +97,272 @@ venv\Scripts\activate
 # Linux/Mac
 python3 -m venv venv
 source venv/bin/activate
+
+# Verify activation (you should see (venv) in terminal)
 ```
 
-3. **Navigate to Backend Directory**
+### Step 3: Navigate to Backend
 ```bash
 cd backend
 ```
 
-4. **Install All Dependencies**
+### Step 4: Install Dependencies
 ```bash
+# Upgrade pip first
+pip install --upgrade pip
+
+# Install all requirements
 pip install -r requirements.txt
+
+# This will install:
+# - FastAPI (web framework)
+# - SQLAlchemy (database ORM)
+# - Supabase client
+# - JWT authentication
+# - And 50+ other dependencies
 ```
 
-5. **Setup Environment Variables**
-   - Copy `.env.example` to `.env`
-   - Fill in your Supabase credentials:
-     ```
-     DATABASE_URL=postgresql://user:pass@host:port/dbname
-     SUPABASE_URL=https://your-project.supabase.co
-     SUPABASE_KEY=your-supabase-anon-key
-     JWT_SECRET_KEY=your-secret-key
-     SENTRY_DSN=your-sentry-dsn (optional)
-     OPENAI_API_KEY=your-openai-key (optional)
-     ```
+### Step 5: Configure Environment Variables
 
-6. **Start the Development Server**
+1. **Copy example file**:
 ```bash
+# Windows
+copy .env.example .env
+
+# Linux/Mac
+cp .env.example .env
+```
+
+2. **Edit `.env` file** with your credentials:
+
+```env
+# ============================================================================
+# DATABASE CONFIGURATION (from Supabase Step 2)
+# ============================================================================
+DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+
+# ============================================================================
+# SUPABASE STORAGE (from Supabase Step 2)
+# ============================================================================
+SUPABASE_URL=https://[PROJECT-REF].supabase.co
+SUPABASE_KEY=eyJhbGc...[YOUR-ANON-KEY]
+SUPABASE_SERVICE_KEY=eyJhbGc...[YOUR-SERVICE-KEY]
+
+# ============================================================================
+# AUTHENTICATION
+# ============================================================================
+JWT_SECRET_KEY=your-super-secret-key-min-32-chars-long-change-this
+DEMO_USERNAME=admin
+DEMO_PASSWORD=bhiv2024
+
+# ============================================================================
+# EXTERNAL SERVICES (Live URLs)
+# ============================================================================
+SOHAM_URL=https://ai-rule-api-w7z5.onrender.com
+RANJEET_RL_URL=https://land-utilization-rl.onrender.com
+LAND_UTILIZATION_ENABLED=true
+LAND_UTILIZATION_MOCK_MODE=false
+RANJEET_SERVICE_AVAILABLE=true
+
+# ============================================================================
+# MONITORING (Optional)
+# ============================================================================
+SENTRY_DSN=https://your-sentry-dsn (optional)
+OPENAI_API_KEY=sk-your-openai-key (optional)
+
+# ============================================================================
+# ENVIRONMENT
+# ============================================================================
+DEBUG=true
+ENVIRONMENT=development
+```
+
+### Step 6: Initialize Database
+```bash
+# Create initial admin user
+python create_test_user.py
+
+# Verify database connection
+python get_users.py
+```
+
+### Step 7: Start the Server
+```bash
+# Development mode (auto-reload on code changes)
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# You should see:
+# ======================================================================
+# 🚀 Design Engine API Server Starting...
+# 🌍 Server URL: http://0.0.0.0:8000
+# 📄 API Docs: http://0.0.0.0:8000/docs
+# 🔍 Health Check: http://0.0.0.0:8000/health
+# ======================================================================
 ```
 
-7. **Access the API**
-   - API Base URL: `http://localhost:8000`
-   - Interactive Docs: `http://localhost:8000/docs`
-   - Health Check: `http://localhost:8000/api/v1/health`
+### Step 8: Verify Installation
 
-### Testing the Setup
+1. **Open browser** and go to:
+   - **API Documentation**: http://localhost:8000/docs
+   - **Health Check**: http://localhost:8000/api/v1/health
+
+2. **Test authentication**:
+   - In Swagger UI (http://localhost:8000/docs)
+   - Find `POST /api/v1/auth/login`
+   - Click "Try it out"
+   - Enter:
+     ```json
+     {
+       "username": "admin",
+       "password": "bhiv2024"
+     }
+     ```
+   - Click "Execute"
+   - Copy the `access_token` from response
+
+3. **Authorize all endpoints**:
+   - Click "Authorize" button (top right)
+   - Paste token in format: `Bearer YOUR_TOKEN`
+   - Click "Authorize"
+   - Now you can test all protected endpoints!
+
+---
+
+## 🧪 Testing the Setup
+
+### Quick Health Check
 ```bash
-# Run comprehensive endpoint tests
-python quick_test_all.py
+# Test basic connectivity
+curl http://localhost:8000/health
+
+# Expected response:
+# {"status": "ok", "service": "Design Engine API", "version": "0.1.0"}
 ```
+
+### Comprehensive Tests
+```bash
+# Run all endpoint tests
+python quick_test_all.py
+
+# Test specific features
+python test_auth.py              # Authentication
+python test_generate_simple.py   # Design generation
+python test_evaluate_simple.py   # Design evaluation
+python test_compliance_check.py  # Compliance checking
+```
+
+### Test External Services
+```bash
+# Wake up Render services (they sleep after inactivity)
+python wake_services.py
+
+# Check service integration
+python check_mock_usage.py
+
+# Should show:
+# Sohum MCP: AVAILABLE
+# Ranjeet RL: AVAILABLE
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Database Connection Issues
+```bash
+# Test database connection
+python -c "from app.database import SessionLocal; db = SessionLocal(); print('✅ Database connected'); db.close()"
+
+# Common fixes:
+# 1. Check DATABASE_URL format
+# 2. Verify Supabase project is active
+# 3. Check firewall/network settings
+# 4. Ensure password is URL-encoded (use %40 for @)
+```
+
+### Import Errors
+```bash
+# Reinstall dependencies
+pip install -r requirements.txt --force-reinstall
+
+# Check Python version
+python --version  # Should be 3.11+
+```
+
+### Port Already in Use
+```bash
+# Windows - Kill process on port 8000
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+# Linux/Mac
+lsof -ti:8000 | xargs kill -9
+
+# Or use different port
+uvicorn app.main:app --port 8001
+```
+
+### External Services Down
+```bash
+# Render services sleep after 15 min inactivity
+# Wake them up:
+python wake_services.py
+
+# Or enable mock mode temporarily in .env:
+LAND_UTILIZATION_MOCK_MODE=true
+```
+
+---
+
+## 📱 API Usage Examples
+
+### 1. Login and Get Token
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "bhiv2024"}'
+```
+
+### 2. Generate Design
+```bash
+curl -X POST "http://localhost:8000/api/v1/generate" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Design a modern 3-bedroom apartment",
+    "city": "Mumbai",
+    "budget": 5000000
+  }'
+```
+
+### 3. Check System Health
+```bash
+curl -X GET "http://localhost:8000/api/v1/health/detailed" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+---
+
+## 🎯 Next Steps
+
+1. **Explore API Documentation**: http://localhost:8000/docs
+2. **Test all endpoints** using Swagger UI
+3. **Review logs** in `backend/data/logs/`
+4. **Check monitoring** at http://localhost:8000/api/v1/monitoring/metrics
+5. **Read API contract** in `docs/api_contract_v2.md`
+
+---
+
+## 📞 Support
+
+If you encounter issues:
+1. Check logs in `backend/data/logs/bhiv_assistant.jsonl`
+2. Review error messages in terminal
+3. Verify all environment variables are set
+4. Ensure Supabase project is active
+5. Check external services are awake (Render)
+
+---
 
 ## 🔗 API Endpoints Documentation
 
@@ -347,15 +632,29 @@ backend/
 └── .env             # Environment variables
 ```
 
-## 🔧 Configuration
+## 🔧 Configuration Reference
 
-Key environment variables:
-- `DATABASE_URL` - PostgreSQL connection string
-- `SUPABASE_URL` - Supabase project URL
-- `SUPABASE_KEY` - Supabase API key
-- `JWT_SECRET_KEY` - JWT signing key
-- `SENTRY_DSN` - Error monitoring
-- `OPENAI_API_KEY` - OpenAI API key
+### Required Environment Variables
+| Variable | Description | Example |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:6543/db` |
+| `SUPABASE_URL` | Supabase project URL | `https://xxxxx.supabase.co` |
+| `SUPABASE_KEY` | Supabase anon key | `eyJhbGc...` |
+| `JWT_SECRET_KEY` | JWT signing key (min 32 chars) | `your-secret-key-here` |
+
+### Optional Environment Variables
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `SENTRY_DSN` | Error monitoring | None |
+| `OPENAI_API_KEY` | OpenAI API key | None |
+| `DEBUG` | Debug mode | `false` |
+| `ENVIRONMENT` | Environment name | `development` |
+
+### External Service URLs
+| Service | URL | Status |
+|---------|-----|--------|
+| Sohum MCP | `https://ai-rule-api-w7z5.onrender.com` | ✅ Live |
+| Ranjeet RL | `https://land-utilization-rl.onrender.com` | ✅ Live |
 
 ## 📊 Monitoring
 
