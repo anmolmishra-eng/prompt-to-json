@@ -117,9 +117,9 @@ def main():
     # DESIGN GENERATION
     print_header("DESIGN GENERATION")
     design_data = {
-        "prompt": "Modern 3BHK apartment",
-        "style": "modern",
-        "budget": 50000
+        "user_id": "test_user",
+        "prompt": "Modern 3BHK apartment with kitchen and living room",
+        "project_id": "test_project_001"
     }
     tests = [
         ("POST", "/api/v1/generate", design_data, True),
@@ -132,8 +132,9 @@ def main():
     # DESIGN EVALUATION
     print_header("DESIGN EVALUATION")
     eval_data = {
-        "design_id": "test_design_001",
-        "criteria": ["aesthetics", "functionality"]
+        "user_id": "test_user",
+        "spec_id": "spec_test_001",
+        "criteria": ["aesthetics", "functionality", "cost"]
     }
     tests = [
         ("POST", "/api/v1/evaluate", eval_data, True),
@@ -261,8 +262,10 @@ def main():
     # MOBILE API
     print_header("MOBILE API")
     mobile_data = {
-        "prompt": "Modern bedroom",
-        "device_id": "test_device"
+        "user_id": "test_user",
+        "prompt": "Modern bedroom with wardrobe",
+        "device_id": "test_device",
+        "project_id": "mobile_test_001"
     }
     tests = [
         ("GET", "/api/v1/mobile/health", None, True),

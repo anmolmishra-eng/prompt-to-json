@@ -102,11 +102,9 @@ class SohumMCPClient:
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
-            # Use case_data directly if it already has the required fields
             if all(k in case_data for k in ["project_id", "case_id", "city", "document", "parameters"]):
                 formatted_data = case_data
             else:
-                # Format data for Sohum's API (legacy support)
                 formatted_data = {
                     "project_id": case_data.get("project_id", "unknown_project"),
                     "case_id": case_data.get(
@@ -120,7 +118,10 @@ class SohumMCPClient:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(f"{self.base_url}/run_case", json=formatted_data, headers=headers)
                 response.raise_for_status()
-                return response.json()
+                raw_response = response.json()
+
+                # Parse and structure the response
+                return self._parse_compliance_response(raw_response)
 
         except httpx.TimeoutException:
             logger.warning(f"MCP service timeout after {self.timeout}s")
@@ -131,6 +132,73 @@ class SohumMCPClient:
         except Exception as e:
             logger.error(f"MCP service error: {e}")
             raise
+
+    def _parse_compliance_response(self, raw_response: Dict) -> Dict:
+        """Parse Sohum MCP response into structured format"""
+        violations = []
+        recommendations = []
+
+        # Extract violations from rules_applied or reasoning
+        rules_applied = raw_response.get("rules_applied", [])
+        reasoning = raw_response.get("reasoning", "")
+        clause_summaries = raw_response.get("clause_summaries", [])
+
+        # Parse violations from clause summaries
+        for clause in clause_summaries:
+            if "violation" in clause.get("notes", "").lower() or "non-compliant" in clause.get("notes", "").lower():
+                violations.append(
+                    {
+                        "rule_id": clause.get("clause_id", "UNKNOWN"),
+                        "description": clause.get("quick_summary", "Compliance violation detected"),
+                        "severity": "high" if "critical" in clause.get("notes", "").lower() else "medium",
+                        "authority": clause.get("authority", "Municipal Authority"),
+                    }
+                )
+
+        # Generate recommendations from reasoning
+        if "review" in reasoning.lower():
+            recommendations.append("Review and update design to meet compliance requirements")
+        if "setback" in reasoning.lower():
+            recommendations.append("Verify setback requirements for the specified location")
+        if "fsi" in reasoning.lower() or "fsr" in reasoning.lower():
+            recommendations.append("Check Floor Space Index (FSI) calculations")
+        if "height" in reasoning.lower():
+            recommendations.append("Ensure building height complies with zoning regulations")
+
+        # Add rule-specific recommendations
+        for rule in rules_applied:
+            if "FSI" in rule:
+                recommendations.append(f"Verify FSI compliance as per {rule}")
+            elif "SETBACK" in rule:
+                recommendations.append(f"Check setback requirements under {rule}")
+            elif "HEIGHT" in rule:
+                recommendations.append(f"Validate height restrictions per {rule}")
+
+        # If no specific recommendations, add generic ones
+        if not recommendations:
+            recommendations = [
+                "Ensure all design parameters meet local building codes",
+                "Verify structural safety requirements",
+                "Confirm compliance with environmental regulations",
+            ]
+
+        confidence_score = raw_response.get("confidence_score", 0.75)
+
+        return {
+            "project_id": raw_response.get("project_id"),
+            "case_id": raw_response.get("case_id"),
+            "city": raw_response.get("city"),
+            "parameters": raw_response.get("parameters", {}),
+            "rules_applied": rules_applied,
+            "reasoning": reasoning,
+            "confidence_score": confidence_score,
+            "confidence_level": raw_response.get("confidence_level", "Medium" if confidence_score > 0.5 else "Low"),
+            "violations": violations,
+            "recommendations": recommendations,
+            "compliant": len(violations) == 0 and confidence_score > 0.5,
+            "clause_summaries": clause_summaries,
+            "geometry_url": raw_response.get("geometry_url"),
+        }
 
     async def submit_feedback(self, feedback_data: Dict) -> Dict:
         """Submit compliance feedback"""
@@ -150,34 +218,6 @@ class SohumMCPClient:
             logger.error(f"MCP feedback error: {e}")
             raise
 
-    def get_mock_compliance_response(self, case_data: Dict) -> Dict:
-        """Generate mock compliance response when service unavailable"""
-        city = case_data.get("city", "Mumbai").lower()
-        project_id = case_data.get("project_id", "unknown_project")
-
-        city_rules = {
-            "mumbai": ["MUM-FSI-URBAN-R15-20", "MUM-SETBACK-R15-20", "MUM-HEIGHT-STANDARD"],
-            "pune": ["PUNE-HEIGHT-SPECIAL-ECO", "PUNE-FSI-SUBURBAN", "PUNE-SETBACK-ECO"],
-            "ahmedabad": ["AMD-FSI-URBAN-R15-20", "AMD-SETBACK-R15-20", "AMD-HEIGHT-HERITAGE"],
-            "nashik": ["NAS-FSI-SUBURBAN-R10-15", "NAS-SETBACK-R10-15", "NAS-HEIGHT-WINE-TOURISM"],
-        }
-
-        return {
-            "project_id": project_id,
-            "case_id": f"{city}_mock_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            "city": case_data.get("city", "Mumbai"),
-            "parameters": case_data.get("parameters", {}),
-            "rules_applied": city_rules.get(city, city_rules["mumbai"]),
-            "reasoning": f"Mock compliance analysis for {city} - external service unavailable",
-            "confidence_score": 0.3,
-            "confidence_level": "Low",
-            "confidence_note": "Mock response - external compliance service unavailable",
-            "compliant": True,
-            "violations": [],
-            "geometry_url": None,
-            "mock_response": True,
-        }
-
 
 class RanjeetRLClient:
     """Client for Ranjeet's RL optimization system (Land Utilization)"""
@@ -186,7 +226,6 @@ class RanjeetRLClient:
         self.base_url = settings.RANJEET_RL_URL
         self.api_key = settings.RANJEET_API_KEY
         self.timeout = settings.RANJEET_TIMEOUT
-        self.mock_mode = settings.LAND_UTILIZATION_MOCK_MODE
         self.service_available = settings.RANJEET_SERVICE_AVAILABLE
 
     async def health_check(self) -> ServiceStatus:
@@ -207,143 +246,65 @@ class RanjeetRLClient:
 
     async def optimize_design(self, spec_json: Dict, city: str, constraints: Dict = None) -> Dict:
         """Optimize design using Ranjeet's Land Utilization RL System"""
-
-        # Check if we should use mock mode (service not available yet)
-        if self.mock_mode or not self.service_available:
-            logger.info(
-                f"🔄 Using mock Land Utilization RL for {city} - Ranjeet's service will be available in 3-4 days"
-            )
-            return self.get_mock_land_utilization_response(spec_json, city, constraints)
-
         try:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
-            # Format payload for Ranjeet's Land Utilization RL System
             payload = {
-                "payload": {
-                    "design_spec": spec_json,
-                    "city": city,
-                    "land_utilization_request": True,
-                    "constraints": constraints or {},
-                    "module_type": "land_utilization_optimization",
-                    "timestamp": datetime.now().isoformat(),
-                },
-                "signature": "land_utilization_request",
-                "nonce": f"nonce_{datetime.now().timestamp()}",
+                "design_spec": spec_json,
+                "city": city,
+                "constraints": constraints or {},
+                "timestamp": datetime.now().isoformat(),
             }
 
             async with httpx.AsyncClient(timeout=120.0) as client:
-                try:
-                    logger.info(f"Calling Ranjeet's Land Utilization RL: {self.base_url}/land/optimize")
-                    response = await client.post(f"{self.base_url}/land/optimize", json=payload, headers=headers)
-
-                    if response.status_code == 200:
-                        result = response.json()
-                        logger.info(f"✅ Ranjeet's Land Utilization RL responded successfully")
-                        return result
-                    else:
-                        logger.error(f"Land Utilization RL returned {response.status_code}: {response.text}")
-                        raise Exception(f"Land Utilization API returned {response.status_code}")
-
-                except Exception as e:
-                    logger.error(f"Land Utilization RL call failed: {e}")
-                    raise
+                logger.info(f"Calling Ranjeet's RL: {self.base_url}/rl/optimize")
+                response = await client.post(f"{self.base_url}/rl/optimize", json=payload, headers=headers)
+                response.raise_for_status()
+                result = response.json()
+                logger.info(f"✅ Ranjeet's RL optimization successful")
+                return result
 
         except Exception as e:
-            logger.error(f"Ranjeet's Land Utilization RL failed: {e}")
-            # Fallback to mock response
-            logger.warning(f"⚠️ Falling back to mock Land Utilization response for {city}")
-            return self.get_mock_land_utilization_response(spec_json, city, constraints)
+            logger.error(f"Ranjeet's RL optimization failed: {e}")
+            raise
 
-    async def predict_reward(self, spec_json: Dict, prompt: str) -> Dict:
-        """Predict reward for design"""
+    async def submit_feedback(self, feedback_data: Dict) -> Dict:
+        """Submit RL feedback for training"""
         try:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
-            payload = {"spec_json": spec_json, "prompt": prompt}
-
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(f"{self.base_url}/rl/predict", json=payload, headers=headers)
+                logger.info(f"Submitting RL feedback: {self.base_url}/rl/feedback")
+                response = await client.post(f"{self.base_url}/rl/feedback", json=feedback_data, headers=headers)
                 response.raise_for_status()
                 return response.json()
 
         except Exception as e:
-            logger.error(f"RL prediction error: {e}")
+            logger.error(f"RL feedback submission error: {e}")
             raise
 
-    def get_mock_land_utilization_response(self, spec_json: Dict, city: str, constraints: Dict = None) -> Dict:
-        """Generate mock Land Utilization RL response when service unavailable"""
+    async def suggest_iterate(self, spec_json: Dict, strategy: str = "auto_optimize") -> Dict:
+        """Get iteration suggestions from RL"""
+        try:
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
 
-        # City-specific land utilization patterns
-        city_patterns = {
-            "Mumbai": {
-                "density_optimization": 0.92,
-                "vertical_efficiency": 0.88,
-                "land_coverage_ratio": 0.65,
-                "green_space_ratio": 0.15,
-                "transportation_access": 0.85,
-            },
-            "Pune": {
-                "density_optimization": 0.87,
-                "vertical_efficiency": 0.82,
-                "land_coverage_ratio": 0.60,
-                "green_space_ratio": 0.25,
-                "transportation_access": 0.78,
-            },
-            "Ahmedabad": {
-                "density_optimization": 0.85,
-                "vertical_efficiency": 0.80,
-                "land_coverage_ratio": 0.58,
-                "green_space_ratio": 0.22,
-                "transportation_access": 0.75,
-            },
-            "Nashik": {
-                "density_optimization": 0.83,
-                "vertical_efficiency": 0.78,
-                "land_coverage_ratio": 0.55,
-                "green_space_ratio": 0.30,
-                "transportation_access": 0.72,
-            },
-        }
+            payload = {"spec_json": spec_json, "strategy": strategy}
 
-        pattern = city_patterns.get(city, city_patterns["Mumbai"])
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                logger.info(f"Getting RL iteration suggestions: {self.base_url}/rl/suggest/iterate")
+                response = await client.post(f"{self.base_url}/rl/suggest/iterate", json=payload, headers=headers)
+                response.raise_for_status()
+                return response.json()
 
-        return {
-            "optimized_layout": {
-                "layout_type": "land_utilization_optimized",
-                "city": city,
-                "land_utilization_metrics": {
-                    "density_optimization": pattern["density_optimization"],
-                    "vertical_efficiency": pattern["vertical_efficiency"],
-                    "land_coverage_ratio": pattern["land_coverage_ratio"],
-                    "green_space_ratio": pattern["green_space_ratio"],
-                    "transportation_access": pattern["transportation_access"],
-                    "overall_utilization_score": sum(pattern.values()) / len(pattern),
-                },
-                "optimization_recommendations": [
-                    f"Optimize building density for {city} urban planning standards",
-                    "Implement vertical growth strategies to maximize land use",
-                    "Balance green spaces with development requirements",
-                    "Enhance transportation connectivity",
-                ],
-                "constraints_applied": constraints or {},
-                "mock_service_note": "Land Utilization RL system - Ranjeet's service will be available in 3-4 days",
-            },
-            "confidence": 0.85,
-            "reward_score": pattern["density_optimization"],
-            "status": "mock_land_utilization",
-            "processing_time_ms": 150,
-            "mock_response": True,
-            "service_availability": "Available in 3-4 days",
-        }
-
-    def get_mock_rl_response(self, spec_json: Dict, city: str) -> Dict:
-        """Generate mock RL response when service unavailable (legacy method)"""
-        return self.get_mock_land_utilization_response(spec_json, city)
+        except Exception as e:
+            logger.error(f"RL suggest iterate error: {e}")
+            raise
 
 
 # Global client instances

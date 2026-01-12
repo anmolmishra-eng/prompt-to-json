@@ -1,0 +1,131 @@
+{
+  "flow_id": "ahmedabad_13_20260112_200342",
+  "city": "Ahmedabad",
+  "prompt": "Design a residential villa with garden and parking for 2 cars",
+  "timestamp": "2026-01-12T20:03:42.149315",
+  "steps": {
+    "generate": {
+      "status": "success",
+      "spec_id": "spec_0500251ac2b8",
+      "response": {
+        "spec_id": "spec_0500251ac2b8",
+        "spec_json": {
+          "objects": [
+            {
+              "id": "foundation",
+              "type": "foundation",
+              "material": "concrete",
+              "color_hex": "#808080",
+              "dimensions": {
+                "width": 20,
+                "length": 28,
+                "height": 0.5
+              }
+            },
+            {
+              "id": "exterior_walls",
+              "type": "wall",
+              "subtype": "exterior",
+              "material": "siding",
+              "color_hex": "#D2B48C",
+              "dimensions": {
+                "width": 20,
+                "length": 28,
+                "height": 8
+              }
+            },
+            {
+              "id": "roof",
+              "type": "roof",
+              "material": "shingle_asphalt",
+              "color_hex": "#2F4F4F",
+              "dimensions": {
+                "width": 22,
+                "length": 30,
+                "height": 3
+              }
+            },
+            {
+              "id": "front_door",
+              "type": "door",
+              "subtype": "entrance",
+              "material": "wood_oak",
+              "color_hex": "#8B4513",
+              "dimensions": {
+                "width": 1,
+                "height": 2.1
+              }
+            },
+            {
+              "id": "windows",
+              "type": "window",
+              "material": "glass_double_pane",
+              "color_hex": "#87CEEB",
+              "count": 8,
+              "dimensions": {
+                "width": 1.2,
+                "height": 1.5
+              }
+            }
+          ],
+          "design_type": "house",
+          "style": "modern",
+          "stories": 1,
+          "dimensions": {
+            "width": 20,
+            "length": 28,
+            "height": 8
+          },
+          "estimated_cost": {
+            "total": 21250000.0,
+            "currency": "INR"
+          },
+          "tech_stack": [
+            "Local GPU"
+          ],
+          "model_used": "local-rtx-3060",
+          "metadata": {
+            "estimated_cost": 21250000.0,
+            "currency": "INR",
+            "generation_provider": "local",
+            "city": "Mumbai",
+            "style": "modern"
+          }
+        },
+        "preview_url": "https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/public/geometry/spec_0500251ac2b8.glb",
+        "estimated_cost": 21250000.0,
+        "compliance_check_id": "check_spec_0500251ac2b8",
+        "created_at": "2026-01-12T14:33:46.748560Z",
+        "spec_version": 1,
+        "user_id": "53ad6295-a001-45ed-8613-67725ba8879d"
+      }
+    },
+    "mcp": {
+      "status": "failed",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"spec_json\"],\"msg\":\"Field required\",\"input\":{\"project_id\":\"proj_ahmedabad_13_20260112_200342\",\"case_id\":\"case_ahmedabad_13_20260112_200342\",\"city\":\"Ahmedabad\",\"document\":\"Ahmedabad_DCR.pdf\",\"parameters\":{\"plot_size\":1000,\"location\":\"urban\",\"road_width\":15}}}]}"
+    },
+    "rl_optimize": {
+      "status": "failed",
+      "error": "{\"error\":{\"code\":\"HTTP_ERROR\",\"message\":\"RL optimization failed: Server error '501 Not Implemented' for url 'https://land-utilization-rl.onrender.com/rl/optimize'\\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501\",\"status_code\":500}}"
+    },
+    "geometry": {
+      "status": "failed",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"spec_json\"],\"msg\":\"Field required\",\"input\":{\"spec_id\":\"spec_0500251ac2b8\"}},{\"type\":\"missing\",\"loc\":[\"body\",\"request_id\"],\"msg\":\"Field required\",\"input\":{\"spec_id\":\"spec_0500251ac2b8\"}}]}"
+    },
+    "feedback": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "message": "Feedback recorded locally",
+        "rl_service_error": "Server error '501 Not Implemented' for url 'https://land-utilization-rl.onrender.com/rl/feedback'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501"
+      }
+    },
+    "training": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "artifact": "models_ckpt/mock_rlhf_policy"
+      }
+    }
+  }
+}

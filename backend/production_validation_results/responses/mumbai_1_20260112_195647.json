@@ -1,0 +1,98 @@
+{
+  "flow_id": "mumbai_1_20260112_195647",
+  "city": "Mumbai",
+  "prompt": "Design a 3BHK apartment with modern kitchen and spacious living room",
+  "timestamp": "2026-01-12T19:56:47.986359",
+  "steps": {
+    "generate": {
+      "status": "success",
+      "spec_id": "spec_efd2e8abcba9",
+      "response": {
+        "spec_id": "spec_efd2e8abcba9",
+        "spec_json": {
+          "objects": [
+            {
+              "id": "kitchen_floor",
+              "type": "floor",
+              "material": "tile_ceramic",
+              "color_hex": "#F5F5DC",
+              "dimensions": {
+                "width": 10,
+                "length": 12
+              }
+            },
+            {
+              "id": "base_cabinets",
+              "type": "cabinet",
+              "material": "wood_oak",
+              "color_hex": "#FFFFFF",
+              "dimensions": {
+                "width": 6.0,
+                "depth": 0.6,
+                "height": 0.9
+              }
+            },
+            {
+              "id": "countertop",
+              "type": "countertop",
+              "material": "quartz",
+              "color_hex": "#2F4F4F",
+              "dimensions": {
+                "width": 6.0,
+                "depth": 0.6,
+                "height": 0.05
+              }
+            }
+          ],
+          "design_type": "kitchen",
+          "style": "modern",
+          "dimensions": {
+            "width": 10,
+            "length": 12,
+            "height": 2.7
+          },
+          "estimated_cost": {
+            "total": 5880000.0,
+            "currency": "INR"
+          },
+          "metadata": {
+            "estimated_cost": 5880000.0,
+            "currency": "INR",
+            "generation_provider": "local",
+            "city": "Mumbai",
+            "style": "modern"
+          }
+        },
+        "preview_url": "https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/public/geometry/spec_efd2e8abcba9.glb",
+        "estimated_cost": 5880000.0,
+        "compliance_check_id": "check_spec_efd2e8abcba9",
+        "created_at": "2026-01-12T14:26:53.006848Z",
+        "spec_version": 1,
+        "user_id": "53ad6295-a001-45ed-8613-67725ba8879d"
+      }
+    },
+    "mcp": {
+      "status": "failed",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"spec_json\"],\"msg\":\"Field required\",\"input\":{\"project_id\":\"proj_mumbai_1_20260112_195647\",\"case_id\":\"case_mumbai_1_20260112_195647\",\"city\":\"Mumbai\",\"document\":\"Mumbai_DCR.pdf\",\"parameters\":{\"plot_size\":1000,\"location\":\"urban\",\"road_width\":15}}}]}"
+    },
+    "rl_optimize": {
+      "status": "error",
+      "error": ""
+    },
+    "geometry": {
+      "status": "failed",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"spec_json\"],\"msg\":\"Field required\",\"input\":{\"spec_id\":\"spec_efd2e8abcba9\"}},{\"type\":\"missing\",\"loc\":[\"body\",\"request_id\"],\"msg\":\"Field required\",\"input\":{\"spec_id\":\"spec_efd2e8abcba9\"}}]}"
+    },
+    "feedback": {
+      "status": "error",
+      "error": ""
+    },
+    "training": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "artifact": "models_ckpt/mock_rlhf_policy"
+      }
+    }
+  }
+}
