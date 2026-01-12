@@ -31,16 +31,43 @@ class PDFComplianceRequest(BaseModel):
 
 @router.get("/status")
 async def get_automation_status():
-    """Get BHIV automation system status - ESSENTIAL"""
+    """Get BHIV automation system status with real execution history"""
+    from app.database import SessionLocal
+    from app.models import WorkflowRun
+    from sqlalchemy import desc
+
     try:
         workflow_status = await check_workflow_status()
         service_status = await get_service_health_status()
+
+        # Get recent workflow executions
+        db = SessionLocal()
+        try:
+            recent_runs = db.query(WorkflowRun).order_by(desc(WorkflowRun.created_at)).limit(10).all()
+            executions = []
+            for run in recent_runs:
+                executions.append(
+                    {
+                        "workflow_id": run.id,
+                        "run_id": run.flow_run_id,
+                        "flow_name": run.flow_name,
+                        "status": run.status,
+                        "started_at": run.started_at.isoformat() if run.started_at else None,
+                        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+                        "duration_seconds": run.duration_seconds,
+                        "parameters": run.parameters,
+                    }
+                )
+        finally:
+            db.close()
 
         return {
             "automation_system": workflow_status,
             "external_services": service_status,
             "available_workflows": ["pdf_compliance", "design_optimization", "health_monitoring"],
             "status": "operational" if workflow_status.get("prefect_available") else "limited",
+            "recent_executions": executions,
+            "total_executions": len(executions),
         }
     except Exception as e:
         logger.error(f"Failed to get automation status: {e}")

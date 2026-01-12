@@ -126,7 +126,6 @@ class Settings(BaseSettings):
 
     # Land Utilization RL System Configuration
     LAND_UTILIZATION_ENABLED: bool = Field(default=True, description="Enable land utilization RL features")
-    LAND_UTILIZATION_MOCK_MODE: bool = Field(default=False, description="Use mock responses for land utilization")
     RANJEET_SERVICE_AVAILABLE: bool = Field(default=True, description="Ranjeet's service availability status")
 
     # ============================================================================

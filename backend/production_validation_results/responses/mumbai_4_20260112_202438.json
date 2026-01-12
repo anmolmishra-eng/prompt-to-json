@@ -1,0 +1,157 @@
+{
+  "flow_id": "mumbai_4_20260112_202438",
+  "city": "Mumbai",
+  "prompt": "Build a retail shop with display area and storage space",
+  "timestamp": "2026-01-12T20:24:38.651067",
+  "steps": {
+    "generate": {
+      "status": "success",
+      "spec_id": "spec_d12da97c2315",
+      "response": {
+        "spec_id": "spec_d12da97c2315",
+        "spec_json": {
+          "objects": [
+            {
+              "id": "base_structure",
+              "type": "structure",
+              "material": "concrete",
+              "color_hex": "#808080",
+              "dimensions": {
+                "width": 10,
+                "length": 10,
+                "height": 3
+              }
+            }
+          ],
+          "design_type": "generic",
+          "style": "modern",
+          "dimensions": {
+            "width": 10,
+            "length": 10,
+            "height": 3
+          },
+          "estimated_cost": {
+            "total": 2000000.0,
+            "currency": "INR"
+          },
+          "metadata": {
+            "estimated_cost": 2000000.0,
+            "currency": "INR",
+            "generation_provider": "local",
+            "city": "Mumbai",
+            "style": "modern"
+          }
+        },
+        "preview_url": "https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/public/geometry/spec_d12da97c2315.glb",
+        "estimated_cost": 2000000.0,
+        "compliance_check_id": "check_spec_d12da97c2315",
+        "created_at": "2026-01-12T14:54:43.710911Z",
+        "spec_version": 1,
+        "user_id": "53ad6295-a001-45ed-8613-67725ba8879d"
+      }
+    },
+    "mcp": {
+      "status": "success",
+      "response": {
+        "case_id": "case_mumbai_691",
+        "city": "Mumbai",
+        "compliant": true,
+        "confidence_score": 0.75,
+        "violations": [],
+        "recommendations": [
+          "Verify setback requirements for the specified location",
+          "Check Floor Space Index (FSI) calculations",
+          "Ensure building height complies with zoning regulations",
+          "Verify FSI compliance as per MUM-FSI-URBAN-R12-18",
+          "Check setback requirements under MUM-SETBACK-R12-18",
+          "Validate height restrictions per MUM-HEIGHT-R15-20"
+        ],
+        "geometry_url": null,
+        "processing_time_ms": 1000
+      }
+    },
+    "rl_optimize": {
+      "status": "success",
+      "response": {
+        "status": "success",
+        "mode": "mock",
+        "optimized_spec": {
+          "objects": [
+            {
+              "id": "base_structure",
+              "type": "structure",
+              "material": "concrete",
+              "color_hex": "#808080",
+              "dimensions": {
+                "width": 10,
+                "length": 10,
+                "height": 3
+              }
+            }
+          ],
+          "design_type": "generic",
+          "style": "modern",
+          "dimensions": {
+            "width": 10,
+            "length": 10,
+            "height": 3
+          },
+          "estimated_cost": {
+            "total": 2000000.0,
+            "currency": "INR"
+          },
+          "metadata": {
+            "estimated_cost": 2000000.0,
+            "currency": "INR",
+            "generation_provider": "local",
+            "city": "Mumbai",
+            "style": "modern"
+          }
+        },
+        "improvements": [
+          {
+            "type": "cost_reduction",
+            "value": 15,
+            "description": "Material optimization"
+          },
+          {
+            "type": "space_efficiency",
+            "value": 12,
+            "description": "Layout optimization"
+          }
+        ],
+        "metrics": {
+          "cost_savings": 15.5,
+          "space_utilization": 87.3,
+          "compliance_score": 92.1
+        },
+        "message": "Mock RL optimization (external service unavailable)"
+      }
+    },
+    "geometry": {
+      "status": "success",
+      "response": {
+        "request_id": "mumbai_4_20260112_202438",
+        "geometry_url": "/api/v1/geometry/download/mumbai_4_20260112_202438.glb",
+        "format": "glb",
+        "file_size_bytes": 664,
+        "generation_time_ms": 1
+      }
+    },
+    "feedback": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "message": "Feedback recorded locally",
+        "rl_service_error": "Server error '501 Not Implemented' for url 'https://land-utilization-rl.onrender.com/rl/feedback'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501"
+      }
+    },
+    "training": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "artifact": "models_ckpt/mock_rlhf_policy"
+      }
+    }
+  }
+}

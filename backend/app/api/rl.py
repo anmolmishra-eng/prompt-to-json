@@ -16,14 +16,12 @@ router = APIRouter()
 
 @router.post("/rl/feedback")
 async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Session = Depends(get_db)):
-    """Submit RL feedback for training"""
+    """Submit RL feedback - sends to both local DB and Ranjeet's live RL service"""
     if not feedback:
         raise HTTPException(400, "Feedback data is required")
 
-    # Validate spec IDs exist before saving
     from app.models import RLFeedback, Spec
 
-    # Handle both field name formats
     spec_a_id = feedback.get("design_a_id") or feedback.get("spec_a_id")
     spec_b_id = feedback.get("design_b_id") or feedback.get("spec_b_id")
 
@@ -36,10 +34,10 @@ async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Sessio
     if not spec_a or not spec_b:
         raise HTTPException(400, "One or both spec IDs not found")
 
-    # Save feedback to database
+    # Save to local database
     feedback_record = RLFeedback(
         user_id=feedback.get("user_id", user),
-        spec_id=spec_a_id,  # Use the primary spec
+        spec_id=spec_a_id,
         prompt="Feedback comparison",
         spec_json=spec_a.spec_json,
         user_rating=feedback.get("rating_a", 3),
@@ -48,7 +46,16 @@ async def rl_feedback(feedback: dict, user=Depends(get_current_user), db: Sessio
     db.add(feedback_record)
     db.commit()
 
-    return {"ok": True, "message": "Feedback recorded"}
+    # Send to Ranjeet's live RL service
+    try:
+        from app.external_services import ranjeet_client
+
+        rl_response = await ranjeet_client.submit_feedback(feedback)
+        logger.info(f"✅ Feedback sent to live RL service")
+        return {"ok": True, "message": "Feedback recorded", "rl_service_response": rl_response}
+    except Exception as e:
+        logger.warning(f"Failed to send feedback to RL service: {e}")
+        return {"ok": True, "message": "Feedback recorded locally", "rl_service_error": str(e)}
 
 
 @router.post("/rl/feedback/city")
@@ -251,59 +258,44 @@ async def train_opt_ep(params: dict, user=Depends(get_current_user)):
 @router.post("/rl/optimize")
 async def rl_optimize(req: dict, user=Depends(get_current_user)):
     """
-    RL optimization endpoint for BHIV Assistant
+    RL optimization endpoint - calls Ranjeet's live RL service with fallback
     Request: {"spec_json": {...}, "prompt": "...", "city": "Mumbai", "mode": "optimize"}
     """
     try:
         spec_json = req.get("spec_json", {})
-        prompt = req.get("prompt", "Optimize design")
         city = req.get("city", "Mumbai")
-        mode = req.get("mode", "optimize")
+        constraints = req.get("constraints", {})
 
-        logger.info(f"RL optimization request for {city}: {mode} - using Land Utilization RL System")
+        logger.info(f"RL optimization request for {city} - calling live RL service")
 
-        # Use Ranjeet's Land Utilization RL System (currently in mock mode)
         from app.external_services import ranjeet_client
 
-        try:
-            result = await ranjeet_client.optimize_design(spec_json, city)
-            logger.info(f"✅ Land Utilization RL system responded successfully")
-            return result
-        except Exception as e:
-            logger.error(f"❌ Land Utilization RL system failed: {e}")
-            # Fallback to basic mock response
-            logger.warning(f"⚠️ Using basic fallback response for {city}")
-            return {
-                "optimized_layout": {
-                    "layout_type": "basic_fallback",
-                    "efficiency_score": 0.75,
-                    "space_utilization": 0.70,
-                    "cost_optimization": 0.68,
-                    "city": city,
-                    "optimization_notes": f"Basic fallback for {city} - Land Utilization RL unavailable",
-                },
-                "confidence": 0.60,
-                "reward_score": 0.65,
-                "status": "basic_fallback",
-                "processing_time_ms": 50,
-                "fallback_reason": str(e),
-                "service_note": "Ranjeet's Land Utilization RL service will be available in 3-4 days",
-            }
+        result = await ranjeet_client.optimize_design(spec_json, city, constraints)
+        logger.info(f"✅ RL optimization completed for {city}")
+        return result
 
     except Exception as e:
-        logger.error(f"RL optimization failed: {e}")
-        raise HTTPException(500, f"RL optimization failed: {str(e)}")
+        logger.warning(f"RL service unavailable: {e}, using mock optimization")
+        # Return mock optimization result
+        return {
+            "status": "success",
+            "mode": "mock",
+            "optimized_spec": spec_json,
+            "improvements": [
+                {"type": "cost_reduction", "value": 15, "description": "Material optimization"},
+                {"type": "space_efficiency", "value": 12, "description": "Layout optimization"},
+            ],
+            "metrics": {"cost_savings": 15.5, "space_utilization": 87.3, "compliance_score": 92.1},
+            "message": "Mock RL optimization (external service unavailable)",
+        }
 
 
 @router.post("/rl/suggest/iterate")
 async def suggest_iterate(req: dict, user=Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    Request: {"spec": {...}, "strategy":"auto_optimize"}
-    Returns an improved spec using RM + (optional) PPO policy if available.
+    Get iteration suggestions from Ranjeet's live RL service
+    Request: {"spec_id": "...", "strategy":"auto_optimize"}
     """
-    if not os.path.exists("models_ckpt/rm.pt"):
-        raise HTTPException(400, "Reward model not found. Train RLHF first.")
-
     from app.models import Spec
 
     spec_id = req.get("spec_id")
@@ -316,41 +308,14 @@ async def suggest_iterate(req: dict, user=Depends(get_current_user), db: Session
 
     spec_json = spec.spec_json
     strategy = req.get("strategy", "auto_optimize")
-    import torch
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     try:
-        # score current
-        rm = SimpleRewardModel()
-        import torch
+        from app.external_services import ranjeet_client
 
-        rm.load_state_dict(torch.load("models_ckpt/rm.pt", map_location=device))
-        rm.to(device).eval()
-        base_score = score_spec(rm, "Improve design", spec_json, device=device)
+        result = await ranjeet_client.suggest_iterate(spec_json, strategy)
+        logger.info(f"✅ RL iteration suggestions received")
+        return result
 
-        best_spec, best_score = spec_json, base_score
-
-        # try PPO if present
-        use_opt = strategy == "auto_optimize" and os.path.exists("models_ckpt/opt_ppo/policy.zip")
-        if use_opt:
-            try:
-                from stable_baselines3 import PPO
-
-                env = SpecEditEnv(base_spec=spec_json, device=device)
-                model = PPO.load("models_ckpt/opt_ppo/policy.zip")
-                obs, _ = env.reset()
-                for _ in range(6):  # a few edits max
-                    action, _ = model.predict(obs, deterministic=True)
-                    obs, r, term, trunc, info = env.step(int(action))
-                cand = env.spec
-                cand_score = score_spec(rm, "Improve design", cand, device=device)
-                if cand_score > best_score:
-                    best_spec, best_score = cand, cand_score
-            except Exception:
-                # PPO failed, continue with base spec
-                pass
-
-        return {"improved_spec": best_spec, "predicted_score": best_score}
     except Exception as e:
-        raise HTTPException(500, f"Model loading failed: {e}")
+        logger.error(f"RL suggest iterate failed: {e}")
+        raise HTTPException(500, f"RL suggest iterate failed: {str(e)}")

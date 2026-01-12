@@ -1,0 +1,56 @@
+{
+  "total_flows": 20,
+  "timestamp": "2026-01-12T20:05:18.188325",
+  "cities": {
+    "Mumbai": {
+      "total_flows": 5,
+      "successful": 0,
+      "flows": [
+        "mumbai_1_20260112_195647",
+        "mumbai_2_20260112_200058",
+        "mumbai_3_20260112_200143",
+        "mumbai_4_20260112_200154",
+        "mumbai_5_20260112_200206"
+      ]
+    },
+    "Pune": {
+      "total_flows": 5,
+      "successful": 0,
+      "flows": [
+        "pune_6_20260112_200218",
+        "pune_7_20260112_200231",
+        "pune_8_20260112_200243",
+        "pune_9_20260112_200255",
+        "pune_10_20260112_200306"
+      ]
+    },
+    "Ahmedabad": {
+      "total_flows": 5,
+      "successful": 0,
+      "flows": [
+        "ahmedabad_11_20260112_200318",
+        "ahmedabad_12_20260112_200330",
+        "ahmedabad_13_20260112_200342",
+        "ahmedabad_14_20260112_200353",
+        "ahmedabad_15_20260112_200405"
+      ]
+    },
+    "Nashik": {
+      "total_flows": 5,
+      "successful": 0,
+      "flows": [
+        "nashik_16_20260112_200417",
+        "nashik_17_20260112_200429",
+        "nashik_18_20260112_200442",
+        "nashik_19_20260112_200454",
+        "nashik_20_20260112_200506"
+      ]
+    }
+  },
+  "overall_stats": {
+    "successful_flows": 0,
+    "failed_flows": 20,
+    "steps_completed": 59,
+    "steps_failed": 61
+  }
+}

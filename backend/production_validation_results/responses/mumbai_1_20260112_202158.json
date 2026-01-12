@@ -1,0 +1,199 @@
+{
+  "flow_id": "mumbai_1_20260112_202158",
+  "city": "Mumbai",
+  "prompt": "Design a 3BHK apartment with modern kitchen and spacious living room",
+  "timestamp": "2026-01-12T20:21:58.101639",
+  "steps": {
+    "generate": {
+      "status": "success",
+      "spec_id": "spec_00c00918f3d2",
+      "response": {
+        "spec_id": "spec_00c00918f3d2",
+        "spec_json": {
+          "objects": [
+            {
+              "id": "kitchen_floor",
+              "type": "floor",
+              "material": "tile_ceramic",
+              "color_hex": "#F5F5DC",
+              "dimensions": {
+                "width": 10,
+                "length": 12
+              }
+            },
+            {
+              "id": "base_cabinets",
+              "type": "cabinet",
+              "material": "wood_oak",
+              "color_hex": "#FFFFFF",
+              "dimensions": {
+                "width": 6.0,
+                "depth": 0.6,
+                "height": 0.9
+              }
+            },
+            {
+              "id": "countertop",
+              "type": "countertop",
+              "material": "quartz",
+              "color_hex": "#2F4F4F",
+              "dimensions": {
+                "width": 6.0,
+                "depth": 0.6,
+                "height": 0.05
+              }
+            }
+          ],
+          "design_type": "kitchen",
+          "style": "modern",
+          "dimensions": {
+            "width": 10,
+            "length": 12,
+            "height": 2.7
+          },
+          "estimated_cost": {
+            "total": 5880000.0,
+            "currency": "INR"
+          },
+          "metadata": {
+            "estimated_cost": 5880000.0,
+            "currency": "INR",
+            "generation_provider": "local",
+            "city": "Mumbai",
+            "style": "modern"
+          }
+        },
+        "preview_url": "https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/public/geometry/spec_00c00918f3d2.glb",
+        "estimated_cost": 5880000.0,
+        "compliance_check_id": "check_spec_00c00918f3d2",
+        "created_at": "2026-01-12T14:52:04.064328Z",
+        "spec_version": 1,
+        "user_id": "53ad6295-a001-45ed-8613-67725ba8879d"
+      }
+    },
+    "mcp": {
+      "status": "success",
+      "response": {
+        "case_id": "case_mumbai_727",
+        "city": "Mumbai",
+        "compliant": true,
+        "confidence_score": 0.75,
+        "violations": [],
+        "recommendations": [
+          "Verify setback requirements for the specified location",
+          "Check Floor Space Index (FSI) calculations",
+          "Ensure building height complies with zoning regulations",
+          "Verify FSI compliance as per MUM-FSI-URBAN-R12-18",
+          "Check setback requirements under MUM-SETBACK-R12-18",
+          "Validate height restrictions per MUM-HEIGHT-R15-20"
+        ],
+        "geometry_url": null,
+        "processing_time_ms": 1000
+      }
+    },
+    "rl_optimize": {
+      "status": "success",
+      "response": {
+        "status": "success",
+        "mode": "mock",
+        "optimized_spec": {
+          "objects": [
+            {
+              "id": "kitchen_floor",
+              "type": "floor",
+              "material": "tile_ceramic",
+              "color_hex": "#F5F5DC",
+              "dimensions": {
+                "width": 10,
+                "length": 12
+              }
+            },
+            {
+              "id": "base_cabinets",
+              "type": "cabinet",
+              "material": "wood_oak",
+              "color_hex": "#FFFFFF",
+              "dimensions": {
+                "width": 6.0,
+                "depth": 0.6,
+                "height": 0.9
+              }
+            },
+            {
+              "id": "countertop",
+              "type": "countertop",
+              "material": "quartz",
+              "color_hex": "#2F4F4F",
+              "dimensions": {
+                "width": 6.0,
+                "depth": 0.6,
+                "height": 0.05
+              }
+            }
+          ],
+          "design_type": "kitchen",
+          "style": "modern",
+          "dimensions": {
+            "width": 10,
+            "length": 12,
+            "height": 2.7
+          },
+          "estimated_cost": {
+            "total": 5880000.0,
+            "currency": "INR"
+          },
+          "metadata": {
+            "estimated_cost": 5880000.0,
+            "currency": "INR",
+            "generation_provider": "local",
+            "city": "Mumbai",
+            "style": "modern"
+          }
+        },
+        "improvements": [
+          {
+            "type": "cost_reduction",
+            "value": 15,
+            "description": "Material optimization"
+          },
+          {
+            "type": "space_efficiency",
+            "value": 12,
+            "description": "Layout optimization"
+          }
+        ],
+        "metrics": {
+          "cost_savings": 15.5,
+          "space_utilization": 87.3,
+          "compliance_score": 92.1
+        },
+        "message": "Mock RL optimization (external service unavailable)"
+      }
+    },
+    "geometry": {
+      "status": "success",
+      "response": {
+        "request_id": "mumbai_1_20260112_202158",
+        "geometry_url": "/api/v1/geometry/download/mumbai_1_20260112_202158.glb",
+        "format": "glb",
+        "file_size_bytes": 896,
+        "generation_time_ms": 1
+      }
+    },
+    "feedback": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "message": "Feedback recorded locally",
+        "rl_service_error": "Server error '501 Not Implemented' for url 'https://land-utilization-rl.onrender.com/rl/feedback'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501"
+      }
+    },
+    "training": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "artifact": "models_ckpt/mock_rlhf_policy"
+      }
+    }
+  }
+}

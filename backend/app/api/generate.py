@@ -284,57 +284,55 @@ async def generate_design(request: GenerateRequest):
         print(f"💾 Saved spec {spec_id} to in-memory storage")
 
         # Save to database
+        from app.database import SessionLocal
+        from app.models import Spec, User
+
+        print(f"💾 Saving spec {spec_id} to database...")
+
+        db = SessionLocal()
         try:
-            import json
+            # Ensure user exists - check by username first, then by id
+            user = db.query(User).filter((User.id == request.user_id) | (User.username == request.user_id)).first()
 
-            from app.database import get_db_context
-            from app.models import Spec, User
-
-            print(f"💾 Saving spec {spec_id} to database...")
-
-            with get_db_context() as db:
-                # Ensure user exists or create one
-                user = db.query(User).filter(User.id == request.user_id).first()
-                if not user:
-                    # Create user if doesn't exist
-                    user = User(
-                        id=request.user_id,
-                        username=request.user_id,
-                        email=f"{request.user_id}@example.com",
-                        password_hash="dummy_hash",
-                        full_name=f"User {request.user_id}",
-                        is_active=True,
-                    )
-                    db.add(user)
-                    db.flush()  # Flush to get the user ID
-                    print(f"✅ Created user {request.user_id}")
-
-                # Create new spec record
-                db_spec = Spec(
-                    id=spec_id,
-                    user_id=request.user_id,
-                    project_id=request.project_id,
-                    prompt=request.prompt,
-                    city=getattr(request, "city", "Mumbai"),
-                    spec_json=spec_json,
-                    design_type=spec_json.get("design_type", "generic"),
-                    preview_url=preview_url,
-                    estimated_cost=estimated_cost,
-                    currency="INR",
-                    compliance_status="pending",
-                    status="draft",
-                    version=1,
-                    generation_time_ms=int((time.time() - start_time) * 1000),
-                    lm_provider=lm_provider,
+            if not user:
+                user = User(
+                    id=request.user_id,
+                    username=request.user_id,
+                    email=f"{request.user_id}@example.com",
+                    password_hash="dummy_hash",
+                    full_name=f"User {request.user_id}",
+                    is_active=True,
                 )
-
-                db.add(db_spec)
+                db.add(user)
                 db.commit()
-                print(f"✅ Successfully saved spec {spec_id} to database")
+                print(f"✅ Created user {request.user_id}")
+            else:
+                # Use the existing user's actual ID
+                request.user_id = user.id
+                print(f"✅ Using existing user {user.username} with id {user.id}")
 
-        except Exception as e:
-            print(f"⚠️ Database save failed: {e}")
-            logger.error(f"Database save failed for spec {spec_id}: {e}", exc_info=True)
+            # Create spec with required fields
+            db_spec = Spec(
+                id=spec_id,
+                user_id=request.user_id,
+                prompt=request.prompt,
+                city="Mumbai",  # Required field
+                spec_json=spec_json,
+            )
+
+            db.add(db_spec)
+            db.commit()
+            db.refresh(db_spec)
+            print(f"✅ Successfully saved spec {spec_id} to database")
+        except Exception as db_error:
+            db.rollback()
+            print(f"❌ Database save FAILED: {db_error}")
+            import traceback
+
+            traceback.print_exc()
+            # Don't raise - continue without DB
+        finally:
+            db.close()
 
         compliance_check_id = f"check_{spec_id}"
 
@@ -378,10 +376,11 @@ async def get_spec(spec_id: str):
 
     # Try to get spec from database first
     try:
-        from app.database import get_db_context
+        from app.database import SessionLocal
         from app.models import Spec
 
-        with get_db_context() as db:
+        db = SessionLocal()
+        try:
             db_spec = db.query(Spec).filter(Spec.id == spec_id).first()
 
             if db_spec:
@@ -408,6 +407,8 @@ async def get_spec(spec_id: str):
                 )
                 print(f"✅ Returning database spec for {spec_id}")
                 return response
+        finally:
+            db.close()
 
     except Exception as e:
         print(f"⚠️ Database query failed: {e}")
