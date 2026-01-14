@@ -1,0 +1,12 @@
+{
+  "flow_id": "ahmedabad_5_20260114_193830",
+  "city": "Ahmedabad",
+  "prompt": "Design a farmhouse with guest rooms",
+  "timestamp": "2026-01-14T19:38:30.073176",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Design a farmhouse with guest rooms\",\"city\":\"Ahmedabad\"}}]}"
+    }
+  }
+}

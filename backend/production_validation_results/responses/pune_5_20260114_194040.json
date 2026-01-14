@@ -1,0 +1,12 @@
+{
+  "flow_id": "pune_5_20260114_194040",
+  "city": "Pune",
+  "prompt": "Design a bungalow with swimming pool",
+  "timestamp": "2026-01-14T19:40:40.281867",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"spec_id\":\"spec_099e59b86a38\",\"spec_json\":{\"objects\":[{\"id\":\"base_structure\",\"type\":\"structure\",\"material\":\"concrete\",\"color_hex\":\"#808080\",\"dimensions\":{\"width\":10,\"length\":10,\"height\":3}}],\"design_type\":\"generic\",\"style\":\"modern\",\"dimensions\":{\"width\":10,\"length\":10,\"height\":3},\"estimated_cost\":{\"total\":2000000.0,\"currency\":\"INR\"},\"metadata\":{\"estimated_cost\":2000000.0,\"currency\":\"INR\",\"generation_provider\":\"local\",\"city\":\"Mumbai\",\"style\":\"modern\"}},\"preview_url\":\"https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/public/geometry/spec_099e59b86a38.glb\",\"estimated_cost\":2000000.0,\"compliance_check_id\":\"check_spec_099e59b86a38\",\"created_at\":\"2026-01-14T14:10:46.538657Z\",\"spec_version\":1,\"user_id\":\"53ad6295-a001-45ed-8613-67725ba8879d\"}"
+    }
+  }
+}

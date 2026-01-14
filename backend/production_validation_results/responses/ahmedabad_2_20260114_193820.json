@@ -1,0 +1,12 @@
+{
+  "flow_id": "ahmedabad_2_20260114_193820",
+  "city": "Ahmedabad",
+  "prompt": "Create a commercial complex with shops",
+  "timestamp": "2026-01-14T19:38:20.938525",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Create a commercial complex with shops\",\"city\":\"Ahmedabad\"}}]}"
+    }
+  }
+}

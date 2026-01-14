@@ -1,0 +1,12 @@
+{
+  "flow_id": "mumbai_2_20260114_193750",
+  "city": "Mumbai",
+  "prompt": "Create a commercial office space with parking",
+  "timestamp": "2026-01-14T19:37:50.563075",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Create a commercial office space with parking\",\"city\":\"Mumbai\"}}]}"
+    }
+  }
+}

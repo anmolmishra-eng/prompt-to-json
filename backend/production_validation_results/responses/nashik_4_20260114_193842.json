@@ -1,0 +1,12 @@
+{
+  "flow_id": "nashik_4_20260114_193842",
+  "city": "Nashik",
+  "prompt": "Build a school building with playground",
+  "timestamp": "2026-01-14T19:38:42.246631",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Build a school building with playground\",\"city\":\"Nashik\"}}]}"
+    }
+  }
+}

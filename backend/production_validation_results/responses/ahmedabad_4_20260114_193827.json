@@ -1,0 +1,12 @@
+{
+  "flow_id": "ahmedabad_4_20260114_193827",
+  "city": "Ahmedabad",
+  "prompt": "Build a warehouse with loading dock",
+  "timestamp": "2026-01-14T19:38:27.023025",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Build a warehouse with loading dock\",\"city\":\"Ahmedabad\"}}]}"
+    }
+  }
+}

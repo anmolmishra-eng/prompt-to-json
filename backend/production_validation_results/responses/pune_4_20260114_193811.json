@@ -1,0 +1,12 @@
+{
+  "flow_id": "pune_4_20260114_193811",
+  "city": "Pune",
+  "prompt": "Build a duplex with rooftop access",
+  "timestamp": "2026-01-14T19:38:11.838982",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Build a duplex with rooftop access\",\"city\":\"Pune\"}}]}"
+    }
+  }
+}

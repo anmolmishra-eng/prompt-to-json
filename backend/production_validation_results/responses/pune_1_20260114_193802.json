@@ -1,0 +1,12 @@
+{
+  "flow_id": "pune_1_20260114_193802",
+  "city": "Pune",
+  "prompt": "Design a residential villa with garden and parking for 2 cars",
+  "timestamp": "2026-01-14T19:38:02.710419",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Design a residential villa with garden and parking for 2 cars\",\"city\":\"Pune\"}}]}"
+    }
+  }
+}

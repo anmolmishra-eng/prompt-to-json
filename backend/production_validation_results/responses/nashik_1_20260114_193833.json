@@ -1,0 +1,12 @@
+{
+  "flow_id": "nashik_1_20260114_193833",
+  "city": "Nashik",
+  "prompt": "Design a vineyard resort with cottages",
+  "timestamp": "2026-01-14T19:38:33.105448",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Design a vineyard resort with cottages\",\"city\":\"Nashik\"}}]}"
+    }
+  }
+}
