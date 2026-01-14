@@ -1,7 +1,7 @@
 from typing import Optional
 
 from app.database import get_current_user, get_db
-from app.models import Evaluation, Iteration, Spec
+from app.models import ComplianceCheck, Evaluation, Iteration, Spec
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 

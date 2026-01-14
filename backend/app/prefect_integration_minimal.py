@@ -10,14 +10,9 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 
 # Minimal Prefect client for essential operations only
-try:
-    from prefect import get_client
-
-    PREFECT_AVAILABLE = True
-    logger.info("✅ Minimal Prefect integration available")
-except ImportError as e:
-    PREFECT_AVAILABLE = False
-    logger.warning(f"❌ Prefect not available: {e}. Using direct execution fallback")
+# DISABLED FOR PRODUCTION - Prefect causes startup timeout on Render
+PREFECT_AVAILABLE = False
+logger.info("ℹ️ Prefect disabled for production deployment")
 
 
 # Essential Prefect endpoints for BHIV AI Assistant
@@ -26,11 +21,8 @@ class MinimalPrefectClient:
 
     def __init__(self):
         self.client = None
-        if PREFECT_AVAILABLE:
-            try:
-                self.client = get_client()
-            except Exception as e:
-                logger.error(f"Failed to initialize Prefect client: {e}")
+        # Prefect disabled for production
+        logger.info("Prefect client disabled - using direct execution")
 
     async def create_flow_run(self, flow_name: str, parameters: Dict) -> Dict:
         """Create and run a flow - ESSENTIAL for automations"""

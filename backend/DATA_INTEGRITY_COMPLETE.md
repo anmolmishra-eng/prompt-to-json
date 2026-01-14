@@ -1,171 +1,107 @@
-# Data & Storage Integrity - Complete Summary
+# Data & Storage Integrity System
 
-## ✅ DATA INTEGRITY ENSURED - OFFICE CAN AUDIT ANY SPEC
+## Overview
+Complete data integrity and audit system ensuring all design artifacts are stored, retrievable, and auditable.
 
-### 🎯 Objective
-Ensure all spec-related data is stored and retrievable:
-- JSON specs
-- Previews
-- GLB files
-- Evaluations
-- Compliance checks
-- Complete audit trail
+## ✅ Implemented Features
 
----
+### 1. Data Audit Endpoints
 
-## 📝 Changes Made
+#### `/audit/spec/{spec_id}` - Single Spec Audit
+Complete audit of a single spec with all artifacts:
+- Database records validation
+- Local file storage checks
+- URL accessibility verification
+- Completeness scoring (0-100%)
+- Status: PASS/FAIL
 
-### 1. Created Data Audit System
-
-**File**: `app/api/data_audit.py`
-
-**New Endpoints**:
-
-#### `/api/v1/audit/spec/{spec_id}`
-Complete audit of spec data integrity
-
-**Response**:
+**Response:**
 ```json
 {
-  "spec_id": "spec_abc123",
-  "audit_timestamp": "2024-01-12T10:30:00Z",
-  "data_integrity": {
-    "json_spec": {
-      "exists": true,
-      "valid": true,
-      "size_bytes": 2048,
-      "objects_count": 5
-    },
-    "evaluations": {
-      "count": 3,
-      "stored": true,
-      "retrievable": true
-    },
-    "compliance": {
-      "count": 2,
-      "stored": true,
-      "retrievable": true
-    },
-    "iterations": {
-      "count": 5,
-      "stored": true,
-      "retrievable": true
-    }
+  "spec_id": "spec_xxx",
+  "database": {
+    "spec_exists": true,
+    "spec_json_valid": true,
+    "has_preview_url": true,
+    "has_geometry_url": true,
+    "iterations_count": 5,
+    "evaluations_count": 3,
+    "compliance_count": 2
   },
-  "storage_integrity": {
-    "preview": {
-      "url_exists": true,
-      "url": "https://...",
-      "accessible": true
-    },
-    "glb": {
-      "url_exists": true,
-      "url": "https://...",
-      "accessible": true
-    }
+  "local_storage": {
+    "spec_json_file": {"exists": true, "size_bytes": 1024},
+    "preview_file": {"exists": true, "count": 2},
+    "geometry_file": {"exists": true, "count": 1}
   },
-  "summary": {
-    "total_checks": 7,
-    "passed_checks": 7,
-    "issues_count": 0,
-    "audit_status": "PASS"
-  }
+  "completeness_score": 95.5,
+  "status": "PASS"
 }
 ```
 
-#### `/api/v1/audit/spec/{spec_id}/complete`
-Get complete spec data for office audit
+#### `/audit/user/{user_id}` - User Data Audit
+Audit all data for a specific user:
+- Total specs count
+- Artifacts summary
+- Iterations/evaluations/compliance counts
+- Data completeness status
 
-**Response**:
+#### `/audit/storage` - Storage Audit
+Audit all local storage directories:
+- File counts per directory
+- Total size in MB
+- Sample files listing
+- Directory existence checks
+
+#### `/audit/integrity` - Data Integrity Audit
+Comprehensive integrity audit across all specs:
+- Total specs audited
+- Complete vs incomplete data
+- Missing artifacts breakdown
+- Integrity score (0-100%)
+- Status: PASS/NEEDS_ATTENTION
+
+**Response:**
 ```json
 {
-  "spec": {
-    "id": "spec_abc123",
-    "spec_json": {...},
-    "preview_url": "https://...",
-    "geometry_url": "https://...",
-    ...
+  "total_specs_audited": 100,
+  "specs_with_complete_data": 85,
+  "specs_with_missing_data": 15,
+  "missing_artifacts": {
+    "spec_json": 0,
+    "preview_url": 5,
+    "geometry_url": 3,
+    "iterations": 10,
+    "evaluations": 8,
+    "compliance": 12
   },
-  "iterations": [...],
-  "evaluations": [...],
-  "compliance_checks": [...],
-  "metadata": {
-    "total_iterations": 5,
-    "total_evaluations": 3,
-    "total_compliance_checks": 2,
-    "data_complete": true
-  }
+  "integrity_score": 87.5,
+  "status": "PASS"
 }
 ```
 
----
+#### `/audit/fix/{spec_id}` - Fix Spec Integrity
+Attempt to fix missing artifacts:
+- Restore spec_json from local files
+- Find missing preview files
+- Find missing geometry files
+- Apply fixes automatically
 
-### 2. Enhanced `/api/v1/reports/{spec_id}` Endpoint
+### 2. Enhanced History Endpoint
 
-**File**: `app/api/reports.py`
+#### `/api/v1/history` - User History with Integrity
+Enhanced history endpoint with data integrity checks:
+- All specs with metadata
+- Data integrity per spec
+- Completeness indicators
+- Auditable flag
 
-**Improvements**:
-- Returns complete spec data with all related records
-- Includes data integrity checks
-- Shows all iterations with full details
-- Shows all evaluations with ratings and notes
-- Shows all compliance checks with violations
-- Tracks preview URLs and geometry URLs
-
-**Response Structure**:
+**Response:**
 ```json
 {
-  "report_id": "spec_abc123",
-  "data": {
-    "spec_id": "spec_abc123",
-    "version": 1,
-    "user_id": "user_123",
-    "city": "Mumbai",
-    "design_type": "house",
-    "status": "final",
-    "compliance_status": "compliant"
-  },
-  "spec": {...},
-  "preview_url": "https://...",
-  "geometry_url": "https://...",
-  "iterations": [...],
-  "evaluations": [...],
-  "compliance_checks": [...],
-  "data_integrity": {
-    "spec_json_exists": true,
-    "preview_url_exists": true,
-    "geometry_url_exists": true,
-    "has_iterations": true,
-    "has_evaluations": true,
-    "has_compliance": true,
-    "data_complete": true
-  }
-}
-```
-
----
-
-### 3. Enhanced `/api/v1/history` Endpoint
-
-**File**: `app/api/history.py`
-
-**Improvements**:
-- Shows data integrity for each spec
-- Includes counts for iterations, evaluations, compliance
-- Provides summary of data completeness
-- All specs marked as auditable
-
-**Response Structure**:
-```json
-{
-  "user_id": "user_123",
+  "user_id": "user_xxx",
   "specs": [
     {
-      "spec_id": "spec_abc123",
-      "city": "Mumbai",
-      "design_type": "house",
-      "preview_url": "https://...",
-      "geometry_url": "https://...",
+      "spec_id": "spec_xxx",
       "data_integrity": {
         "has_spec_json": true,
         "has_preview": true,
@@ -178,252 +114,273 @@ Get complete spec data for office audit
     }
   ],
   "data_integrity_summary": {
-    "total_specs": 10,
-    "specs_with_json": 10,
-    "specs_with_preview": 8,
-    "specs_with_geometry": 8,
+    "total_specs": 20,
+    "specs_with_json": 20,
+    "specs_with_preview": 18,
+    "specs_with_geometry": 19,
     "all_auditable": true
   }
 }
 ```
 
----
+### 3. Enhanced Reports Endpoint
 
-## 🗄️ Data Storage Verification
-
-### 1. JSON Specs
-- **Storage**: Database (specs.spec_json column)
-- **Format**: JSON/JSONB
-- **Validation**: JSON validity check
-- **Retrievable**: ✅ Via /reports, /history, /audit endpoints
-
-### 2. Preview Files
-- **Storage**: Supabase Storage (previews bucket)
-- **Format**: Images (PNG, JPG) or GLB
-- **Tracking**: URL stored in specs.preview_url
-- **Retrievable**: ✅ Via signed URLs
-
-### 3. GLB Files
-- **Storage**: Supabase Storage (geometry bucket)
-- **Format**: GLB (3D geometry)
-- **Tracking**: URL stored in specs.geometry_url
-- **Retrievable**: ✅ Via signed URLs
-
-### 4. Evaluations
-- **Storage**: Database (evaluations table)
-- **Fields**: rating, notes, aspects, created_at
-- **Relationships**: Foreign key to specs
-- **Retrievable**: ✅ Via /reports, /audit endpoints
-
-### 5. Compliance Checks
-- **Storage**: Database (compliance_checks table)
-- **Fields**: case_id, status, compliant, violations, recommendations
-- **Relationships**: Foreign key to specs
-- **Retrievable**: ✅ Via /reports, /audit endpoints
-
-### 6. Iterations
-- **Storage**: Database (iterations table)
-- **Fields**: query, diff, spec_json, preview_url
-- **Relationships**: Foreign key to specs
-- **Retrievable**: ✅ Via /reports, /audit endpoints
-
----
-
-## 🔍 Audit Capabilities
-
-### Office Can Audit Any Spec
-
-#### 1. Quick Audit
-```bash
-GET /api/v1/audit/spec/{spec_id}
-```
-Returns:
-- Data integrity status
-- Storage integrity status
-- Issues found
-- Audit pass/fail
-
-#### 2. Complete Audit
-```bash
-GET /api/v1/audit/spec/{spec_id}/complete
-```
-Returns:
-- Full spec data
+#### `/api/v1/reports/{spec_id}` - Complete Report
+Enhanced report with data integrity:
+- All spec data
 - All iterations
 - All evaluations
 - All compliance checks
-- Complete metadata
+- Preview URLs collection
+- Data integrity status
 
-#### 3. History Audit
-```bash
-GET /api/v1/history
-```
-Returns:
-- All specs with integrity status
-- Data completeness summary
-- Auditable flag for each spec
-
-#### 4. Report Audit
-```bash
-GET /api/v1/reports/{spec_id}
-```
-Returns:
-- Complete report with all data
-- Data integrity checks
-- All related records
-
----
-
-## 🧪 Testing
-
-### Run Comprehensive Test Suite:
-```bash
-python test_data_integrity.py
+**Response:**
+```json
+{
+  "report_id": "spec_xxx",
+  "spec": {...},
+  "iterations": [...],
+  "evaluations": [...],
+  "compliance_checks": [...],
+  "preview_urls": ["url1", "url2"],
+  "data_integrity": {
+    "spec_json_exists": true,
+    "preview_url_exists": true,
+    "geometry_url_exists": true,
+    "has_iterations": true,
+    "has_evaluations": true,
+    "has_compliance": true,
+    "data_complete": true
+  }
+}
 ```
 
-### Manual Testing with cURL:
+### 4. Storage Manager
 
-#### 1. Login
+Comprehensive storage management with integrity:
+- Automatic directory creation
+- Metadata storage for all artifacts
+- Integrity checking
+- File retrieval
+- Storage statistics
+
+**Stored Artifacts:**
+- `data/specs/` - Spec JSON files
+- `data/previews/` - Preview images/GLB files
+- `data/geometry_outputs/` - 3D geometry files
+- `data/evaluations/` - Evaluation results
+- `data/compliance/` - Compliance reports
+- `data/iterations/` - Iteration history
+- `data/reports/` - Generated reports
+- `data/uploads/` - User uploads
+
+**Metadata Files:**
+Each artifact has a corresponding `_metadata.json` file with:
+- File path
+- File size
+- Storage timestamp
+- Related IDs (spec_id, user_id, etc.)
+
+## 🔍 Office Audit Capabilities
+
+### Quick Audit Commands
+
 ```bash
-curl -X POST "http://localhost:8000/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "bhiv2024"}'
+# Audit specific spec
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/audit/spec/spec_xxx
 
-export TOKEN="your_access_token"
+# Audit user data
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/audit/user/user_xxx
+
+# Audit storage
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/audit/storage
+
+# Audit data integrity
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/audit/integrity?limit=100
+
+# Fix spec integrity
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/audit/fix/spec_xxx
 ```
 
-#### 2. Audit Spec
-```bash
-curl -X GET "http://localhost:8000/api/v1/audit/spec/{spec_id}" \
-  -H "Authorization: Bearer $TOKEN"
+### Python Test Script
 
-# Expected: Complete audit report with integrity checks
+```bash
+# Run comprehensive audit tests
+python test_data_audit.py
 ```
 
-#### 3. Get Complete Spec Data
-```bash
-curl -X GET "http://localhost:8000/api/v1/audit/spec/{spec_id}/complete" \
-  -H "Authorization: Bearer $TOKEN"
+## 📊 Data Integrity Metrics
 
-# Expected: All spec data in one response
+### Completeness Score
+- 10 checks per spec
+- Score = (passed_checks / total_checks) * 100
+- PASS threshold: 70%
+
+### Integrity Score
+- Across all specs
+- Score = ((total_possible - total_missing) / total_possible) * 100
+- PASS threshold: 80%
+
+## 🔧 Automatic Fixes
+
+The system can automatically fix:
+1. Missing spec_json from local files
+2. Missing preview URLs from local files
+3. Missing geometry URLs from local files
+
+## 📁 File Organization
+
+```
+data/
+├── specs/
+│   ├── spec_xxx.json
+│   └── spec_xxx_metadata.json
+├── previews/
+│   ├── spec_xxx_timestamp.glb
+│   └── spec_xxx_timestamp_metadata.json
+├── geometry_outputs/
+│   ├── spec_xxx_timestamp.glb
+│   └── spec_xxx_timestamp_metadata.json
+├── evaluations/
+│   ├── eval_spec_xxx_timestamp.json
+│   └── evaluations.jsonl
+├── compliance/
+│   ├── case_xxx_timestamp.json
+│   └── case_xxx_timestamp_metadata.json
+├── iterations/
+│   └── iter_xxx.json
+├── reports/
+│   └── report_xxx.json
+└── uploads/
+    ├── file_xxx
+    └── file_xxx_metadata.json
 ```
 
-#### 4. Check History Integrity
-```bash
-curl -X GET "http://localhost:8000/api/v1/history" \
-  -H "Authorization: Bearer $TOKEN"
+## ✅ Verification Checklist
 
-# Expected: All specs with integrity status
+- [x] All specs have JSON stored
+- [x] All specs have preview URLs or local files
+- [x] All specs have geometry URLs or local files
+- [x] All iterations are tracked
+- [x] All evaluations are stored
+- [x] All compliance checks are recorded
+- [x] Metadata files exist for all artifacts
+- [x] Storage directories are organized
+- [x] Audit endpoints are functional
+- [x] Fix endpoints can restore data
+- [x] History shows integrity status
+- [x] Reports include integrity checks
+
+## 🚀 Usage Examples
+
+### Audit Entire System
+```python
+import requests
+
+token = "your_jwt_token"
+headers = {"Authorization": f"Bearer {token}"}
+
+# Get integrity report
+response = requests.get(
+    "http://localhost:8000/audit/integrity?limit=1000",
+    headers=headers
+)
+
+integrity = response.json()
+print(f"Integrity Score: {integrity['integrity_score']}%")
+print(f"Status: {integrity['status']}")
 ```
 
-#### 5. Get Report with Integrity
-```bash
-curl -X GET "http://localhost:8000/api/v1/reports/{spec_id}" \
-  -H "Authorization: Bearer $TOKEN"
+### Audit Specific Spec
+```python
+spec_id = "spec_xxx"
+response = requests.get(
+    f"http://localhost:8000/audit/spec/{spec_id}",
+    headers=headers
+)
 
-# Expected: Complete report with data integrity
+audit = response.json()
+print(f"Completeness: {audit['completeness_score']}%")
+print(f"Status: {audit['status']}")
 ```
 
----
+### Fix Missing Data
+```python
+response = requests.post(
+    f"http://localhost:8000/audit/fix/{spec_id}",
+    headers=headers
+)
 
-## 📊 Data Integrity Checks
+fix_result = response.json()
+print(f"Fixes applied: {fix_result['fixed_count']}")
+for fix in fix_result['fixes_applied']:
+    print(f"  - {fix}")
+```
 
-### Automated Checks
+## 📈 Monitoring
 
-1. **JSON Spec Validation**
-   - Exists in database
-   - Valid JSON format
-   - Contains required fields
-   - Size tracking
+### Storage Statistics
+```python
+response = requests.get(
+    "http://localhost:8000/audit/storage",
+    headers=headers
+)
 
-2. **Preview URL Validation**
-   - URL exists
-   - File accessible
-   - Proper format
+stats = response.json()
+for dir_path, info in stats['storage_audit'].items():
+    print(f"{dir_path}: {info['file_count']} files, {info['total_size_mb']} MB")
+```
 
-3. **GLB URL Validation**
-   - URL exists
-   - File accessible
-   - Proper format
+## 🎯 Success Criteria
 
-4. **Evaluations Validation**
-   - Stored in database
-   - Retrievable
-   - Complete data
+✅ **Office can audit any spec:**
+- Complete artifact listing
+- Integrity verification
+- Missing data identification
+- Automatic fix capabilities
 
-5. **Compliance Validation**
-   - Stored in database
-   - Retrievable
-   - Complete data
+✅ **All data is retrievable:**
+- Database records
+- Local files
+- Metadata
+- URLs
 
-6. **Iterations Validation**
-   - Stored in database
-   - Retrievable
-   - Complete data
+✅ **Storage is organized:**
+- Structured directories
+- Metadata files
+- JSONL logs
+- Timestamped files
 
-7. **Retrievability Test**
-   - All queries successful
-   - Data parseable
-   - No errors
+✅ **Integrity is maintained:**
+- Completeness scoring
+- Integrity scoring
+- Status indicators
+- Fix mechanisms
 
----
+## 🔐 Security
 
-## ✅ Deliverable Status
+- All audit endpoints require JWT authentication
+- User-specific audits respect permissions
+- Sensitive data is not exposed in logs
+- Metadata includes audit trails
 
-### Requirements Met:
-- ✅ JSON specs stored and retrievable
-- ✅ Previews tracked and accessible
-- ✅ GLB files tracked and accessible
-- ✅ Evaluations stored and retrievable
-- ✅ Compliance checks stored and retrievable
-- ✅ Iterations stored and retrievable
-- ✅ /reports endpoint fixed with data integrity
-- ✅ /history endpoint fixed with data integrity
-- ✅ Office can audit any spec
-- ✅ Complete audit trail available
+## 📝 Next Steps
 
----
+1. Set up automated integrity checks (cron job)
+2. Configure alerts for low integrity scores
+3. Implement data backup strategy
+4. Add data retention policies
+5. Create audit reports dashboard
 
-## 🚀 Next Steps
+## 🎉 Deliverable Complete
 
-1. **Run tests**:
-   ```bash
-   python test_data_integrity.py
-   ```
-
-2. **Verify in Swagger UI**:
-   - Go to http://localhost:8000/docs
-   - Test audit endpoints
-
-3. **Audit a spec**:
-   ```bash
-   curl -X GET "http://localhost:8000/api/v1/audit/spec/{spec_id}" \
-     -H "Authorization: Bearer $TOKEN"
-   ```
-
-4. **Check data integrity**:
-   - Use /history to see all specs
-   - Use /audit/spec/{id} for detailed audit
-   - Use /audit/spec/{id}/complete for full data
-
----
-
-## 🎉 Result
-
-**OFFICE CAN AUDIT ANY SPEC**
-- Complete data integrity ensured
-- All data stored and retrievable
-- Comprehensive audit endpoints
-- Full audit trail available
-- Production ready
-
----
-
-## 📞 Support
-
-If data integrity issues occur:
-1. Check database connection
-2. Verify Supabase storage access
-3. Run audit endpoint for specific spec
-4. Check logs for errors
-5. Use complete data endpoint for full view
+✅ Office can audit any spec with complete data integrity verification
+✅ All artifacts (JSON, previews, GLB, evaluations, compliance) are stored and retrievable
+✅ /reports and /history endpoints include data integrity checks
+✅ Automatic fix capabilities for missing data
+✅ Comprehensive test suite included
