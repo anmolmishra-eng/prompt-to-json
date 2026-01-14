@@ -1,0 +1,12 @@
+{
+  "flow_id": "ahmedabad_1_20260114_193817",
+  "city": "Ahmedabad",
+  "prompt": "Design a traditional house with courtyard",
+  "timestamp": "2026-01-14T19:38:17.879446",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Design a traditional house with courtyard\",\"city\":\"Ahmedabad\"}}]}"
+    }
+  }
+}

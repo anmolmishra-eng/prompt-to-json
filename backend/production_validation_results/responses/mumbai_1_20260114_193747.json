@@ -1,0 +1,12 @@
+{
+  "flow_id": "mumbai_1_20260114_193747",
+  "city": "Mumbai",
+  "prompt": "Design a 3BHK apartment with modern kitchen",
+  "timestamp": "2026-01-14T19:37:47.517444",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Design a 3BHK apartment with modern kitchen\",\"city\":\"Mumbai\"}}]}"
+    }
+  }
+}

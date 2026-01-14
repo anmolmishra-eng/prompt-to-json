@@ -1,0 +1,12 @@
+{
+  "flow_id": "ahmedabad_3_20260114_193823",
+  "city": "Ahmedabad",
+  "prompt": "Design a residential tower with amenities",
+  "timestamp": "2026-01-14T19:38:23.968546",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Design a residential tower with amenities\",\"city\":\"Ahmedabad\"}}]}"
+    }
+  }
+}

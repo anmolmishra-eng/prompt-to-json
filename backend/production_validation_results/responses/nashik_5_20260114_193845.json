@@ -1,0 +1,12 @@
+{
+  "flow_id": "nashik_5_20260114_193845",
+  "city": "Nashik",
+  "prompt": "Design a hospital with emergency wing",
+  "timestamp": "2026-01-14T19:38:45.274685",
+  "steps": {
+    "generate": {
+      "status": "error",
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":{\"prompt\":\"Design a hospital with emergency wing\",\"city\":\"Nashik\"}}]}"
+    }
+  }
+}
