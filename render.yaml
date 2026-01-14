@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: design-engine-api
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: DEMO_USERNAME
+        value: admin
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: SOHAM_URL
+        value: https://ai-rule-api-w7z5.onrender.com
+      - key: RANJEET_RL_URL
+        value: https://land-utilization-rl.onrender.com
+      - key: LAND_UTILIZATION_ENABLED
+        value: true
+      - key: LAND_UTILIZATION_MOCK_MODE
+        value: false
+      - key: RANJEET_SERVICE_AVAILABLE
+        value: true
+      - key: DEBUG
+        value: false
+      - key: ENVIRONMENT
+        value: production

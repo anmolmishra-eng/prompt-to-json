@@ -12,6 +12,7 @@ from app.api import (
     bhiv_assistant,
     bhiv_integrated,
     compliance,
+    data_audit,
     data_privacy,
     evaluate,
     generate,
@@ -35,7 +36,7 @@ from app.api import (
 # bhiv_assistant.py: Main orchestration layer (/bhiv/v1/prompt)
 # bhiv_integrated.py: Integrated design endpoint (/bhiv/v1/design)
 from app.config import settings
-from app.database import get_current_user
+from app.database import get_current_user, get_db
 from app.multi_city.city_data_loader import city_router
 from app.utils import setup_logging
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -46,6 +47,7 @@ from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
+from sqlalchemy.orm import Session
 
 # Initialize logging
 setup_logging()
@@ -240,6 +242,9 @@ app.include_router(
     data_privacy.router, prefix="/api/v1", tags=["🔐 Data Privacy"], dependencies=[Depends(get_current_user)]
 )
 
+# 2.1 Data Audit & Integrity
+app.include_router(data_audit.router, tags=["🔍 Data Audit"], dependencies=[Depends(get_current_user)])
+
 # 3. Core Design Engine (Sequential Workflow)
 app.include_router(
     generate.router, prefix="/api/v1", tags=["🎨 Design Generation"], dependencies=[Depends(get_current_user)]
@@ -254,6 +259,21 @@ app.include_router(switch.router, dependencies=[Depends(get_current_user)])
 app.include_router(
     history.router, prefix="/api/v1", tags=["📚 Design History"], dependencies=[Depends(get_current_user)]
 )
+
+
+# Add explicit /history endpoint
+@app.get("/api/v1/history", tags=["📚 Design History"])
+async def get_design_history(
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = 20,
+    project_id: str = None,
+):
+    """Get user's design history - explicit route"""
+    from app.api.history import get_user_history
+
+    return await get_user_history(current_user, db, limit, project_id)
+
 
 # 4. Compliance & Validation
 app.include_router(
@@ -296,10 +316,20 @@ app.include_router(
     prefect_router, prefix="/api/v1/prefect", tags=["🚀 Event Triggers"], dependencies=[Depends(get_current_user)]
 )
 
-# 8. File Management
+# 8. File Management & Reports
 app.include_router(
     reports.router, prefix="/api/v1", tags=["📁 File Management"], dependencies=[Depends(get_current_user)]
 )
+
+
+# Add explicit /reports/{spec_id} endpoint
+@app.get("/api/v1/reports/{spec_id}", tags=["📁 File Management"])
+async def get_spec_report(spec_id: str, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get report for specific spec - explicit route"""
+    from app.api.reports import get_report
+
+    return await get_report(spec_id, current_user, db)
+
 
 # 9. Machine Learning & Training
 app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL Training"], dependencies=[Depends(get_current_user)])

@@ -78,23 +78,8 @@ async def mcp_compliance_check(request: MCPRequest, background_tasks: Background
         return MCPResponse(**mcp_result)
 
     except Exception as e:
-        logger.warning(f"MCP service unavailable: {e}, using mock compliance")
-        # Return mock compliance result
-        case_id = f"case_{request.city.lower()}_{hash(str(request.spec_json)) % 1000}"
-        return MCPResponse(
-            case_id=case_id,
-            city=request.city,
-            compliant=True,
-            confidence_score=0.85,
-            violations=[],
-            recommendations=[
-                "Consider adding fire safety measures",
-                "Ensure proper ventilation in all rooms",
-                "Verify parking space requirements",
-            ],
-            geometry_url=None,
-            processing_time_ms=100,
-        )
+        logger.error(f"MCP service failed: {e}")
+        raise HTTPException(status_code=503, detail=f"MCP compliance service unavailable: {str(e)}")
 
 
 @router.get("/cities")

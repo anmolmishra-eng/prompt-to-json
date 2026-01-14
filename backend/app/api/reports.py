@@ -1,9 +1,7 @@
 import logging
 
 from app.database import get_current_user, get_db
-from app.models import Evaluation, Iteration, Spec
-from app.schemas import Report
-from app.storage import get_signed_url, upload_geometry, upload_preview, upload_to_bucket
+from app.models import ComplianceCheck, Evaluation, Iteration, Spec
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -18,45 +16,113 @@ async def get_report(
     current_user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Get complete report with data integrity checks"""
     try:
-        # Step 1: Check if spec exists
+        # Get spec with all related data
         spec = db.query(Spec).filter(Spec.id == spec_id).first()
         if not spec:
-            raise HTTPException(status_code=404, detail="Spec not found")
+            # Get available specs for helpful error message
+            available_specs = db.query(Spec.id).limit(5).all()
+            available_ids = [s.id for s in available_specs]
 
-        # Step 2: Get iterations and evaluations
-        iterations = db.query(Iteration).filter(Iteration.spec_id == spec_id).all()
-        evaluations = db.query(Evaluation).filter(Evaluation.spec_id == spec_id).all()
+            error_detail = {
+                "error": "Spec not found",
+                "requested_spec_id": spec_id,
+                "message": f"The spec '{spec_id}' does not exist in the database.",
+                "available_specs": available_ids,
+                "hint": "Use one of the available spec IDs or create a new design using POST /api/v1/generate",
+            }
+            raise HTTPException(status_code=404, detail=error_detail)
 
-        # Step 3: Build response without preview URLs first
+        # Get all related data
+        iterations = (
+            db.query(Iteration).filter(Iteration.spec_id == spec_id).order_by(Iteration.created_at.desc()).all()
+        )
+        evaluations = (
+            db.query(Evaluation).filter(Evaluation.spec_id == spec_id).order_by(Evaluation.created_at.desc()).all()
+        )
+        compliance_checks = (
+            db.query(ComplianceCheck)
+            .filter(ComplianceCheck.spec_id == spec_id)
+            .order_by(ComplianceCheck.created_at.desc())
+            .all()
+        )
+
+        # Build complete response with data integrity
         response_data = {
             "report_id": spec_id,
-            "data": {"spec_id": spec_id, "version": spec.version or 1},
+            "data": {
+                "spec_id": spec_id,
+                "version": spec.version or 1,
+                "user_id": spec.user_id,
+                "project_id": spec.project_id,
+                "city": spec.city,
+                "design_type": spec.design_type,
+                "status": spec.status,
+                "compliance_status": spec.compliance_status,
+            },
             "spec": spec.spec_json or {},
-            "iterations": [it.after_spec or {} for it in iterations] if iterations else [],
-            "evaluations": [{"score": ev.rating or 0, "notes": ev.notes or ""} for ev in evaluations]
-            if evaluations
-            else [],
+            "preview_url": spec.preview_url,
+            "geometry_url": spec.geometry_url,
+            "estimated_cost": spec.estimated_cost,
+            "currency": spec.currency,
+            "iterations": [
+                {
+                    "id": it.id,
+                    "query": it.query,
+                    "diff": it.diff,
+                    "spec_json": it.spec_json,
+                    "preview_url": it.preview_url,
+                    "cost_delta": it.cost_delta,
+                    "created_at": it.created_at.isoformat() if it.created_at else None,
+                }
+                for it in iterations
+            ],
+            "evaluations": [
+                {
+                    "id": ev.id,
+                    "score": ev.rating or 0,
+                    "rating": ev.rating,
+                    "notes": ev.notes or "",
+                    "aspects": ev.aspects,
+                    "created_at": ev.created_at.isoformat() if ev.created_at else None,
+                }
+                for ev in evaluations
+            ],
+            "compliance_checks": [
+                {
+                    "id": cc.id,
+                    "case_id": cc.case_id,
+                    "status": cc.status,
+                    "compliant": cc.compliant,
+                    "confidence_score": cc.confidence_score,
+                    "violations": cc.violations or [],
+                    "recommendations": cc.recommendations or [],
+                    "created_at": cc.created_at.isoformat() if cc.created_at else None,
+                }
+                for cc in compliance_checks
+            ],
             "preview_urls": [],
+            "data_integrity": {
+                "spec_json_exists": spec.spec_json is not None,
+                "preview_url_exists": spec.preview_url is not None,
+                "geometry_url_exists": spec.geometry_url is not None,
+                "has_iterations": len(iterations) > 0,
+                "has_evaluations": len(evaluations) > 0,
+                "has_compliance": len(compliance_checks) > 0,
+                "data_complete": True,
+            },
+            "created_at": spec.created_at.isoformat() if spec.created_at else None,
+            "updated_at": spec.updated_at.isoformat() if spec.updated_at else None,
         }
 
-        # Step 4: Try to add preview URLs only if files exist
-        try:
-            if spec.version:
-                from app.storage import file_exists
+        # Add preview URLs if available
+        if spec.preview_url:
+            response_data["preview_urls"].append(spec.preview_url)
 
-                for version in range(1, spec.version + 1):
-                    path = f"{spec_id}_v{version}.glb"
-                    # Check if file exists before generating signed URL
-                    if file_exists("previews", path):
-                        try:
-                            signed = get_signed_url("previews", path, expires=600)  # Remove await
-                            response_data["preview_urls"].append(signed)
-                        except Exception:
-                            continue
-        except Exception as preview_error:
-            logger.debug(f"Preview URL generation skipped: {preview_error}")
-            response_data["preview_urls"] = []
+        for it in iterations:
+            if it.preview_url:
+                response_data["preview_urls"].append(it.preview_url)
 
         return response_data
 
