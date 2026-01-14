@@ -88,10 +88,30 @@ async def trigger_pdf_compliance(request: PDFComplianceRequest):
 
 @router.post("/workflow")
 async def trigger_workflow(request: AutomationRequest):
-    """Trigger any BHIV automation workflow - ESSENTIAL"""
+    """Trigger any BHIV automation workflow with real Prefect tracking"""
+    from datetime import datetime, timezone
+
+    from app.database import SessionLocal
+    from app.models import WorkflowRun
+
     try:
+        # Trigger workflow via Prefect
         result = await trigger_automation_workflow(workflow_type=request.workflow_type, parameters=request.parameters)
-        return result
+
+        if result.get("status") != "success":
+            raise HTTPException(status_code=500, detail=result.get("message", "Workflow trigger failed"))
+
+        # Return traceable response
+        return {
+            "status": "success",
+            "workflow_id": result.get("workflow_id"),
+            "run_id": result.get("run_id") or result.get("flow_run_id"),
+            "workflow_type": request.workflow_type,
+            "execution_mode": result.get("execution_mode", "prefect"),
+            "message": "Workflow triggered successfully",
+            "traceable": True,
+            "status_endpoint": f"/api/v1/automation/workflow/{result.get('run_id') or result.get('flow_run_id')}/status",
+        }
     except Exception as e:
         logger.error(f"Automation workflow failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -99,10 +119,35 @@ async def trigger_workflow(request: AutomationRequest):
 
 @router.get("/workflow/{flow_run_id}/status")
 async def get_workflow_run_status(flow_run_id: str):
-    """Get status of specific workflow run - ESSENTIAL for monitoring"""
+    """Get real-time status of specific workflow run with full execution details"""
+    from app.database import SessionLocal
+    from app.models import WorkflowRun
+
     try:
+        # Get status from Prefect and database
         result = await get_workflow_status(flow_run_id)
+
+        if result.get("status") != "success":
+            raise HTTPException(status_code=404, detail=result.get("message", "Workflow not found"))
+
+        # Enrich with database info
+        db = SessionLocal()
+        try:
+            workflow_run = db.query(WorkflowRun).filter(WorkflowRun.flow_run_id == flow_run_id).first()
+            if workflow_run:
+                result["database_record"] = {
+                    "id": workflow_run.id,
+                    "flow_name": workflow_run.flow_name,
+                    "deployment_name": workflow_run.deployment_name,
+                    "result": workflow_run.result,
+                    "error": workflow_run.error,
+                }
+        finally:
+            db.close()
+
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get workflow status: {e}")
         raise HTTPException(status_code=500, detail=str(e))

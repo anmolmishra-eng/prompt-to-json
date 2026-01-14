@@ -174,14 +174,6 @@ class SohumMCPClient:
             elif "HEIGHT" in rule:
                 recommendations.append(f"Validate height restrictions per {rule}")
 
-        # If no specific recommendations, add generic ones
-        if not recommendations:
-            recommendations = [
-                "Ensure all design parameters meet local building codes",
-                "Verify structural safety requirements",
-                "Confirm compliance with environmental regulations",
-            ]
-
         confidence_score = raw_response.get("confidence_score", 0.75)
 
         return {
@@ -258,7 +250,7 @@ class RanjeetRLClient:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=180.0) as client:
                 logger.info(f"Calling Ranjeet's RL: {self.base_url}/rl/optimize")
                 response = await client.post(f"{self.base_url}/rl/optimize", json=payload, headers=headers)
                 response.raise_for_status()

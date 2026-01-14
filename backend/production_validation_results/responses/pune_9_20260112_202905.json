@@ -1,0 +1,159 @@
+{
+  "flow_id": "pune_9_20260112_202905",
+  "city": "Pune",
+  "prompt": "Build a retail shop with display area and storage space",
+  "timestamp": "2026-01-12T20:29:05.703882",
+  "steps": {
+    "generate": {
+      "status": "success",
+      "spec_id": "spec_6e033ad68e64",
+      "response": {
+        "spec_id": "spec_6e033ad68e64",
+        "spec_json": {
+          "objects": [
+            {
+              "id": "base_structure",
+              "type": "structure",
+              "material": "concrete",
+              "color_hex": "#808080",
+              "dimensions": {
+                "width": 10,
+                "length": 10,
+                "height": 3
+              }
+            }
+          ],
+          "design_type": "generic",
+          "style": "modern",
+          "dimensions": {
+            "width": 10,
+            "length": 10,
+            "height": 3
+          },
+          "estimated_cost": {
+            "total": 2000000.0,
+            "currency": "INR"
+          },
+          "metadata": {
+            "estimated_cost": 2000000.0,
+            "currency": "INR",
+            "generation_provider": "local",
+            "city": "Mumbai",
+            "style": "modern"
+          }
+        },
+        "preview_url": "https://dntmhjlbxirtgslzwbui.supabase.co/storage/v1/object/public/geometry/spec_6e033ad68e64.glb",
+        "estimated_cost": 2000000.0,
+        "compliance_check_id": "check_spec_6e033ad68e64",
+        "created_at": "2026-01-12T14:59:11.496139Z",
+        "spec_version": 1,
+        "user_id": "53ad6295-a001-45ed-8613-67725ba8879d"
+      }
+    },
+    "mcp": {
+      "status": "success",
+      "response": {
+        "case_id": "case_pune_810",
+        "city": "Pune",
+        "compliant": true,
+        "confidence_score": 0.6,
+        "violations": [],
+        "recommendations": [
+          "Verify setback requirements for the specified location",
+          "Check Floor Space Index (FSI) calculations",
+          "Ensure building height complies with zoning regulations",
+          "Verify FSI compliance as per PUNE-FSI-URBAN-R15-20",
+          "Verify FSI compliance as per PUNE-FSI-CAT-A",
+          "Check setback requirements under PUNE-SETBACK-R15-20",
+          "Check setback requirements under PUNE-SETBACK-CORNER",
+          "Validate height restrictions per PUNE-HEIGHT-SPECIAL-ECO"
+        ],
+        "geometry_url": null,
+        "processing_time_ms": 1000
+      }
+    },
+    "rl_optimize": {
+      "status": "success",
+      "response": {
+        "status": "success",
+        "mode": "mock",
+        "optimized_spec": {
+          "objects": [
+            {
+              "id": "base_structure",
+              "type": "structure",
+              "material": "concrete",
+              "color_hex": "#808080",
+              "dimensions": {
+                "width": 10,
+                "length": 10,
+                "height": 3
+              }
+            }
+          ],
+          "design_type": "generic",
+          "style": "modern",
+          "dimensions": {
+            "width": 10,
+            "length": 10,
+            "height": 3
+          },
+          "estimated_cost": {
+            "total": 2000000.0,
+            "currency": "INR"
+          },
+          "metadata": {
+            "estimated_cost": 2000000.0,
+            "currency": "INR",
+            "generation_provider": "local",
+            "city": "Mumbai",
+            "style": "modern"
+          }
+        },
+        "improvements": [
+          {
+            "type": "cost_reduction",
+            "value": 15,
+            "description": "Material optimization"
+          },
+          {
+            "type": "space_efficiency",
+            "value": 12,
+            "description": "Layout optimization"
+          }
+        ],
+        "metrics": {
+          "cost_savings": 15.5,
+          "space_utilization": 87.3,
+          "compliance_score": 92.1
+        },
+        "message": "Mock RL optimization (external service unavailable)"
+      }
+    },
+    "geometry": {
+      "status": "success",
+      "response": {
+        "request_id": "pune_9_20260112_202905",
+        "geometry_url": "/api/v1/geometry/download/pune_9_20260112_202905.glb",
+        "format": "glb",
+        "file_size_bytes": 664,
+        "generation_time_ms": 0
+      }
+    },
+    "feedback": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "message": "Feedback recorded locally",
+        "rl_service_error": "Server error '501 Not Implemented' for url 'https://land-utilization-rl.onrender.com/rl/feedback'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501"
+      }
+    },
+    "training": {
+      "status": "success",
+      "response": {
+        "ok": true,
+        "artifact": "models_ckpt/mock_rlhf_policy"
+      }
+    }
+  }
+}

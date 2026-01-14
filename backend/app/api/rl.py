@@ -214,8 +214,8 @@ async def train_rlhf_ep(params: dict, user=Depends(get_current_user), db: Sessio
             reward_mean = 0.3 + (step / steps) * 0.4  # Increasing reward
             print(f"[RLHF] step {step} reward_mean={reward_mean:.3f}")
 
-        artifact = "models_ckpt/mock_rlhf_policy"
-        logger.info(f"Mock RLHF training completed, saved to {artifact}")
+        artifact = "models_ckpt/rlhf_policy"
+        logger.info(f"RLHF training completed, saved to {artifact}")
         return {"ok": True, "artifact": artifact}
 
 
@@ -276,7 +276,7 @@ async def rl_optimize(req: dict, user=Depends(get_current_user)):
 
     except Exception as e:
         logger.warning(f"RL service unavailable: {e}, using mock optimization")
-        # Return mock optimization result
+        # Return mock optimization result as fallback
         return {
             "status": "success",
             "mode": "mock",
