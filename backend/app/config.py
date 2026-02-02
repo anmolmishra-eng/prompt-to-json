@@ -155,6 +155,12 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: Optional[str] = Field(default=None, description="OpenAI API key")
 
+    # Anthropic Claude
+    ANTHROPIC_API_KEY: Optional[str] = Field(default=None, description="Anthropic Claude API key")
+
+    # AI Model Toggle
+    USE_AI_MODEL: bool = Field(default=True, description="Use real AI models instead of templates")
+
     # Prompt Configuration
     MAX_PROMPT_LENGTH: int = Field(default=2048, description="Maximum prompt length")
     DEFAULT_TEMPERATURE: float = Field(default=0.7, description="Default LM temperature")
