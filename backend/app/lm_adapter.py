@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 import re
 from datetime import datetime, timezone
 from typing import Any, Dict
@@ -8,34 +10,153 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# AI Model Configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", settings.OPENAI_API_KEY if hasattr(settings, "OPENAI_API_KEY") else None)
+ANTHROPIC_API_KEY = os.getenv(
+    "ANTHROPIC_API_KEY", settings.ANTHROPIC_API_KEY if hasattr(settings, "ANTHROPIC_API_KEY") else None
+)
+USE_AI_MODEL = os.getenv("USE_AI_MODEL", "true").lower() == "true"
 
-def run_local_lm(prompt: str, params: dict) -> dict:
-    """Run inference on local RTX-3060 GPU"""
-    logger.info(f"LOCAL_LM_DEBUG: Running local LM for prompt: '{prompt}' (length: {len(prompt)})")
 
-    # Generate design based on prompt type
+async def run_local_lm(prompt: str, params: dict) -> dict:
+    """Run inference using AI models (OpenAI/Anthropic) or fallback to templates"""
+    logger.info(f"AI_LM: Processing prompt: '{prompt[:100]}...'")
+
+    # Try AI generation first
+    if USE_AI_MODEL and (OPENAI_API_KEY or ANTHROPIC_API_KEY):
+        try:
+            spec_json = await generate_with_ai(prompt, params)
+            logger.info(f"✅ AI generated design: {spec_json.get('design_type')}")
+
+            log_usage("ai_model", len(prompt), 0.002, params.get("user_id"))
+
+            return {
+                "spec_json": spec_json,
+                "preview_data": f"AI generated {spec_json.get('design_type', 'design')} for: {prompt[:50]}...",
+                "provider": "openai" if OPENAI_API_KEY else "anthropic",
+                "feedback": f"AI model generated {spec_json.get('design_type', 'design')} with intelligent analysis",
+            }
+        except Exception as e:
+            logger.warning(f"AI generation failed: {e}, falling back to templates")
+
+    # Fallback to template-based generation
     spec_json = generate_design_from_prompt(prompt, params)
+    log_usage("template_fallback", len(prompt), 0.0001, params.get("user_id"))
 
-    logger.info(f"LOCAL_LM_DEBUG: Generated spec_json with design_type: {spec_json.get('design_type', 'unknown')}")
-
-    # Log usage for billing
-    log_usage("local", len(prompt), 0.001, params.get("user_id"))  # $0.001 per token
-
-    result = {
+    return {
         "spec_json": spec_json,
-        "preview_data": f"Local GPU generated {spec_json.get('design_type', 'design')} for: {prompt[:50]}...",
-        "provider": "local",
-        "feedback": f"Local GPU generated {spec_json.get('design_type', 'design')} using strategy: {params.get('strategy', 'modern')}",
+        "preview_data": f"Template generated {spec_json.get('design_type', 'design')} for: {prompt[:50]}...",
+        "provider": "template_fallback",
+        "feedback": f"Template-based {spec_json.get('design_type', 'design')} (AI unavailable)",
     }
 
-    logger.info(f"LOCAL_LM_DEBUG: Returning result with spec_json keys: {list(spec_json.keys())}")
-    return result
+
+async def generate_with_ai(prompt: str, params: dict) -> dict:
+    """Generate design using OpenAI or Anthropic AI models"""
+
+    system_prompt = """You are an expert architectural and interior design AI. Generate detailed design specifications in JSON format.
+
+Your response MUST be valid JSON with this exact structure:
+{
+  "objects": [
+    {
+      "id": "unique_id",
+      "type": "foundation|wall|roof|door|window|furniture|fixture|etc",
+      "subtype": "optional_subtype",
+      "material": "material_name",
+      "color_hex": "#HEXCODE",
+      "dimensions": {"width": float, "length": float, "height": float},
+      "count": int (optional)
+    }
+  ],
+  "design_type": "house|kitchen|office|bathroom|bedroom|living_room",
+  "style": "modern|traditional|contemporary|rustic|etc",
+  "stories": int,
+  "dimensions": {"width": float, "length": float, "height": float},
+  "estimated_cost": {"total": float, "currency": "INR"}
+}
+
+Analyze the user's prompt carefully and generate ALL objects mentioned (gardens, parking, pools, etc). Be creative and comprehensive."""
+
+    user_prompt = f"""Design request: {prompt}
+
+Context:
+- City: {params.get('city', 'Mumbai')}
+- Budget: ₹{params.get('context', {}).get('budget', 'Not specified')}
+- Style preference: {params.get('style', 'modern')}
+
+Generate a complete, detailed design specification in JSON format. Include ALL elements mentioned in the request."""
+
+    # Try OpenAI first
+    if OPENAI_API_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "temperature": 0.7,
+                        "response_format": {"type": "json_object"},
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    spec_json = json.loads(content)
+
+                    # Ensure required fields
+                    spec_json.setdefault("tech_stack", ["OpenAI GPT-4"])
+                    spec_json.setdefault("model_used", "gpt-4o-mini")
+
+                    return spec_json
+        except Exception as e:
+            logger.error(f"OpenAI API error: {e}")
+
+    # Try Anthropic as fallback
+    if ANTHROPIC_API_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": ANTHROPIC_API_KEY,
+                        "anthropic-version": "2023-06-01",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "claude-3-5-sonnet-20241022",
+                        "max_tokens": 4096,
+                        "messages": [{"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}],
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result["content"][0]["text"]
+
+                    # Extract JSON from response
+                    json_match = re.search(r"\{[\s\S]*\}", content)
+                    if json_match:
+                        spec_json = json.loads(json_match.group())
+                        spec_json.setdefault("tech_stack", ["Anthropic Claude"])
+                        spec_json.setdefault("model_used", "claude-3-5-sonnet")
+                        return spec_json
+        except Exception as e:
+            logger.error(f"Anthropic API error: {e}")
+
+    raise Exception("All AI providers failed")
 
 
 def generate_design_from_prompt(prompt: str, params: dict) -> dict:
-    """Generate any design based on prompt analysis"""
+    """FALLBACK: Generate design using templates (when AI unavailable)"""
     prompt_lower = prompt.lower()
-    logger.info(f"DESIGN_DEBUG: Analyzing prompt: {prompt_lower}")
+    logger.info(f"TEMPLATE_FALLBACK: Analyzing prompt: {prompt_lower}")
 
     # Detect design type - prioritize larger structures first
     if any(word in prompt_lower for word in ["house", "home", "building", "residential", "story", "floor"]):
@@ -609,25 +730,20 @@ def extract_dimensions_from_prompt(prompt: str) -> dict:
 
 
 async def lm_run(prompt: str, params: dict = None) -> dict:
-    """Route to local GPU or Yotta based on prompt complexity"""
+    """Main entry point - uses AI models for generation"""
     if params is None:
         params = {}
 
-    logger.info(f"LM_RUN_DEBUG: Processing prompt: '{prompt}' (length: {len(prompt)})")
+    logger.info(f"🤖 LM_RUN: Processing with AI models: '{prompt[:100]}...'")
 
     # Extract dimensions from prompt
     extracted_dims = extract_dimensions_from_prompt(prompt)
     if extracted_dims:
         params["extracted_dimensions"] = extracted_dims
-        logger.info(f"LM_RUN_DEBUG: Extracted dimensions from prompt: {extracted_dims}")
+        logger.info(f"📏 Extracted dimensions: {extracted_dims}")
 
-    # Simple heuristic: use local if prompt short, else use Yotta
-    if len(prompt) < 150:  # Local GPU for simple tasks
-        logger.info("LM_RUN_DEBUG: Using LOCAL GPU")
-        return run_local_lm(prompt, params)
-    else:  # Yotta for heavy jobs
-        logger.info("LM_RUN_DEBUG: Using YOTTA cloud")
-        return await run_yotta_lm(prompt, params)
+    # Always try AI first, fallback to templates if needed
+    return await run_local_lm(prompt, params)
 
 
 def optimize_house_dimensions_for_budget(budget: float, extracted_dims: dict) -> tuple:
