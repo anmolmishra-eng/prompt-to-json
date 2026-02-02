@@ -62,27 +62,35 @@ def parse_simple_query(query: str) -> Optional[Dict]:
     """Enhanced NLP parsing for material switch patterns"""
     query_lower = query.lower()
 
+    # Object mapping for common terms
+    object_mapping = {
+        "floor": "foundation",
+        "foundation": "foundation",
+        "wall": "wall",
+        "walls": "wall",
+        "roof": "roof",
+        "roofing": "roof",
+        "door": "door",
+        "doors": "door",
+        "window": "window",
+        "windows": "window",
+    }
+
+    # Pattern: "replace X with Y" - Material replacement
+    if "replace" in query_lower and "with" in query_lower:
+        parts = query_lower.split("with")
+        if len(parts) == 2:
+            target_part = parts[0].replace("replace", "").strip()
+            material = parts[1].strip()
+            target_type = object_mapping.get(target_part, target_part)
+            return {"target_type": target_type, "property": "material", "value": material, "confidence": 0.9}
+
     # Pattern: "change X to Y" - Generic material changes
     if "change" in query_lower and "to" in query_lower:
         parts = query_lower.split("to")
         if len(parts) == 2:
             target_part = parts[0].replace("change", "").strip()
             material = parts[1].strip()
-
-            # Map common object names
-            object_mapping = {
-                "floor": "foundation",
-                "foundation": "foundation",
-                "wall": "wall",
-                "walls": "wall",
-                "roof": "roof",
-                "roofing": "roof",
-                "door": "door",
-                "doors": "door",
-                "window": "window",
-                "windows": "window",
-            }
-
             target_type = object_mapping.get(target_part, target_part)
             return {"target_type": target_type, "property": "material", "value": material, "confidence": 0.9}
 
@@ -92,7 +100,6 @@ def parse_simple_query(query: str) -> Optional[Dict]:
         if len(words) >= 3:
             target = words[1]
             material = " ".join(words[2:])
-            object_mapping = {"walls": "wall", "roof": "roof", "door": "door"}
             target_type = object_mapping.get(target, target)
             return {"target_type": target_type, "property": "material", "value": material, "confidence": 0.8}
 
@@ -244,9 +251,23 @@ async def switch_material(request: SwitchRequest, db: Session = Depends(get_db))
         command = parse_simple_query(request.query)
 
         if not command:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Could not understand the request. Please try rephrasing.",
+            print(f"❌ Could not parse query: '{request.query}'")
+            from app.error_handler import APIException
+            from app.schemas.error_schemas import ErrorCode
+
+            raise APIException(
+                status_code=400,
+                error_code=ErrorCode.VALIDATION_ERROR,
+                message="Could not understand the request. Please try rephrasing.",
+                details={
+                    "query": request.query,
+                    "supported_patterns": [
+                        "change X to Y",
+                        "replace X with Y",
+                        "make X Y",
+                        "update color to #HEX",
+                    ],
+                },
             )
 
         print(f"✅ Parsed command: {command}")
