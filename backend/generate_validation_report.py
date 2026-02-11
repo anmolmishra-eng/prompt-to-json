@@ -1,4 +1,8 @@
-"""Generate validation report from validation_summary.json - Single Source of Truth"""
+"""Generate validation report from validation_summary.json - ONLY Source of Truth
+
+This is the ONLY way to generate validation reports.
+Manual summary files are NOT allowed.
+"""
 import json
 import sys
 from datetime import datetime

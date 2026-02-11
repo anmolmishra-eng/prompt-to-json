@@ -1,0 +1,10 @@
+# Prevent manual summary files
+*summary*.md
+*summary*.txt
+*summary*.json
+!validation_summary.json
+
+# Only allow generated reports from validation
+*.log
+*.json
+!validation_summary.json
