@@ -1,0 +1,57 @@
+======================================================================
+PRODUCTION VALIDATION REPORT
+======================================================================
+Generated: 2026-02-11T11:58:09.229831
+Source: production_validation_results/validation_summary.json
+Validation Run: 2026-01-14T19:42:15.521999
+Total Tests: 20
+
+CITY BREAKDOWN
+----------------------------------------------------------------------
+Mumbai: 0/5 flows completed
+Pune: 0/5 flows completed
+Ahmedabad: 0/5 flows completed
+Nashik: 0/5 flows completed
+
+DETAILED RESULTS
+----------------------------------------------------------------------
+mumbai_1_20260114_193925: 0/1
+  generate: error
+mumbai_2_20260114_193934: 0/1
+  generate: error
+mumbai_3_20260114_193941: 0/1
+  generate: error
+mumbai_4_20260114_193950: 0/1
+  generate: error
+mumbai_5_20260114_194000: 0/1
+  generate: error
+pune_1_20260114_194008: 0/1
+  generate: error
+pune_2_20260114_194016: 0/1
+  generate: error
+pune_3_20260114_194024: 0/1
+  generate: error
+pune_4_20260114_194032: 0/1
+  generate: error
+pune_5_20260114_194040: 0/1
+  generate: error
+ahmedabad_1_20260114_194047: 0/1
+  generate: error
+ahmedabad_2_20260114_194055: 0/1
+  generate: error
+ahmedabad_3_20260114_194104: 0/1
+  generate: error
+ahmedabad_4_20260114_194111: 0/1
+  generate: error
+ahmedabad_5_20260114_194121: 0/1
+  generate: error
+nashik_1_20260114_194133: 0/1
+  generate: error
+nashik_2_20260114_194142: 0/1
+  generate: error
+nashik_3_20260114_194151: 0/1
+  generate: error
+nashik_4_20260114_194201: 0/1
+  generate: error
+nashik_5_20260114_194208: 0/1
+  generate: error
