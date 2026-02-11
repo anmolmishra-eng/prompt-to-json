@@ -1,0 +1,3 @@
+# Keep directory structure but ignore spec files
+*.json
+!.gitkeep
