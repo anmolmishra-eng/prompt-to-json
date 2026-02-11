@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_pune_3",
+  "prompt": "Build a row house complex with 8 units and common parking",
+  "city": "Pune",
+  "building_type": "residential_villa",
+  "floors": 3,
+  "units": 8,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.860118"
+}

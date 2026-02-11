@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_mumbai_3",
+  "prompt": "Build a residential tower with 15 floors and rooftop amenities",
+  "city": "Mumbai",
+  "building_type": "residential_tower",
+  "floors": 15,
+  "units": 1,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.858693"
+}

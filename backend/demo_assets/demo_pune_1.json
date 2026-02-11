@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_pune_1",
+  "prompt": "Design a villa with garden, swimming pool, and 4 bedrooms",
+  "city": "Pune",
+  "building_type": "residential_villa",
+  "floors": 3,
+  "units": 4,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.859439"
+}

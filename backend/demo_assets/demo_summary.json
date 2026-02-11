@@ -1,0 +1,146 @@
+{
+  "generated_at": "2026-02-11T14:42:06.857738",
+  "total_prompts": 12,
+  "cities": {
+    "Mumbai": {
+      "count": 3,
+      "specs": [
+        {
+          "spec_id": "demo_mumbai_1",
+          "prompt": "Design a 3BHK apartment with modern kitchen and balcony",
+          "city": "Mumbai",
+          "building_type": "residential_apartment",
+          "floors": 3,
+          "units": 3,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.857965"
+        },
+        {
+          "spec_id": "demo_mumbai_2",
+          "prompt": "Create a commercial office space with parking for 20 cars",
+          "city": "Mumbai",
+          "building_type": "commercial_office",
+          "floors": 3,
+          "units": 1,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.858340"
+        },
+        {
+          "spec_id": "demo_mumbai_3",
+          "prompt": "Build a residential tower with 15 floors and rooftop amenities",
+          "city": "Mumbai",
+          "building_type": "residential_tower",
+          "floors": 15,
+          "units": 1,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.858693"
+        }
+      ]
+    },
+    "Pune": {
+      "count": 3,
+      "specs": [
+        {
+          "spec_id": "demo_pune_1",
+          "prompt": "Design a villa with garden, swimming pool, and 4 bedrooms",
+          "city": "Pune",
+          "building_type": "residential_villa",
+          "floors": 3,
+          "units": 4,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.859439"
+        },
+        {
+          "spec_id": "demo_pune_2",
+          "prompt": "Create a tech park with open workspace and cafeteria",
+          "city": "Pune",
+          "building_type": "mixed_use",
+          "floors": 3,
+          "units": 1,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.859797"
+        },
+        {
+          "spec_id": "demo_pune_3",
+          "prompt": "Build a row house complex with 8 units and common parking",
+          "city": "Pune",
+          "building_type": "residential_villa",
+          "floors": 3,
+          "units": 8,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.860118"
+        }
+      ]
+    },
+    "Ahmedabad": {
+      "count": 3,
+      "specs": [
+        {
+          "spec_id": "demo_ahmedabad_1",
+          "prompt": "Design a traditional house with courtyard and 3 bedrooms",
+          "city": "Ahmedabad",
+          "building_type": "residential_villa",
+          "floors": 3,
+          "units": 3,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.860431"
+        },
+        {
+          "spec_id": "demo_ahmedabad_2",
+          "prompt": "Create a commercial complex with retail shops and offices",
+          "city": "Ahmedabad",
+          "building_type": "commercial_office",
+          "floors": 3,
+          "units": 1,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.860731"
+        },
+        {
+          "spec_id": "demo_ahmedabad_3",
+          "prompt": "Build a residential building with 6 floors and lift",
+          "city": "Ahmedabad",
+          "building_type": "residential_tower",
+          "floors": 6,
+          "units": 1,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.861027"
+        }
+      ]
+    },
+    "Nashik": {
+      "count": 3,
+      "specs": [
+        {
+          "spec_id": "demo_nashik_1",
+          "prompt": "Design a vineyard resort with 10 cottages and restaurant",
+          "city": "Nashik",
+          "building_type": "hospitality",
+          "floors": 3,
+          "units": 10,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.861369"
+        },
+        {
+          "spec_id": "demo_nashik_2",
+          "prompt": "Create a school building with playground and 20 classrooms",
+          "city": "Nashik",
+          "building_type": "residential_tower",
+          "floors": 3,
+          "units": 20,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.861919"
+        },
+        {
+          "spec_id": "demo_nashik_3",
+          "prompt": "Build a hospital with emergency wing and 50 beds",
+          "city": "Nashik",
+          "building_type": "healthcare",
+          "floors": 3,
+          "units": 50,
+          "plot_area": 1000,
+          "timestamp": "2026-02-11T14:42:06.862341"
+        }
+      ]
+    }
+  }
+}

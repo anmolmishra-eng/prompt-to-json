@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_ahmedabad_1",
+  "prompt": "Design a traditional house with courtyard and 3 bedrooms",
+  "city": "Ahmedabad",
+  "building_type": "residential_villa",
+  "floors": 3,
+  "units": 3,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.860431"
+}

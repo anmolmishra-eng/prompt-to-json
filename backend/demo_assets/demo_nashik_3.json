@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_nashik_3",
+  "prompt": "Build a hospital with emergency wing and 50 beds",
+  "city": "Nashik",
+  "building_type": "healthcare",
+  "floors": 3,
+  "units": 50,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.862341"
+}

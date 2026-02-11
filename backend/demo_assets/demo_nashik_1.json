@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_nashik_1",
+  "prompt": "Design a vineyard resort with 10 cottages and restaurant",
+  "city": "Nashik",
+  "building_type": "hospitality",
+  "floors": 3,
+  "units": 10,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.861369"
+}

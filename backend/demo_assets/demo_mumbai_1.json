@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_mumbai_1",
+  "prompt": "Design a 3BHK apartment with modern kitchen and balcony",
+  "city": "Mumbai",
+  "building_type": "residential_apartment",
+  "floors": 3,
+  "units": 3,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.857965"
+}

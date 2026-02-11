@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_nashik_2",
+  "prompt": "Create a school building with playground and 20 classrooms",
+  "city": "Nashik",
+  "building_type": "residential_tower",
+  "floors": 3,
+  "units": 20,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.861919"
+}

@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_ahmedabad_3",
+  "prompt": "Build a residential building with 6 floors and lift",
+  "city": "Ahmedabad",
+  "building_type": "residential_tower",
+  "floors": 6,
+  "units": 1,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.861027"
+}

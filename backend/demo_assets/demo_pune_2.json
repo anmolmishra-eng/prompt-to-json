@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_pune_2",
+  "prompt": "Create a tech park with open workspace and cafeteria",
+  "city": "Pune",
+  "building_type": "mixed_use",
+  "floors": 3,
+  "units": 1,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.859797"
+}

@@ -1,0 +1,10 @@
+{
+  "spec_id": "demo_mumbai_2",
+  "prompt": "Create a commercial office space with parking for 20 cars",
+  "city": "Mumbai",
+  "building_type": "commercial_office",
+  "floors": 3,
+  "units": 1,
+  "plot_area": 1000,
+  "timestamp": "2026-02-11T14:42:06.858340"
+}
