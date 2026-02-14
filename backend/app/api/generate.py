@@ -131,17 +131,21 @@ def calculate_estimated_cost(spec_json: Dict) -> float:
 
 
 def generate_mock_glb(spec_json: Dict) -> bytes:
-    """Generate real GLB file with actual kitchen geometry"""
+    """Generate real GLB file with actual geometry"""
     try:
         from app.geometry_generator_real import generate_real_glb
 
-        return generate_real_glb(spec_json)
+        logger.info(f"Generating geometry for design_type: {spec_json.get('design_type')}")
+        glb_bytes = generate_real_glb(spec_json)
+        logger.info(f"Successfully generated {len(glb_bytes)} bytes of GLB data")
+        return glb_bytes
     except Exception as e:
-        logger.warning(f"Real geometry generation failed, using fallback: {e}")
+        logger.error(f"Real geometry generation FAILED: {e}", exc_info=True)
         # Fallback to simple GLB
         glb_header = b"glTF\x02\x00\x00\x00"
         mock_data = b'{"asset":{"version":"2.0"},"scenes":[{"nodes":[0]}],"nodes":[{"mesh":0}],"meshes":[{"primitives":[{"attributes":{"POSITION":0}}]}]}'
         padding = b"\x00" * (1024 - len(mock_data))
+        logger.warning("Using fallback simple GLB due to geometry generation error")
         return glb_header + mock_data + padding
 
 

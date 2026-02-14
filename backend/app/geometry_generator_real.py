@@ -3,8 +3,242 @@ Real 3D Geometry Generator
 Converts design specs to actual 3D models
 """
 import json
+import math
 import struct
 from typing import Dict, List, Tuple
+
+
+def calculate_normals(
+    vertices: List[Tuple[float, float, float]], faces: List[List[int]]
+) -> List[Tuple[float, float, float]]:
+    """Calculate vertex normals from faces"""
+    # Initialize normals to zero
+    normals = [(0.0, 0.0, 0.0) for _ in vertices]
+
+    # Calculate face normals and accumulate to vertices
+    for face in faces:
+        if len(face) < 3:
+            continue
+
+        # Get vertices of triangle
+        v0 = vertices[face[0]]
+        v1 = vertices[face[1]]
+        v2 = vertices[face[2]]
+
+        # Calculate edges
+        e1 = (v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2])
+        e2 = (v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2])
+
+        # Cross product for face normal
+        nx = e1[1] * e2[2] - e1[2] * e2[1]
+        ny = e1[2] * e2[0] - e1[0] * e2[2]
+        nz = e1[0] * e2[1] - e1[1] * e2[0]
+
+        # Accumulate to each vertex of the face
+        for idx in face:
+            n = normals[idx]
+            normals[idx] = (n[0] + nx, n[1] + ny, n[2] + nz)
+
+    # Normalize all normals
+    normalized = []
+    for n in normals:
+        length = math.sqrt(n[0] ** 2 + n[1] ** 2 + n[2] ** 2)
+        if length > 0:
+            normalized.append((n[0] / length, n[1] / length, n[2] / length))
+        else:
+            normalized.append((0.0, 0.0, 1.0))  # Default up
+
+    return normalized
+
+
+def generate_building_glb(spec_json: Dict) -> bytes:
+    """Generate complete building structure with walls, roof, doors, windows"""
+    dimensions = spec_json.get("dimensions", {})
+    objects = spec_json.get("objects", [])
+    stories = spec_json.get("stories", 1)
+    design_type = spec_json.get("design_type", "")
+
+    width = dimensions.get("width", 10.0)
+    length = dimensions.get("length", 8.0)
+    total_height = dimensions.get("height", 3.0 * stories)
+    height = total_height / stories if stories > 1 else total_height
+
+    vertices = []
+    faces = []  # Store as list of triangles
+    vertex_offset = 0
+
+    # 1. Foundation
+    found_verts, found_faces = create_foundation_geometry({"width": width, "length": length, "height": 0.5})
+    vertices.extend(found_verts)
+    for face in found_faces:
+        faces.append([i + vertex_offset for i in face])
+    vertex_offset += len(found_verts)
+
+    # 2. Walls (4 walls per story)
+    wall_thickness = 0.2
+    wall_height = height
+
+    # For row houses, create multiple stories
+    for story in range(stories):
+        story_z_offset = story * height + 0.5  # Offset by foundation height
+
+        # Front wall (along X axis)
+        front_wall_verts, front_wall_faces = create_wall_geometry(
+            {"width": width, "height": wall_height, "thickness": wall_thickness}
+        )
+        front_wall_verts = [(x, y, z + story_z_offset) for x, y, z in front_wall_verts]
+        vertices.extend(front_wall_verts)
+        for face in front_wall_faces:
+            faces.append([i + vertex_offset for i in face])
+        vertex_offset += len(front_wall_verts)
+
+        # Back wall (along X axis, offset by length)
+        back_wall_verts, back_wall_faces = create_wall_geometry(
+            {"width": width, "height": wall_height, "thickness": wall_thickness}
+        )
+        back_wall_verts = [(x, y + length - wall_thickness, z + story_z_offset) for x, y, z in back_wall_verts]
+        vertices.extend(back_wall_verts)
+        for face in back_wall_faces:
+            faces.append([i + vertex_offset for i in face])
+        vertex_offset += len(back_wall_verts)
+
+        # Left wall (along Y axis) - rotated 90 degrees
+        left_wall_verts, left_wall_faces = create_wall_geometry(
+            {"width": length, "height": wall_height, "thickness": wall_thickness}
+        )
+        # Rotate: X becomes Y, Y becomes thickness in X direction
+        left_wall_verts = [(y, x, z + story_z_offset) for x, y, z in left_wall_verts]
+        vertices.extend(left_wall_verts)
+        for face in left_wall_faces:
+            faces.append([i + vertex_offset for i in face])
+        vertex_offset += len(left_wall_verts)
+
+        # Right wall (along Y axis, offset by width) - rotated 90 degrees
+        right_wall_verts, right_wall_faces = create_wall_geometry(
+            {"width": length, "height": wall_height, "thickness": wall_thickness}
+        )
+        # Rotate: X becomes Y, Y becomes thickness in X direction, offset by width
+        right_wall_verts = [(width - wall_thickness + y, x, z + story_z_offset) for x, y, z in right_wall_verts]
+        vertices.extend(right_wall_verts)
+        for face in right_wall_faces:
+            faces.append([i + vertex_offset for i in face])
+        vertex_offset += len(right_wall_verts)
+
+        # Add floor slab for upper stories
+        if story > 0:
+            floor_verts, floor_faces = create_slab_geometry({"width": width, "length": length, "thickness": 0.15})
+            floor_verts = [(x, y, z + story_z_offset) for x, y, z in floor_verts]
+            vertices.extend(floor_verts)
+            for face in floor_faces:
+                faces.append([i + vertex_offset for i in face])
+            vertex_offset += len(floor_verts)
+
+    # 3. Roof (at top of all stories)
+    # Apartments always have flat roofs
+    if design_type.lower() in ["apartment", "flat"]:
+        roof_type = "flat"
+    else:
+        roof_type = (
+            "flat"
+            if "flat" in design_type.lower() or any("flat_roof" in obj.get("subtype", "") for obj in objects)
+            else "pitched"
+        )
+
+    roof_verts, roof_faces = create_roof_geometry(
+        {"width": width, "length": length, "height": 1.5 if roof_type == "pitched" else 0.2, "roof_type": roof_type}
+    )
+    roof_z_offset = stories * height + 0.5
+    roof_verts = [(x, y, z + roof_z_offset) for x, y, z in roof_verts]
+    vertices.extend(roof_verts)
+    for face in roof_faces:
+        faces.append([i + vertex_offset for i in face])
+    vertex_offset += len(roof_verts)
+
+    # 4. Add doors and windows from objects
+    window_count = 0
+    door_count = 0
+
+    for obj in objects:
+        obj_type = obj.get("type", "").lower()
+        obj_id = obj.get("id", "").lower()
+        count = obj.get("count", 1)
+
+        if "door" in obj_type or "door" in obj_id:
+            door_verts, door_faces = create_door_geometry(obj.get("dimensions", {}))
+            # Position door at front wall center
+            door_verts = [(x + width / 2 - 0.6, y + 0.1, z + 0.5) for x, y, z in door_verts]
+            vertices.extend(door_verts)
+            for face in door_faces:
+                faces.append([i + vertex_offset for i in face])
+            vertex_offset += len(door_verts)
+            door_count += 1
+
+        elif "window" in obj_type or "window" in obj_id:
+            for i in range(count):
+                window_verts, window_faces = create_window_geometry(obj.get("dimensions", {}))
+                # Distribute windows along front and side walls
+                if window_count % 2 == 0:
+                    # Front wall windows
+                    x_pos = (window_count // 2) * (width / (count + 1)) + 1
+                    window_verts = [(x + x_pos, y + 0.1, z + height / 2 + 0.5) for x, y, z in window_verts]
+                else:
+                    # Side wall windows
+                    y_pos = (window_count // 2) * (length / (count + 1)) + 2
+                    window_verts = [(x + width - 0.3, y + y_pos, z + height / 2 + 0.5) for x, y, z in window_verts]
+
+                vertices.extend(window_verts)
+                for face in window_faces:
+                    faces.append([i + vertex_offset for i in face])
+                vertex_offset += len(window_verts)
+                window_count += 1
+
+    # Count total indices
+    total_indices = sum(len(face) for face in faces)
+
+    # Calculate normals for each vertex
+    normals = calculate_normals(vertices, faces)
+
+    # Create glTF JSON with normals
+    gltf_json = {
+        "asset": {"version": "2.0"},
+        "scenes": [{"nodes": [0]}],
+        "nodes": [{"mesh": 0}],
+        "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 2}, "indices": 1}]}],
+        "accessors": [
+            {"bufferView": 0, "componentType": 5126, "count": len(vertices), "type": "VEC3"},
+            {"bufferView": 1, "componentType": 5123, "count": total_indices, "type": "SCALAR"},
+            {"bufferView": 2, "componentType": 5126, "count": len(normals), "type": "VEC3"},
+        ],
+        "bufferViews": [
+            {"buffer": 0, "byteOffset": 0, "byteLength": len(vertices) * 12},
+            {"buffer": 0, "byteOffset": len(vertices) * 12, "byteLength": total_indices * 2},
+            {"buffer": 0, "byteOffset": len(vertices) * 12 + total_indices * 2, "byteLength": len(normals) * 12},
+        ],
+        "buffers": [{"byteLength": len(vertices) * 12 + total_indices * 2 + len(normals) * 12}],
+    }
+
+    json_data = json.dumps(gltf_json).encode("utf-8")
+
+    # Pack vertex data
+    vertex_data = b""
+    for vertex in vertices:
+        vertex_data += struct.pack("<fff", vertex[0], vertex[1], vertex[2])
+
+    # Pack index data - faces is list of triangles
+    index_data = b""
+    for face in faces:
+        for idx in face:
+            if idx >= len(vertices):
+                raise ValueError(f"Index {idx} out of range for {len(vertices)} vertices")
+            index_data += struct.pack("<H", idx)
+
+    # Pack normal data
+    normal_data = b""
+    for normal in normals:
+        normal_data += struct.pack("<fff", normal[0], normal[1], normal[2])
+
+    binary_data = vertex_data + index_data + normal_data
+    return create_glb_file(json_data, binary_data)
 
 
 def generate_real_glb(spec_json: Dict) -> bytes:
@@ -12,6 +246,22 @@ def generate_real_glb(spec_json: Dict) -> bytes:
 
     # Extract objects from spec
     objects = spec_json.get("objects", [])
+    design_type = spec_json.get("design_type", "")
+    dimensions = spec_json.get("dimensions", {})
+
+    # If it's a building/house, create a complete structure
+    if design_type in [
+        "house",
+        "building",
+        "apartment",
+        "villa",
+        "bungalow",
+        "row_house",
+        "townhouse",
+        "duplex",
+        "penthouse",
+    ]:
+        return generate_building_glb(spec_json)
 
     # Generate vertices and faces for each object
     vertices = []
@@ -29,6 +279,10 @@ def generate_real_glb(spec_json: Dict) -> bytes:
             indices.extend([i + vertex_offset for i in idx])
 
         vertex_offset += len(obj_vertices)
+
+    # Fallback: if no vertices, create a simple box
+    if not vertices:
+        vertices, indices = create_box_geometry(dimensions or {"width": 10, "depth": 8, "height": 3})
 
     # Create glTF JSON
     gltf_json = {
@@ -55,10 +309,23 @@ def generate_real_glb(spec_json: Dict) -> bytes:
     for vertex in vertices:
         vertex_data += struct.pack("<fff", vertex[0], vertex[1], vertex[2])
 
-    # Pack index data
+    # Pack index data - indices is list of faces (triangles)
     index_data = b""
-    for index in indices:
-        index_data += struct.pack("<H", index)
+    total_indices = 0
+    for face in indices:
+        for idx in face:
+            if idx >= len(vertices):
+                raise ValueError(f"Index {idx} out of range for {len(vertices)} vertices")
+            index_data += struct.pack("<H", idx)
+            total_indices += 1
+
+    # Update accessor count
+    gltf_json["accessors"][1]["count"] = total_indices
+    gltf_json["bufferViews"][1]["byteLength"] = total_indices * 2
+    gltf_json["buffers"][0]["byteLength"] = len(vertices) * 12 + total_indices * 2
+
+    # Re-encode JSON with updated counts
+    json_data = json.dumps(gltf_json).encode("utf-8")
 
     binary_data = vertex_data + index_data
 
@@ -70,38 +337,42 @@ def create_object_geometry(obj: Dict) -> Tuple[List[Tuple[float, float, float]],
     """Create 3D geometry for any design object"""
 
     obj_type = obj.get("type", "")
+    obj_id = obj.get("id", "")
     dimensions = obj.get("dimensions", {})
 
+    # Check both type and id for better matching
+    obj_lower = (obj_type + " " + obj_id).lower()
+
     # Kitchen objects
-    if obj_type == "cabinet":
+    if "cabinet" in obj_lower:
         return create_cabinet_geometry(dimensions)
-    elif obj_type == "countertop":
+    elif "countertop" in obj_lower or "counter" in obj_lower:
         return create_countertop_geometry(dimensions)
-    elif obj_type == "island":
+    elif "island" in obj_lower:
         return create_island_geometry(dimensions)
-    elif obj_type == "floor":
+    elif "floor" in obj_lower or "flooring" in obj_lower:
         return create_floor_geometry(dimensions)
 
     # Building/Architecture objects
-    elif obj_type == "wall":
+    elif "wall" in obj_lower:
         return create_wall_geometry(dimensions)
-    elif obj_type == "door":
+    elif "door" in obj_lower:
         return create_door_geometry(dimensions)
-    elif obj_type == "window":
+    elif "window" in obj_lower:
         return create_window_geometry(dimensions)
-    elif obj_type == "roof":
+    elif "roof" in obj_lower:
         return create_roof_geometry(dimensions)
-    elif obj_type == "foundation":
+    elif "foundation" in obj_lower:
         return create_foundation_geometry(dimensions)
-    elif obj_type == "column":
+    elif "column" in obj_lower or "pillar" in obj_lower:
         return create_column_geometry(dimensions)
-    elif obj_type == "beam":
+    elif "beam" in obj_lower:
         return create_beam_geometry(dimensions)
-    elif obj_type == "slab":
+    elif "slab" in obj_lower:
         return create_slab_geometry(dimensions)
-    elif obj_type == "staircase":
+    elif "stair" in obj_lower:
         return create_staircase_geometry(dimensions)
-    elif obj_type == "balcony":
+    elif "balcony" in obj_lower:
         return create_balcony_geometry(dimensions)
 
     # Room/Interior objects
@@ -316,10 +587,46 @@ def create_roof_geometry(dims: Dict) -> Tuple[List[Tuple[float, float, float]], 
     w = dims.get("width", 10.0)
     l = dims.get("length", 8.0)
     h = dims.get("height", 2.0)
+    roof_type = dims.get("roof_type", "pitched")
 
-    # Pitched roof
-    vertices = [(0, 0, 0), (w, 0, 0), (w, l, 0), (0, l, 0), (w / 2, 0, h), (w / 2, l, h)]
-    faces = [[0, 1, 4], [1, 2, 5], [1, 5, 4], [2, 3, 5], [3, 0, 4], [3, 4, 5], [0, 3, 2], [0, 2, 1]]
+    if roof_type == "flat":
+        # Flat roof with slight slope
+        vertices = [(0, 0, 0), (w, 0, 0), (w, l, 0), (0, l, 0), (0, 0, 0.2), (w, 0, 0.2), (w, l, 0.3), (0, l, 0.3)]
+        faces = [
+            [0, 1, 2],
+            [0, 2, 3],
+            [4, 7, 6],
+            [4, 6, 5],
+            [0, 4, 5],
+            [0, 5, 1],
+            [2, 6, 7],
+            [2, 7, 3],
+            [0, 3, 7],
+            [0, 7, 4],
+            [1, 5, 6],
+            [1, 6, 2],
+        ]
+    else:
+        # Pitched/gable roof
+        peak_h = h
+        vertices = [
+            (0, 0, 0),
+            (w, 0, 0),
+            (w, l, 0),
+            (0, l, 0),  # Base corners
+            (w / 2, 0, peak_h),
+            (w / 2, l, peak_h),  # Peak points
+        ]
+        faces = [
+            [0, 1, 4],  # Front left slope
+            [1, 2, 5],
+            [1, 5, 4],  # Right slope
+            [2, 3, 5],  # Back left slope
+            [3, 0, 4],
+            [3, 4, 5],  # Left slope
+            [0, 3, 2],
+            [0, 2, 1],  # Base
+        ]
     return vertices, faces
 
 
@@ -425,29 +732,44 @@ def create_staircase_geometry(dims: Dict) -> Tuple[List[Tuple[float, float, floa
     faces = []
     step_h = h / steps
     step_l = l / steps
+    step_thickness = 0.05
 
     for i in range(steps):
         z = i * step_h
         y = i * step_l
-        vertices.extend(
-            [
-                (0, y, z),
-                (w, y, z),
-                (w, y + step_l, z),
-                (0, y + step_l, z),
-                (0, y, z + step_h),
-                (w, y, z + step_h),
-                (w, y + step_l, z + step_h),
-                (0, y + step_l, z + step_h),
-            ]
-        )
-        base = i * 8
+
+        # Create each step with proper tread and riser
+        step_verts = [
+            # Bottom of step
+            (0, y, z),
+            (w, y, z),
+            (w, y + step_l, z),
+            (0, y + step_l, z),
+            # Top of step
+            (0, y, z + step_h),
+            (w, y, z + step_h),
+            (w, y + step_l, z + step_h),
+            (0, y + step_l, z + step_h),
+        ]
+
+        base = len(vertices)
+        vertices.extend(step_verts)
+
+        # Create faces for each step
         faces.extend(
             [
                 [base, base + 1, base + 2],
-                [base, base + 2, base + 3],
+                [base, base + 2, base + 3],  # Bottom
                 [base + 4, base + 7, base + 6],
-                [base + 4, base + 6, base + 5],
+                [base + 4, base + 6, base + 5],  # Top (tread)
+                [base, base + 4, base + 5],
+                [base, base + 5, base + 1],  # Front (riser)
+                [base + 2, base + 6, base + 7],
+                [base + 2, base + 7, base + 3],  # Back
+                [base, base + 3, base + 7],
+                [base, base + 7, base + 4],  # Left
+                [base + 1, base + 5, base + 6],
+                [base + 1, base + 6, base + 2],  # Right
             ]
         )
 
