@@ -21,12 +21,12 @@ SOHAM_URL = settings.SOHAM_URL
 API_KEY = settings.COMPLIANCE_API_KEY
 
 
-@router.get("/test")
+@router.get("/test", include_in_schema=False)
 async def test_endpoint(current_user: str = Depends(get_current_user)):
     return {"message": "Compliance endpoint is working", "timestamp": "2024-01-01", "user": current_user}
 
 
-@router.post("/run_case")
+@router.post("/run_case", include_in_schema=False)
 async def run_case(case: dict, current_user: str = Depends(get_current_user)):
     try:
         logger.info(f"Processing compliance case for {case.get('city')} - Project: {case.get('project_id')}")
@@ -115,7 +115,7 @@ async def _mock_compliance_response(case: dict):
         return {"case_id": "error_case", "status": "ERROR", "message": f"Mock response generation failed: {str(e)}"}
 
 
-@router.post("/feedback")
+@router.post("/feedback", include_in_schema=False)
 async def feedback(feedback_req: dict, current_user: str = Depends(get_current_user)):
     """Submit compliance feedback to Soham's service"""
     try:
@@ -160,7 +160,7 @@ async def feedback(feedback_req: dict, current_user: str = Depends(get_current_u
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/ingest_pdf")
+@router.post("/ingest_pdf", include_in_schema=False)
 async def ingest_pdf_rules(request: dict, current_user: str = Depends(get_current_user)):
     """Ingest compliance rules from PDF using Prefect workflow"""
     try:
@@ -182,13 +182,13 @@ async def ingest_pdf_rules(request: dict, current_user: str = Depends(get_curren
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/workflow_status")
+@router.get("/workflow_status", include_in_schema=False)
 async def get_workflow_status(current_user: str = Depends(get_current_user)):
     """Get workflow system status"""
     return await check_workflow_status()
 
 
-@router.get("/regulations")
+@router.get("/regulations", include_in_schema=False)
 async def get_regulations(current_user: str = Depends(get_current_user)):
     """Get available compliance regulations"""
     return {
@@ -201,7 +201,7 @@ async def get_regulations(current_user: str = Depends(get_current_user)):
     }
 
 
-@router.post("/check", response_model=ComplianceResponse)
+@router.post("/check", response_model=ComplianceResponse, include_in_schema=False)
 async def compliance_check(
     request: ComplianceRequest,
     current_user: str = Depends(get_current_user),

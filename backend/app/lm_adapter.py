@@ -11,6 +11,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # AI Model Configuration
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", settings.GROQ_API_KEY if hasattr(settings, "GROQ_API_KEY") else None)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", settings.OPENAI_API_KEY if hasattr(settings, "OPENAI_API_KEY") else None)
 ANTHROPIC_API_KEY = os.getenv(
     "ANTHROPIC_API_KEY", settings.ANTHROPIC_API_KEY if hasattr(settings, "ANTHROPIC_API_KEY") else None
@@ -18,6 +19,10 @@ ANTHROPIC_API_KEY = os.getenv(
 USE_AI_MODEL = os.getenv("USE_AI_MODEL", "true").lower() == "true"
 
 # Validate API keys
+if GROQ_API_KEY and len(GROQ_API_KEY) < 20:
+    logger.warning("Invalid Groq API key format, disabling Groq")
+    GROQ_API_KEY = None
+
 if OPENAI_API_KEY and (not OPENAI_API_KEY.startswith("sk-") or len(OPENAI_API_KEY) < 20):
     logger.warning("Invalid OpenAI API key format, disabling OpenAI")
     OPENAI_API_KEY = None
@@ -26,7 +31,7 @@ if ANTHROPIC_API_KEY and len(ANTHROPIC_API_KEY) < 20:
     logger.warning("Invalid Anthropic API key format, disabling Anthropic")
     ANTHROPIC_API_KEY = None
 
-if USE_AI_MODEL and not (OPENAI_API_KEY or ANTHROPIC_API_KEY):
+if USE_AI_MODEL and not (GROQ_API_KEY or OPENAI_API_KEY or ANTHROPIC_API_KEY):
     logger.warning("No valid AI API keys found, will use template fallback")
 
 
@@ -35,14 +40,12 @@ async def run_local_lm(prompt: str, params: dict) -> dict:
     logger.info(f"AI_LM: Processing prompt: '{prompt[:100]}...'")
 
     # Try AI generation with multi-model fallback
-    if USE_AI_MODEL and (OPENAI_API_KEY or ANTHROPIC_API_KEY):
+    if USE_AI_MODEL and (GROQ_API_KEY or OPENAI_API_KEY or ANTHROPIC_API_KEY):
         try:
-            from app.multi_model_ai import generate_with_multi_model_ai
-
-            spec_json = await generate_with_multi_model_ai(prompt, params)
+            spec_json = await generate_with_ai(prompt, params)
             logger.info(f"✅ AI generated design: {spec_json.get('design_type')}")
 
-            log_usage("ai_model", len(prompt), 0.002, params.get("user_id"))
+            log_usage("ai_model", len(prompt), 0.0001, params.get("user_id"))
 
             return {
                 "spec_json": spec_json,
@@ -51,7 +54,7 @@ async def run_local_lm(prompt: str, params: dict) -> dict:
                 "feedback": f"AI model generated {spec_json.get('design_type', 'design')} with intelligent analysis",
             }
         except Exception as e:
-            logger.warning(f"AI generation failed after all models: {e}, falling back to enhanced templates")
+            logger.warning(f"AI generation failed: {e}, falling back to templates")
 
     # Fallback to ENHANCED template-based generation
     try:
@@ -59,8 +62,7 @@ async def run_local_lm(prompt: str, params: dict) -> dict:
 
         spec_json = generate_enhanced_design_from_prompt(prompt, params)
         logger.info(f"✅ Enhanced template generated {len(spec_json.get('objects', []))} objects")
-    except ImportError as ie:
-        logger.warning(f"Enhanced template module not found: {ie}, using basic template")
+    except ImportError:
         spec_json = generate_design_from_prompt(prompt, params)
     except Exception as e:
         logger.warning(f"Enhanced template failed: {e}, using basic template")
@@ -77,7 +79,7 @@ async def run_local_lm(prompt: str, params: dict) -> dict:
 
 
 async def generate_with_ai(prompt: str, params: dict) -> dict:
-    """Generate design using OpenAI or Anthropic AI models with retry logic"""
+    """Generate design using Groq, OpenAI or Anthropic AI models with retry logic"""
 
     system_prompt = """You are an expert architectural and interior design AI. Generate detailed design specifications in JSON format.
 
@@ -94,23 +96,55 @@ Your response MUST be valid JSON with this exact structure:
       "count": int (optional)
     }
   ],
-  "design_type": "house|kitchen|office|bathroom|bedroom|living_room",
+  "design_type": "house|apartment|kitchen|office|bathroom|bedroom|living_room",
   "style": "modern|traditional|contemporary|rustic|etc",
   "stories": int,
   "dimensions": {"width": float, "length": float, "height": float},
   "estimated_cost": {"total": float, "currency": "INR"}
 }
 
-Analyze the user's prompt carefully and generate ALL objects mentioned (gardens, parking, pools, etc). Be creative and comprehensive."""
+Analyze the user's prompt carefully and generate ALL objects mentioned. Be creative and comprehensive."""
 
+    budget = params.get("budget") or params.get("context", {}).get("budget", "Not specified")
     user_prompt = f"""Design request: {prompt}
 
 Context:
 - City: {params.get('city', 'Mumbai')}
-- Budget: ₹{params.get('context', {}).get('budget', 'Not specified')}
+- Budget: ₹{budget:,} if isinstance(budget, (int, float)) else budget
 - Style preference: {params.get('style', 'modern')}
 
 Generate a complete, detailed design specification in JSON format. Include ALL elements mentioned in the request."""
+
+    # Try Groq first (fastest and free)
+    if GROQ_API_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+                    json={
+                        "model": "llama-3.3-70b-versatile",
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "temperature": 0.7,
+                        "response_format": {"type": "json_object"},
+                    },
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    spec_json = json.loads(content)
+                    spec_json.setdefault("tech_stack", ["Groq Llama 3.3 70B"])
+                    spec_json.setdefault("model_used", "groq-llama-3.3-70b")
+                    logger.info("✅ Groq AI generation successful")
+                    return spec_json
+                else:
+                    logger.warning(f"Groq returned status {response.status_code}: {response.text[:200]}")
+        except Exception as e:
+            logger.warning(f"Groq failed: {e}, trying OpenAI")
 
     # Try OpenAI with retry logic
     if OPENAI_API_KEY:
@@ -221,7 +255,6 @@ Generate a complete, detailed design specification in JSON format. Include ALL e
                 else:
                     logger.error(f"Anthropic failed after {max_retries} attempts: {e}")
 
-    logger.warning("All AI providers exhausted, using template fallback")
     raise Exception("All AI providers failed")
 
 
@@ -745,11 +778,14 @@ def generate_living_room_design(prompt: str, params: dict) -> dict:
 def generate_apartment_design(prompt: str, params: dict) -> dict:
     """Generate apartment interior design (BHK)"""
     prompt_lower = prompt.lower()
+    extracted_dims = params.get("extracted_dimensions", {})
+    context = params.get("context", {})
+    budget = context.get("budget", 5000000)
 
     # Extract BHK count
     bhk = 2
     if "penthouse" in prompt_lower:
-        bhk = 4  # Penthouses are typically large
+        bhk = 4
     elif "3bhk" in prompt_lower or "3 bhk" in prompt_lower:
         bhk = 3
     elif "4bhk" in prompt_lower or "4 bhk" in prompt_lower:
@@ -775,16 +811,23 @@ def generate_apartment_design(prompt: str, params: dict) -> dict:
     elif "traditional" in prompt_lower:
         style = "traditional"
 
-    # Base dimensions based on BHK
-    area_map = {1: 40, 2: 60, 3: 90, 4: 150}  # sqm (penthouse gets more space)
-    total_area = area_map.get(bhk, 60)
+    # Use extracted dimensions if available
+    if extracted_dims.get("width") and extracted_dims.get("length"):
+        width = extracted_dims["width"]
+        length = extracted_dims["length"]
+        total_area = width * length
+        logger.info(f"Using extracted dimensions: {width}x{length}m = {total_area:.2f} sqm")
+    else:
+        # Base dimensions based on BHK
+        area_map = {1: 40, 2: 60, 3: 90, 4: 150}
+        total_area = area_map.get(bhk, 60)
 
-    # Luxury multiplier
-    if style == "luxury":
-        total_area = int(total_area * 1.5)
+        # Luxury multiplier
+        if style == "luxury":
+            total_area = int(total_area * 1.5)
 
-    width = (total_area * 0.6) ** 0.5
-    length = (total_area / 0.6) ** 0.5
+        width = (total_area * 0.6) ** 0.5
+        length = (total_area / 0.6) ** 0.5
 
     objects = [
         {
@@ -906,12 +949,18 @@ def generate_apartment_design(prompt: str, params: dict) -> dict:
             }
         )
 
-    # Calculate cost
+    # Calculate cost based on budget
     base_cost = total_area * 25000  # ₹25k per sqm for apartments
     if style == "luxury":
         base_cost *= 2.5
     elif style == "minimalist":
         base_cost *= 0.8
+
+    # Use provided budget if it's reasonable
+    if budget > 0 and budget < base_cost * 2:
+        estimated_cost = budget
+    else:
+        estimated_cost = base_cost
 
     return {
         "objects": objects,
@@ -919,8 +968,8 @@ def generate_apartment_design(prompt: str, params: dict) -> dict:
         "style": style,
         "stories": 1,
         "dimensions": {"width": width, "length": length, "height": 3.0 if style == "luxury" else 2.7},
-        "estimated_cost": {"total": base_cost, "currency": "INR"},
-        "metadata": {"bhk_count": bhk, "total_area_sqm": total_area},
+        "estimated_cost": {"total": estimated_cost, "currency": "INR"},
+        "metadata": {"bhk_count": bhk, "total_area_sqm": total_area, "budget_provided": budget},
     }
 
 
@@ -1014,33 +1063,132 @@ async def run_yotta_lm(prompt: str, params: dict) -> dict:
 def extract_dimensions_from_prompt(prompt: str) -> dict:
     """Extract dimensions from natural language prompt"""
     dimensions = {}
+    prompt_lower = prompt.lower()
 
-    # Patterns to match dimensions
-    patterns = [
-        r"(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*(?:x\s*(\d+(?:\.\d+)?))?\s*(?:meter|metres|m|feet|ft|cm|centimeter|centimeters)",
-        r"(\d+(?:\.\d+)?)\s*by\s*(\d+(?:\.\d+)?)\s*(?:by\s*(\d+(?:\.\d+)?))?\s*(?:meter|metres|m|feet|ft|cm|centimeter|centimeters)",
-        r"length\s*(\d+(?:\.\d+)?)\s*(?:meter|metres|m|feet|ft|cm|centimeter|centimeters)",
-        r"width\s*(\d+(?:\.\d+)?)\s*(?:meter|metres|m|feet|ft|cm|centimeter|centimeters)",
-        r"height\s*(\d+(?:\.\d+)?)\s*(?:meter|metres|m|feet|ft|cm|centimeter|centimeters)",
-    ]
+    # Extract area (sq ft, sqft, square feet, sq m, sqm)
+    area_match = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:sq\s*ft|sqft|square\s*feet|sq\s*feet|sq\s*m|sqm|square\s*meters?)", prompt_lower
+    )
+    if area_match:
+        area_val = float(area_match.group(1))
+        # Check if it's in sq ft or sq m
+        if "sq m" in area_match.group(0) or "sqm" in area_match.group(0):
+            area_sqm = area_val
+        else:
+            area_sqm = area_val * 0.092903  # Convert sq ft to sq m
 
-    for pattern in patterns:
-        matches = re.findall(pattern, prompt.lower())
-        if matches:
-            if len(matches[0]) == 3 and matches[0][2]:  # 3D dimensions
-                dimensions = {
-                    "length": float(matches[0][0]),
-                    "width": float(matches[0][1]),
-                    "height": float(matches[0][2]),
-                }
+        # Don't set width/length from area if length is already specified
+        if "length" not in dimensions:
+            side = area_sqm**0.5
+            dimensions["width"] = side
+            dimensions["length"] = side
+        dimensions["area_sqm"] = area_sqm
+        logger.info(f"Extracted area: {area_val} → {area_sqm:.2f} sqm")
+
+    # Extract diameter/radius
+    diameter_match = re.search(r"diameter\s*(\d+(?:\.\d+)?)\s*(?:feet|ft|meter|metres|m|cm|cms)?", prompt_lower)
+    if diameter_match:
+        diameter = float(diameter_match.group(1))
+        if "cm" in prompt_lower:
+            diameter *= 0.01
+        elif "feet" in prompt_lower or "ft" in prompt_lower:
+            diameter *= 0.3048
+        dimensions["diameter"] = diameter
+        dimensions["width"] = diameter
+        dimensions["length"] = diameter
+
+    radius_match = re.search(r"radius\s*(\d+(?:\.\d+)?)\s*(?:feet|ft|meter|metres|m|cm|cms)?", prompt_lower)
+    if radius_match:
+        radius = float(radius_match.group(1))
+        if "cm" in prompt_lower:
+            radius *= 0.01
+        elif "feet" in prompt_lower or "ft" in prompt_lower:
+            radius *= 0.3048
+        dimensions["radius"] = radius
+        dimensions["width"] = radius * 2
+        dimensions["length"] = radius * 2
+
+    # Extract individual dimensions (height, length, width, breadth) FIRST
+    height_match = re.search(r"height\s*(\d+(?:\.\d+)?)\s*(?:feet|ft|meter|metres|m|cm|cms)?", prompt_lower)
+    if height_match:
+        dimensions["height"] = float(height_match.group(1))
+
+    length_match = re.search(r"length\s*(\d+(?:\.\d+)?)\s*(?:feet|ft|meter|metres|m|cm|cms)?", prompt_lower)
+    if length_match:
+        dimensions["length"] = float(length_match.group(1))
+
+    width_match = re.search(r"(?:width|breadth)\s*(\d+(?:\.\d+)?)\s*(?:feet|ft|meter|metres|m|cm|cms)?", prompt_lower)
+    if width_match:
+        dimensions["width"] = float(width_match.group(1))
+
+    # Extract area (sq ft, sqft, square feet, sq m, sqm)
+    area_match = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:sq\s*ft|sqft|square\s*feet|sq\s*feet|sq\s*m|sqm|square\s*meters?)", prompt_lower
+    )
+    if area_match:
+        area_val = float(area_match.group(1))
+        # Check if it's in sq ft or sq m
+        if "sq m" in area_match.group(0) or "sqm" in area_match.group(0):
+            area_sqm = area_val
+        else:
+            area_sqm = area_val * 0.092903  # Convert sq ft to sq m
+
+        # Calculate missing dimension from area
+        if "length" in dimensions and "width" not in dimensions:
+            dimensions["width"] = area_sqm / dimensions["length"]
+        elif "width" in dimensions and "length" not in dimensions:
+            dimensions["length"] = area_sqm / dimensions["width"]
+        elif "length" not in dimensions and "width" not in dimensions:
+            side = area_sqm**0.5
+            dimensions["width"] = side
+            dimensions["length"] = side
+
+        dimensions["area_sqm"] = area_sqm
+        logger.info(f"Extracted area: {area_val} → {area_sqm:.2f} sqm, dims: {dimensions}")
+
+    # Pattern matching for formats like "24x17x34" or "15x23"
+    if not dimensions:
+        patterns = [
+            r"(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)",  # 3D: WxLxH
+            r"(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)",  # 2D: WxL
+        ]
+
+        for pattern in patterns:
+            matches = re.findall(pattern, prompt_lower)
+            if matches:
+                if len(matches[0]) == 3:  # 3D dimensions
+                    dimensions = {
+                        "width": float(matches[0][0]),
+                        "length": float(matches[0][1]),
+                        "height": float(matches[0][2]),
+                    }
+                elif len(matches[0]) == 2:  # 2D dimensions
+                    dimensions = {
+                        "width": float(matches[0][0]),
+                        "length": float(matches[0][1]),
+                        "height": 3.0,
+                    }
                 break
-            elif len(matches[0]) >= 2:  # 2D dimensions
-                dimensions = {
-                    "width": float(matches[0][0]),  # First number is width
-                    "length": float(matches[0][1]),  # Second number is length
-                    "height": 3.0,  # default height
-                }
-                break
+
+    # Unit conversion - check for feet, cm, or meters
+    if dimensions:
+        unit = "meters"  # default
+        if "feet" in prompt_lower or " ft" in prompt_lower or "ft " in prompt_lower:
+            unit = "feet"
+        elif "cm" in prompt_lower or "cms" in prompt_lower:
+            unit = "cm"
+
+        # Convert to meters
+        if unit == "feet":
+            for key in ["width", "length", "height", "diameter", "radius"]:
+                if key in dimensions:
+                    dimensions[key] *= 0.3048
+            logger.info(f"Converted from feet to meters: {dimensions}")
+        elif unit == "cm":
+            for key in ["width", "length", "height", "diameter", "radius"]:
+                if key in dimensions:
+                    dimensions[key] *= 0.01
+            logger.info(f"Converted from cm to meters: {dimensions}")
 
     return dimensions
 

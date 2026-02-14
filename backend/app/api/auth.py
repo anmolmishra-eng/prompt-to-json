@@ -36,7 +36,7 @@ from fastapi.security import HTTPBearer
 security = HTTPBearer()
 
 
-@router.post("/refresh")
+@router.post("/refresh", include_in_schema=False)
 async def refresh_token(token: str = Depends(security)):
     """Refresh JWT token - requires valid existing token"""
     try:

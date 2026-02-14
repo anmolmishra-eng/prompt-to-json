@@ -103,10 +103,17 @@ except Exception as e:
 # JWT Security scheme
 security = HTTPBearer()
 
+# Demo/Production mode: Hide internal endpoints from OpenAPI
+IS_DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+
 app = FastAPI(
     title="Design Engine API",
     description="Complete FastAPI backend for design generation with JWT authentication",
     version="0.1.0",
+    # Disable docs in demo mode
+    docs_url="/docs" if not IS_DEMO_MODE else None,
+    redoc_url="/redoc" if not IS_DEMO_MODE else None,
+    openapi_url="/openapi.json" if not IS_DEMO_MODE else None,
 )
 
 
@@ -232,43 +239,67 @@ async def basic_health_check():
     return {"status": "ok", "service": "Design Engine API", "version": "0.1.0"}
 
 
-# Authentication endpoints
+# Authentication endpoints (PUBLIC - visible in docs)
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["🔐 Authentication"])
 
 # ============================================================================
 # PROTECTED ENDPOINTS (JWT Authentication Required)
 # ============================================================================
 
-# 1. System Health & Monitoring
-app.include_router(health.router, prefix="/api/v1", tags=["📊 System Health"], dependencies=[Depends(get_current_user)])
-app.include_router(monitoring_system.router, dependencies=[Depends(get_current_user)])
-
-# 2. Data Privacy & Security
+# 1. System Health & Monitoring (HIDDEN from docs)
 app.include_router(
-    data_privacy.router, prefix="/api/v1", tags=["🔐 Data Privacy"], dependencies=[Depends(get_current_user)]
+    health.router,
+    prefix="/api/v1",
+    tags=["📊 System Health"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
+)
+app.include_router(monitoring_system.router, dependencies=[Depends(get_current_user)], include_in_schema=False)
+
+# 2. Data Privacy & Security (HIDDEN from docs)
+app.include_router(
+    data_privacy.router,
+    prefix="/api/v1",
+    tags=["🔐 Data Privacy"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
 )
 
-# 2.1 Data Audit & Integrity
-app.include_router(data_audit.router, tags=["🔍 Data Audit"], dependencies=[Depends(get_current_user)])
+# 2.1 Data Audit & Integrity (HIDDEN from docs)
+app.include_router(
+    data_audit.router, tags=["🔍 Data Audit"], dependencies=[Depends(get_current_user)], include_in_schema=False
+)
 
-# 3. Core Design Engine (Sequential Workflow)
+# 3. Core Design Engine (PUBLIC - visible in docs)
 app.include_router(
     generate.router, prefix="/api/v1", tags=["🎨 Design Generation"], dependencies=[Depends(get_current_user)]
 )
 app.include_router(
-    evaluate.router, prefix="/api/v1", tags=["📊 Design Evaluation"], dependencies=[Depends(get_current_user)]
+    evaluate.router,
+    prefix="/api/v1",
+    tags=["📊 Design Evaluation"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
 )
 app.include_router(
-    iterate.router, prefix="/api/v1", tags=["🔄 Design Iteration"], dependencies=[Depends(get_current_user)]
+    iterate.router,
+    prefix="/api/v1",
+    tags=["🔄 Design Iteration"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
 )
-app.include_router(switch.router, dependencies=[Depends(get_current_user)])
+app.include_router(switch.router, dependencies=[Depends(get_current_user)], include_in_schema=False)
 app.include_router(
-    history.router, prefix="/api/v1", tags=["📚 Design History"], dependencies=[Depends(get_current_user)]
+    history.router,
+    prefix="/api/v1",
+    tags=["📚 Design History"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
 )
 
 
-# Add explicit /history endpoint
-@app.get("/api/v1/history", tags=["📚 Design History"])
+# Add explicit /history endpoint (HIDDEN from docs)
+@app.get("/api/v1/history", tags=["📚 Design History"], include_in_schema=False)
 async def get_design_history(
     current_user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -281,23 +312,29 @@ async def get_design_history(
     return await get_user_history(current_user, db, limit, project_id)
 
 
-# 4. Compliance & Validation
+# 4. Compliance & Validation (PUBLIC - visible in docs)
 app.include_router(
     compliance.router,
     prefix="/api/v1/compliance",
     tags=["✅ Compliance & Validation"],
     dependencies=[Depends(get_current_user)],
 )
-app.include_router(mcp_integration.router, dependencies=[Depends(get_current_user)])
+app.include_router(mcp_integration.router, dependencies=[Depends(get_current_user)], include_in_schema=False)
 
-# 5. Multi-City Support
-app.include_router(city_router, prefix="/api/v1", tags=["🏙️ Multi-City"], dependencies=[Depends(get_current_user)])
+# 5. Multi-City Support (HIDDEN from docs)
+app.include_router(
+    city_router,
+    prefix="/api/v1",
+    tags=["🏙️ Multi-City"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
+)
 
-# Multi-city RL feedback endpoint
+# Multi-city RL feedback endpoint (HIDDEN from docs)
 from app.multi_city.rl_feedback_integration import multi_city_rl
 
 
-@app.post("/api/v1/rl/feedback/city", tags=["🏙️ Multi-City"])
+@app.post("/api/v1/rl/feedback/city", tags=["🏙️ Multi-City"], include_in_schema=False)
 async def city_rl_feedback(city: str, user_rating: float, request_body: dict, current_user=Depends(get_current_user)):
     """Submit city-specific RL feedback"""
     design_spec = request_body.get("design_spec", {})
@@ -307,29 +344,41 @@ async def city_rl_feedback(city: str, user_rating: float, request_body: dict, cu
     return {"feedback_id": feedback_id, "city": city, "status": "success"}
 
 
-# 6. BHIV AI Assistant (Main Features)
-app.include_router(bhiv_assistant.router, dependencies=[Depends(get_current_user)])
-app.include_router(bhiv_integrated.router, dependencies=[Depends(get_current_user)])
+# 6. BHIV AI Assistant (HIDDEN from docs)
+app.include_router(bhiv_assistant.router, dependencies=[Depends(get_current_user)], include_in_schema=False)
+app.include_router(bhiv_integrated.router, dependencies=[Depends(get_current_user)], include_in_schema=False)
 
-# 7. BHIV Automations & Workflows
+# 7. BHIV Automations & Workflows (HIDDEN from docs)
 from app.api import workflow_management
 from prefect_triggers import router as prefect_router
 
 app.include_router(
-    workflow_management.router, prefix="/api/v1", tags=["🤖 BHIV Automations"], dependencies=[Depends(get_current_user)]
+    workflow_management.router,
+    prefix="/api/v1",
+    tags=["🤖 BHIV Automations"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
 )
 app.include_router(
-    prefect_router, prefix="/api/v1/prefect", tags=["🚀 Event Triggers"], dependencies=[Depends(get_current_user)]
+    prefect_router,
+    prefix="/api/v1/prefect",
+    tags=["🚀 Event Triggers"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
 )
 
-# 8. File Management & Reports
+# 8. File Management & Reports (HIDDEN from docs)
 app.include_router(
-    reports.router, prefix="/api/v1", tags=["📁 File Management"], dependencies=[Depends(get_current_user)]
+    reports.router,
+    prefix="/api/v1",
+    tags=["📁 File Management"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
 )
 
 
-# Add explicit /reports/{spec_id} endpoint
-@app.get("/api/v1/reports/{spec_id}", tags=["📁 File Management"])
+# Add explicit /reports/{spec_id} endpoint (HIDDEN from docs)
+@app.get("/api/v1/reports/{spec_id}", tags=["📁 File Management"], include_in_schema=False)
 async def get_spec_report(spec_id: str, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get report for specific spec - explicit route"""
     from app.api.reports import get_report
@@ -337,23 +386,37 @@ async def get_spec_report(spec_id: str, current_user: str = Depends(get_current_
     return await get_report(spec_id, current_user, db)
 
 
-# 9. Machine Learning & Training
-app.include_router(rl.router, prefix="/api/v1", tags=["🤖 RL Training"], dependencies=[Depends(get_current_user)])
+# 9. Machine Learning & Training (HIDDEN from docs)
+app.include_router(
+    rl.router,
+    prefix="/api/v1",
+    tags=["🤖 RL Training"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
+)
 
-# 9.1 Mobile & VR Endpoints
-app.include_router(mobile.router, prefix="/api/v1", tags=["📱 Mobile API"], dependencies=[Depends(get_current_user)])
-app.include_router(vr.router, prefix="/api/v1", tags=["🥽 VR API"], dependencies=[Depends(get_current_user)])
+# 9.1 Mobile & VR Endpoints (HIDDEN from docs)
+app.include_router(
+    mobile.router,
+    prefix="/api/v1",
+    tags=["📱 Mobile API"],
+    dependencies=[Depends(get_current_user)],
+    include_in_schema=False,
+)
+app.include_router(
+    vr.router, prefix="/api/v1", tags=["🥽 VR API"], dependencies=[Depends(get_current_user)], include_in_schema=False
+)
 
-# 9.2 Integration Layer (Modular Separation & Dependency Mapping)
-app.include_router(integration_layer.router, dependencies=[Depends(get_current_user)])
+# 9.2 Integration Layer (HIDDEN from docs)
+app.include_router(integration_layer.router, dependencies=[Depends(get_current_user)], include_in_schema=False)
 
-# 9.3 Workflow Consolidation (Prefect-based, replaces N8N)
-app.include_router(workflow_consolidation.router, dependencies=[Depends(get_current_user)])
+# 9.3 Workflow Consolidation (HIDDEN from docs)
+app.include_router(workflow_consolidation.router, dependencies=[Depends(get_current_user)], include_in_schema=False)
 
-# 9.4 Multi-City Testing & Integration
-app.include_router(multi_city_testing.router, dependencies=[Depends(get_current_user)])
+# 9.4 Multi-City Testing & Integration (HIDDEN from docs)
+app.include_router(multi_city_testing.router, dependencies=[Depends(get_current_user)], include_in_schema=False)
 
-# 10. 3D Geometry Generation
+# 10. 3D Geometry Generation (PUBLIC - visible in docs)
 app.include_router(geometry_generator.router, dependencies=[Depends(get_current_user)])
 
 

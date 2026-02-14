@@ -161,6 +161,12 @@ class Settings(BaseSettings):
     # Anthropic Claude
     ANTHROPIC_API_KEY: Optional[str] = Field(default=None, description="Anthropic Claude API key")
 
+    # Tripo AI (3D Generation)
+    TRIPO_API_KEY: Optional[str] = Field(default=None, description="Tripo AI API key for 3D model generation")
+
+    # Hugging Face (3D Generation)
+    HUGGINGFACE_API_KEY: Optional[str] = Field(default=None, description="Hugging Face API token for 3D generation")
+
     # AI Model Toggle
     USE_AI_MODEL: bool = Field(default=True, description="Use real AI models instead of templates")
 

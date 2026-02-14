@@ -1,0 +1,48 @@
+# REPLACE LINES 350-365 in generate.py with this code:
+
+        # 5. GENERATE PREVIEW FILE WITH HUGGING FACE + TRIPO AI
+        try:
+            from app.storage import upload_geometry
+
+            glb_content = None
+
+            # Try Hugging Face FIRST (FREE, unlimited)
+            try:
+                from app.huggingface_3d_generator import generate_3d_with_huggingface
+                logger.info("🎨 Trying Hugging Face (FREE, unlimited)...")
+                glb_content = await generate_3d_with_huggingface(
+                    request.prompt,
+                    spec_json['dimensions'],
+                    settings.HUGGINGFACE_API_KEY
+                )
+            except Exception as hf_error:
+                logger.warning(f"Hugging Face failed: {hf_error}")
+
+            # Try Tripo AI if Hugging Face fails (10 free/month)
+            if not glb_content and settings.TRIPO_API_KEY:
+                try:
+                    from app.tripo_3d_generator import generate_3d_with_tripo
+                    logger.info("🎨 Trying Tripo AI (10 free/month)...")
+                    glb_content = await generate_3d_with_tripo(
+                        request.prompt,
+                        spec_json['dimensions'],
+                        settings.TRIPO_API_KEY
+                    )
+                except Exception as tripo_error:
+                    logger.warning(f"Tripo AI failed: {tripo_error}")
+
+            # Fallback to basic GLB if both fail
+            if not glb_content:
+                logger.info("🎨 All 3D services unavailable, using fallback geometry")
+                glb_content = generate_mock_glb(spec_json)
+
+            # Upload to Supabase storage
+            preview_url = upload_geometry(spec_id, glb_content)
+            logger.info(f"✅ Preview uploaded: {preview_url}")
+
+        except Exception as e:
+            logger.warning(f"Preview generation failed, using local path: {e}")
+            # Fallback to local file path
+            local_preview_path = f"data/geometry_outputs/{spec_id}.glb"
+            create_local_preview_file(spec_json, local_preview_path)
+            preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"

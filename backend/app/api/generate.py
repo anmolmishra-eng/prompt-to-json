@@ -214,7 +214,19 @@ async def generate_design(request: GenerateRequest):
             req_city = getattr(request, "city", "Mumbai")
             req_style = getattr(request, "style", "modern")
             logger.info(f"[DEBUG] Request city: {req_city}, Request style: {req_style}")
+
+            # Extract budget from constraints or context
+            budget = None
+            if hasattr(request, "constraints") and request.constraints:
+                budget = request.constraints.get("budget")
+            if not budget and hasattr(request, "context") and request.context:
+                budget = request.context.get("budget")
+
+            logger.info(f"[DEBUG] Extracted budget: ₹{budget:,}" if budget else "[DEBUG] No budget provided")
+
             lm_params = request.context or {}
+            if budget:
+                lm_params["budget"] = budget
             lm_params.update(
                 {
                     "user_id": request.user_id,
@@ -233,6 +245,76 @@ async def generate_design(request: GenerateRequest):
             if not spec_json:
                 raise HTTPException(status_code=500, detail="LM returned empty spec")
 
+            # FORCE CORRECT DIMENSIONS from extracted values
+            extracted_dims = lm_params.get("extracted_dimensions", {})
+            if extracted_dims:
+                if "width" in extracted_dims:
+                    spec_json["dimensions"]["width"] = round(extracted_dims["width"], 2)
+                if "length" in extracted_dims:
+                    spec_json["dimensions"]["length"] = round(extracted_dims["length"], 2)
+                if "height" in extracted_dims:
+                    spec_json["dimensions"]["height"] = round(extracted_dims["height"], 2)
+                logger.info(f"Forced dimensions: {spec_json['dimensions']}")
+
+                # Scale object dimensions to fit within building dimensions
+                building_width = spec_json["dimensions"]["width"]
+                building_length = spec_json["dimensions"]["length"]
+                building_height = spec_json["dimensions"]["height"]
+
+                for obj in spec_json.get("objects", []):
+                    obj_dims = obj.get("dimensions", {})
+                    obj_type = obj.get("type", "")
+                    subtype = obj.get("subtype", "")
+
+                    # Foundation and roof match building footprint
+                    if obj_type in ["foundation", "roof"]:
+                        obj_dims["width"] = building_width
+                        obj_dims["length"] = building_length
+                        if obj_type == "foundation":
+                            obj_dims["height"] = 0.5  # Standard foundation depth
+                        else:
+                            obj_dims["height"] = 0.2  # Standard roof slab
+
+                    # External walls match building perimeter and height
+                    elif obj_type == "wall" and "external" in subtype:
+                        obj_dims["width"] = max(building_width, building_length)
+                        obj_dims["length"] = 0.2  # Standard wall thickness
+                        obj_dims["height"] = building_height
+
+                    # Internal walls are shorter
+                    elif obj_type == "wall" and "internal" in subtype:
+                        obj_dims["width"] = 0.15  # Thinner internal walls
+                        obj_dims["length"] = min(building_width, building_length) * 0.5
+                        obj_dims["height"] = min(building_height, 3.0)
+
+                    # Doors - realistic sizes
+                    elif obj_type == "door":
+                        if "main" in subtype or "entrance" in subtype:
+                            obj_dims["width"] = 1.2  # 1.2m main door
+                            obj_dims["height"] = 2.1  # Standard door height
+                        else:
+                            obj_dims["width"] = 0.9  # 0.9m internal door
+                            obj_dims["height"] = 2.0
+                        obj_dims["length"] = 0.05  # Door thickness
+
+                    # Windows - realistic sizes
+                    elif obj_type == "window":
+                        obj_dims["width"] = 1.2  # Standard window width
+                        obj_dims["height"] = 1.5  # Standard window height
+                        obj_dims["length"] = 0.1  # Window frame depth
+
+                    # Furniture - scale to room size
+                    elif obj_type == "furniture":
+                        max_furniture_width = building_width * 0.4
+                        if "width" in obj_dims and obj_dims["width"] > max_furniture_width:
+                            obj_dims["width"] = max_furniture_width
+                        if "length" in obj_dims and obj_dims["length"] > building_length * 0.3:
+                            obj_dims["length"] = building_length * 0.3
+                        if "height" in obj_dims and obj_dims["height"] > 2.5:
+                            obj_dims["height"] = 2.5
+
+                logger.info(f"Scaled all objects to realistic proportions")
+
         except HTTPException:
             raise
         except Exception as e:
@@ -241,8 +323,34 @@ async def generate_design(request: GenerateRequest):
 
         # 3. CALCULATE COST AND ENHANCE SPEC
         logger.info(f"Calculating cost for {len(spec_json.get('objects', []))} objects...")
-        estimated_cost = calculate_estimated_cost(spec_json)
-        logger.info(f"Estimated cost: Rs.{estimated_cost:,.0f}")
+
+        # Calculate realistic cost based on actual dimensions and city
+        dims = spec_json.get("dimensions", {})
+        area_sqm = dims.get("width", 10) * dims.get("length", 10)
+        area_sqft = area_sqm * 10.764  # Convert sqm to sqft
+        stories = spec_json.get("stories", 1)
+
+        # City-wise construction rates (INR per sq ft)
+        city_rates = {
+            "Mumbai": 2100,  # Average of 1700-2500
+            "Nashik": 1000,  # Average of 800-1200
+            "Pune": 1450,  # Average of 1300-1600
+            "Ahmedabad": 1775,  # Average of 1650-1900
+        }
+
+        # Get rate for city (default to Mumbai if not found)
+        rate_per_sqft = city_rates.get(req_city, 2100)
+        calculated_cost = int(area_sqft * rate_per_sqft * stories)
+
+        # Use 95% of budget if provided, otherwise use calculated
+        if budget and isinstance(budget, (int, float)) and budget > 0:
+            estimated_cost = int(budget * 0.95)
+            logger.info(f"Using 95% of budget: Rs.{estimated_cost:,.0f} (budget: Rs.{budget:,.0f})")
+        else:
+            estimated_cost = calculated_cost
+            logger.info(
+                f"Calculated cost for {req_city}: Rs.{estimated_cost:,.0f} ({area_sqft:.0f} sqft @ Rs.{rate_per_sqft}/sqft)"
+            )
 
         # Force correct city and style in metadata
         req_city = getattr(request, "city", "Mumbai")
@@ -254,6 +362,15 @@ async def generate_design(request: GenerateRequest):
         spec_json["metadata"]["generation_provider"] = lm_provider
         spec_json["metadata"]["city"] = req_city
         spec_json["metadata"]["style"] = req_style
+        spec_json["metadata"]["area_sqft"] = round(area_sqft, 2)
+        if budget:
+            spec_json["metadata"]["budget_provided"] = budget
+        else:
+            spec_json["metadata"]["rate_per_sqft"] = rate_per_sqft
+
+        # FORCE override estimated_cost in spec_json
+        spec_json["estimated_cost"] = {"total": estimated_cost, "currency": "INR"}
+
         logger.info(f"[DEBUG] Set metadata city to: {req_city}")
 
         # 4. CREATE SPEC ID AND GENERATE PREVIEW FIRST
@@ -261,16 +378,32 @@ async def generate_design(request: GenerateRequest):
 
         spec_id = f"spec_{uuid.uuid4().hex[:12]}"
 
-        # 5. GENERATE PREVIEW FILE AND URL FIRST
+        # 5. GENERATE PREVIEW FILE WITH TRIPO AI
         try:
             from app.storage import upload_geometry
 
-            # Generate simple GLB file content (mock 3D data)
-            glb_content = generate_mock_glb(spec_json)
+            glb_content = None
+
+            # Try Tripo AI (10 free/month, then paid)
+            if settings.TRIPO_API_KEY:
+                try:
+                    from app.tripo_3d_generator import generate_3d_with_tripo
+
+                    logger.info("🎨 Trying Tripo AI (realistic 3D)...")
+                    glb_content = await generate_3d_with_tripo(
+                        request.prompt, spec_json["dimensions"], settings.TRIPO_API_KEY
+                    )
+                except Exception as tripo_error:
+                    logger.warning(f"Tripo AI failed: {tripo_error}")
+
+            # Fallback to basic GLB (instant, free, reliable)
+            if not glb_content:
+                logger.info("🎨 Using fallback geometry generator (instant, free)")
+                glb_content = generate_mock_glb(spec_json)
 
             # Upload to Supabase storage
             preview_url = upload_geometry(spec_id, glb_content)
-            logger.info(f"Generated real preview file: {preview_url}")
+            logger.info(f"✅ Preview uploaded: {preview_url}")
 
         except Exception as e:
             logger.warning(f"Preview generation failed, using local path: {e}")
@@ -366,7 +499,13 @@ async def generate_design(request: GenerateRequest):
 @router.get("/specs/{spec_id}", response_model=GenerateResponse)
 async def get_spec(spec_id: str):
     """
-    Retrieve existing specification
+    Retrieve existing specification by ID
+
+    Returns the complete design specification including:
+    - spec_json: Full design data
+    - preview_url: 3D model URL
+    - estimated_cost: Cost in INR
+    - metadata: Creation time, version, etc.
     """
     logger.info(f"GET SPEC REQUEST: spec_id={spec_id}")
 

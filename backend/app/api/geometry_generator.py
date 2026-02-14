@@ -128,7 +128,7 @@ async def generate_geometry(request: GeometryRequest, background_tasks: Backgrou
         raise HTTPException(status_code=500, detail=f"Geometry generation failed: {str(e)}")
 
 
-@router.get("/download/{filename}")
+@router.get("/download/{filename}", include_in_schema=False)
 async def download_geometry(filename: str):
     """Download generated geometry file"""
 
@@ -146,7 +146,7 @@ async def download_geometry(filename: str):
     )
 
 
-@router.get("/list")
+@router.get("/list", include_in_schema=False)
 async def list_geometry_files():
     """List all generated geometry files"""
 
