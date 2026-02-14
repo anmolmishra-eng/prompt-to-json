@@ -7,6 +7,8 @@ from pydantic import BaseModel
 class GenerateRequest(BaseModel):
     user_id: str
     prompt: str
+    city: Optional[str] = "Mumbai"
+    style: Optional[str] = "modern"
     project_id: Optional[str] = None
     context: Optional[Dict] = None
 

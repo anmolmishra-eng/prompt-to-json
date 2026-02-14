@@ -155,6 +155,9 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: Optional[str] = Field(default=None, description="OpenAI API key")
 
+    # Groq
+    GROQ_API_KEY: Optional[str] = Field(default=None, description="Groq API key")
+
     # Anthropic Claude
     ANTHROPIC_API_KEY: Optional[str] = Field(default=None, description="Anthropic Claude API key")
 

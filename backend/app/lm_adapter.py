@@ -17,15 +17,29 @@ ANTHROPIC_API_KEY = os.getenv(
 )
 USE_AI_MODEL = os.getenv("USE_AI_MODEL", "true").lower() == "true"
 
+# Validate API keys
+if OPENAI_API_KEY and (not OPENAI_API_KEY.startswith("sk-") or len(OPENAI_API_KEY) < 20):
+    logger.warning("Invalid OpenAI API key format, disabling OpenAI")
+    OPENAI_API_KEY = None
+
+if ANTHROPIC_API_KEY and len(ANTHROPIC_API_KEY) < 20:
+    logger.warning("Invalid Anthropic API key format, disabling Anthropic")
+    ANTHROPIC_API_KEY = None
+
+if USE_AI_MODEL and not (OPENAI_API_KEY or ANTHROPIC_API_KEY):
+    logger.warning("No valid AI API keys found, will use template fallback")
+
 
 async def run_local_lm(prompt: str, params: dict) -> dict:
-    """Run inference using AI models (OpenAI/Anthropic) or fallback to templates"""
+    """Run inference using multiple AI models or fallback to enhanced templates"""
     logger.info(f"AI_LM: Processing prompt: '{prompt[:100]}...'")
 
-    # Try AI generation first
+    # Try AI generation with multi-model fallback
     if USE_AI_MODEL and (OPENAI_API_KEY or ANTHROPIC_API_KEY):
         try:
-            spec_json = await generate_with_ai(prompt, params)
+            from app.multi_model_ai import generate_with_multi_model_ai
+
+            spec_json = await generate_with_multi_model_ai(prompt, params)
             logger.info(f"✅ AI generated design: {spec_json.get('design_type')}")
 
             log_usage("ai_model", len(prompt), 0.002, params.get("user_id"))
@@ -33,14 +47,25 @@ async def run_local_lm(prompt: str, params: dict) -> dict:
             return {
                 "spec_json": spec_json,
                 "preview_data": f"AI generated {spec_json.get('design_type', 'design')} for: {prompt[:50]}...",
-                "provider": "openai" if OPENAI_API_KEY else "anthropic",
+                "provider": spec_json.get("model_used", "ai_model"),
                 "feedback": f"AI model generated {spec_json.get('design_type', 'design')} with intelligent analysis",
             }
         except Exception as e:
-            logger.warning(f"AI generation failed: {e}, falling back to templates")
+            logger.warning(f"AI generation failed after all models: {e}, falling back to enhanced templates")
 
-    # Fallback to template-based generation
-    spec_json = generate_design_from_prompt(prompt, params)
+    # Fallback to ENHANCED template-based generation
+    try:
+        from app.lm_adapter_enhanced import generate_enhanced_design_from_prompt
+
+        spec_json = generate_enhanced_design_from_prompt(prompt, params)
+        logger.info(f"✅ Enhanced template generated {len(spec_json.get('objects', []))} objects")
+    except ImportError as ie:
+        logger.warning(f"Enhanced template module not found: {ie}, using basic template")
+        spec_json = generate_design_from_prompt(prompt, params)
+    except Exception as e:
+        logger.warning(f"Enhanced template failed: {e}, using basic template")
+        spec_json = generate_design_from_prompt(prompt, params)
+
     log_usage("template_fallback", len(prompt), 0.0001, params.get("user_id"))
 
     return {
@@ -52,7 +77,7 @@ async def run_local_lm(prompt: str, params: dict) -> dict:
 
 
 async def generate_with_ai(prompt: str, params: dict) -> dict:
-    """Generate design using OpenAI or Anthropic AI models"""
+    """Generate design using OpenAI or Anthropic AI models with retry logic"""
 
     system_prompt = """You are an expert architectural and interior design AI. Generate detailed design specifications in JSON format.
 
@@ -87,69 +112,116 @@ Context:
 
 Generate a complete, detailed design specification in JSON format. Include ALL elements mentioned in the request."""
 
-    # Try OpenAI first
+    # Try OpenAI with retry logic
     if OPENAI_API_KEY:
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
-                    json={
-                        "model": "gpt-4o-mini",
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt},
-                        ],
-                        "temperature": 0.7,
-                        "response_format": {"type": "json_object"},
-                    },
-                )
+        import asyncio
 
-                if response.status_code == 200:
-                    result = response.json()
-                    content = result["choices"][0]["message"]["content"]
-                    spec_json = json.loads(content)
+        max_retries = 3
+        base_delay = 2
 
-                    # Ensure required fields
-                    spec_json.setdefault("tech_stack", ["OpenAI GPT-4"])
-                    spec_json.setdefault("model_used", "gpt-4o-mini")
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+                        json={
+                            "model": "gpt-4o-mini",
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                            ],
+                            "temperature": 0.7,
+                            "response_format": {"type": "json_object"},
+                        },
+                    )
 
-                    return spec_json
-        except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+                    if response.status_code == 200:
+                        result = response.json()
+                        content = result["choices"][0]["message"]["content"]
+                        spec_json = json.loads(content)
 
-    # Try Anthropic as fallback
-    if ANTHROPIC_API_KEY:
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    "https://api.anthropic.com/v1/messages",
-                    headers={
-                        "x-api-key": ANTHROPIC_API_KEY,
-                        "anthropic-version": "2023-06-01",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "claude-3-5-sonnet-20241022",
-                        "max_tokens": 4096,
-                        "messages": [{"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}],
-                    },
-                )
+                        # Ensure required fields
+                        spec_json.setdefault("tech_stack", ["OpenAI GPT-4"])
+                        spec_json.setdefault("model_used", "gpt-4o-mini")
 
-                if response.status_code == 200:
-                    result = response.json()
-                    content = result["content"][0]["text"]
-
-                    # Extract JSON from response
-                    json_match = re.search(r"\{[\s\S]*\}", content)
-                    if json_match:
-                        spec_json = json.loads(json_match.group())
-                        spec_json.setdefault("tech_stack", ["Anthropic Claude"])
-                        spec_json.setdefault("model_used", "claude-3-5-sonnet")
+                        logger.info(f"✅ OpenAI success on attempt {attempt + 1}")
                         return spec_json
-        except Exception as e:
-            logger.error(f"Anthropic API error: {e}")
 
+                    elif response.status_code == 429:
+                        if attempt < max_retries - 1:
+                            delay = base_delay * (2**attempt)
+                            logger.warning(
+                                f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+                        else:
+                            logger.warning(f"Rate limit exceeded after {max_retries} attempts, trying Anthropic")
+                    else:
+                        logger.warning(f"OpenAI returned status {response.status_code}: {response.text[:200]}")
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2**attempt)
+                    logger.warning(f"OpenAI error: {e}, retrying in {delay}s")
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"OpenAI failed after {max_retries} attempts: {e}")
+
+    # Try Anthropic as fallback with retry
+    if ANTHROPIC_API_KEY:
+        import asyncio
+
+        max_retries = 2
+        base_delay = 2
+
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        "https://api.anthropic.com/v1/messages",
+                        headers={
+                            "x-api-key": ANTHROPIC_API_KEY,
+                            "anthropic-version": "2023-06-01",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": "claude-3-5-sonnet-20241022",
+                            "max_tokens": 4096,
+                            "messages": [{"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}],
+                        },
+                    )
+
+                    if response.status_code == 200:
+                        result = response.json()
+                        content = result["content"][0]["text"]
+
+                        # Extract JSON from response
+                        json_match = re.search(r"\{[\s\S]*\}", content)
+                        if json_match:
+                            spec_json = json.loads(json_match.group())
+                            spec_json.setdefault("tech_stack", ["Anthropic Claude"])
+                            spec_json.setdefault("model_used", "claude-3-5-sonnet")
+                            logger.info(f"✅ Anthropic success on attempt {attempt + 1}")
+                            return spec_json
+
+                    elif response.status_code == 429:
+                        if attempt < max_retries - 1:
+                            delay = base_delay * (2**attempt)
+                            logger.warning(f"Anthropic rate limit, retrying in {delay}s")
+                            await asyncio.sleep(delay)
+                            continue
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2**attempt)
+                    logger.warning(f"Anthropic error: {e}, retrying in {delay}s")
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"Anthropic failed after {max_retries} attempts: {e}")
+
+    logger.warning("All AI providers exhausted, using template fallback")
     raise Exception("All AI providers failed")
 
 
@@ -158,25 +230,42 @@ def generate_design_from_prompt(prompt: str, params: dict) -> dict:
     prompt_lower = prompt.lower()
     logger.info(f"TEMPLATE_FALLBACK: Analyzing prompt: {prompt_lower}")
 
-    # Detect design type - prioritize larger structures first
-    if any(word in prompt_lower for word in ["house", "home", "building", "residential", "story", "floor"]):
-        logger.info("DESIGN_DEBUG: Detected HOUSE design")
-        return generate_house_design(prompt, params)
-    elif any(word in prompt_lower for word in ["kitchen", "cook", "cabinet", "countertop"]):
+    # Detect design type - prioritize specific rooms over general structures
+    if any(word in prompt_lower for word in ["apartment", "flat", "bhk", "penthouse"]):
+        logger.info("DESIGN_DEBUG: Detected APARTMENT design")
+        return generate_apartment_design(prompt, params)
+    elif (
+        any(word in prompt_lower for word in ["kitchen", "cook", "cabinet", "countertop"])
+        and "house" not in prompt_lower
+    ):
         logger.info("DESIGN_DEBUG: Detected KITCHEN design")
         return generate_kitchen_design(prompt, params)
-    elif any(word in prompt_lower for word in ["office", "commercial", "workspace", "corporate"]):
+    elif (
+        any(word in prompt_lower for word in ["office", "workspace", "corporate", "co-working"])
+        and "commercial" not in prompt_lower
+    ):
         logger.info("DESIGN_DEBUG: Detected OFFICE design")
         return generate_office_design(prompt, params)
     elif any(word in prompt_lower for word in ["bathroom", "bath", "shower", "toilet"]):
         logger.info("DESIGN_DEBUG: Detected BATHROOM design")
         return generate_bathroom_design(prompt, params)
-    elif any(word in prompt_lower for word in ["bedroom", "bed", "sleep"]):
+    elif any(word in prompt_lower for word in ["bedroom", "bed", "sleep"]) and "house" not in prompt_lower:
         logger.info("DESIGN_DEBUG: Detected BEDROOM design")
         return generate_bedroom_design(prompt, params)
     elif any(word in prompt_lower for word in ["living room", "lounge", "family room"]):
         logger.info("DESIGN_DEBUG: Detected LIVING ROOM design")
         return generate_living_room_design(prompt, params)
+    elif any(
+        word in prompt_lower for word in ["villa", "bungalow", "duplex", "farmhouse", "townhouse", "independent house"]
+    ):
+        logger.info("DESIGN_DEBUG: Detected HOUSE design")
+        return generate_house_design(prompt, params)
+    elif any(word in prompt_lower for word in ["showroom", "commercial"]):
+        logger.info("DESIGN_DEBUG: Detected COMMERCIAL design")
+        return generate_commercial_design(prompt, params)
+    elif any(word in prompt_lower for word in ["house", "building", "complex", "residential", "story"]):
+        logger.info("DESIGN_DEBUG: Detected HOUSE design")
+        return generate_house_design(prompt, params)
     else:
         logger.info("DESIGN_DEBUG: Using GENERIC design")
         return generate_generic_design(prompt, params)
@@ -650,6 +739,233 @@ def generate_living_room_design(prompt: str, params: dict) -> dict:
         "style": "modern",
         "dimensions": {"width": 5, "length": 6, "height": 2.4},
         "estimated_cost": {"total": 400000, "currency": "INR"},
+    }
+
+
+def generate_apartment_design(prompt: str, params: dict) -> dict:
+    """Generate apartment interior design (BHK)"""
+    prompt_lower = prompt.lower()
+
+    # Extract BHK count
+    bhk = 2
+    if "penthouse" in prompt_lower:
+        bhk = 4  # Penthouses are typically large
+    elif "3bhk" in prompt_lower or "3 bhk" in prompt_lower:
+        bhk = 3
+    elif "4bhk" in prompt_lower or "4 bhk" in prompt_lower:
+        bhk = 4
+    elif "1bhk" in prompt_lower or "1 bhk" in prompt_lower or "studio" in prompt_lower:
+        bhk = 1
+    elif "compact" in prompt_lower:
+        bhk = 2
+
+    # Detect materials
+    floor_material = "tile_ceramic"
+    if "marble" in prompt_lower:
+        floor_material = "marble"
+    elif "wood" in prompt_lower:
+        floor_material = "wood_hardwood"
+
+    # Detect style
+    style = "modern"
+    if "luxury" in prompt_lower or "penthouse" in prompt_lower:
+        style = "luxury"
+    elif "minimalist" in prompt_lower or "compact" in prompt_lower:
+        style = "minimalist"
+    elif "traditional" in prompt_lower:
+        style = "traditional"
+
+    # Base dimensions based on BHK
+    area_map = {1: 40, 2: 60, 3: 90, 4: 150}  # sqm (penthouse gets more space)
+    total_area = area_map.get(bhk, 60)
+
+    # Luxury multiplier
+    if style == "luxury":
+        total_area = int(total_area * 1.5)
+
+    width = (total_area * 0.6) ** 0.5
+    length = (total_area / 0.6) ** 0.5
+
+    objects = [
+        {
+            "id": "apartment_floor",
+            "type": "floor",
+            "material": floor_material,
+            "color_hex": "#F5F5DC" if floor_material == "marble" else "#DEB887",
+            "dimensions": {"width": width, "length": length},
+        },
+        {
+            "id": "living_room",
+            "type": "room",
+            "subtype": "living",
+            "material": "paint",
+            "color_hex": "#FFFFFF",
+            "dimensions": {"width": width * 0.4, "length": length * 0.4, "height": 3.0 if style == "luxury" else 2.7},
+        },
+    ]
+
+    # Add bedrooms
+    for i in range(bhk):
+        objects.append(
+            {
+                "id": f"bedroom_{i+1}",
+                "type": "room",
+                "subtype": "bedroom",
+                "material": "paint",
+                "color_hex": "#F0F0F0",
+                "dimensions": {
+                    "width": 4 if style == "luxury" else 3.5,
+                    "length": 4.5 if style == "luxury" else 4,
+                    "height": 3.0 if style == "luxury" else 2.7,
+                },
+            }
+        )
+
+    # Add kitchen
+    if "kitchen" in prompt_lower or "modular" in prompt_lower or bhk >= 2:
+        objects.append(
+            {
+                "id": "modular_kitchen",
+                "type": "room",
+                "subtype": "kitchen",
+                "material": "wood_oak",
+                "color_hex": "#8B4513",
+                "dimensions": {
+                    "width": 3.5 if style == "luxury" else 3,
+                    "length": 4 if style == "luxury" else 3.5,
+                    "height": 3.0 if style == "luxury" else 2.7,
+                },
+            }
+        )
+        objects.append(
+            {
+                "id": "kitchen_cabinets",
+                "type": "cabinet",
+                "material": "wood_oak",
+                "color_hex": "#FFFFFF",
+                "dimensions": {
+                    "width": 3 if style == "luxury" else 2.5,
+                    "depth": 0.6,
+                    "height": 2.4 if style == "luxury" else 2.1,
+                },
+            }
+        )
+
+    # Add bathrooms
+    bathrooms = bhk  # Typically BHK count = bathroom count
+    for i in range(bathrooms):
+        objects.append(
+            {
+                "id": f"bathroom_{i+1}",
+                "type": "room",
+                "subtype": "bathroom",
+                "material": "tile_ceramic",
+                "color_hex": "#FFFFFF",
+                "dimensions": {
+                    "width": 2.5 if style == "luxury" else 2,
+                    "length": 3 if style == "luxury" else 2.5,
+                    "height": 3.0 if style == "luxury" else 2.7,
+                },
+            }
+        )
+
+    # Add furniture based on style and prompt
+    if "glass" in prompt_lower:
+        objects.append(
+            {
+                "id": "glass_walls",
+                "type": "wall",
+                "subtype": "partition",
+                "material": "glass_tempered",
+                "color_hex": "#E0FFFF",
+                "dimensions": {"width": width * 0.3, "height": 3.0 if style == "luxury" else 2.7},
+            }
+        )
+
+    if "wooden" in prompt_lower or "wood" in prompt_lower:
+        objects.append(
+            {
+                "id": "wooden_interiors",
+                "type": "furniture",
+                "subtype": "paneling",
+                "material": "wood_oak",
+                "color_hex": "#8B4513",
+                "dimensions": {"width": width * 0.5, "depth": 0.05, "height": 3.0 if style == "luxury" else 2.7},
+            }
+        )
+
+    if "space-saving" in prompt_lower or "compact" in prompt_lower:
+        objects.append(
+            {
+                "id": "space_saving_furniture",
+                "type": "furniture",
+                "subtype": "modular",
+                "material": "wood_oak",
+                "color_hex": "#D2B48C",
+                "dimensions": {"width": 2, "depth": 0.5, "height": 2},
+            }
+        )
+
+    # Calculate cost
+    base_cost = total_area * 25000  # ₹25k per sqm for apartments
+    if style == "luxury":
+        base_cost *= 2.5
+    elif style == "minimalist":
+        base_cost *= 0.8
+
+    return {
+        "objects": objects,
+        "design_type": "apartment",
+        "style": style,
+        "stories": 1,
+        "dimensions": {"width": width, "length": length, "height": 3.0 if style == "luxury" else 2.7},
+        "estimated_cost": {"total": base_cost, "currency": "INR"},
+        "metadata": {"bhk_count": bhk, "total_area_sqm": total_area},
+    }
+
+
+def generate_commercial_design(prompt: str, params: dict) -> dict:
+    """Generate commercial space design"""
+    prompt_lower = prompt.lower()
+
+    width = 15
+    length = 20
+
+    objects = [
+        {
+            "id": "commercial_floor",
+            "type": "floor",
+            "material": "tile_ceramic",
+            "color_hex": "#F5F5F5",
+            "dimensions": {"width": width, "length": length},
+        },
+        {
+            "id": "glass_facade",
+            "type": "wall",
+            "subtype": "exterior",
+            "material": "glass_tempered",
+            "color_hex": "#E0FFFF",
+            "dimensions": {"width": width, "height": 4},
+        },
+    ]
+
+    if "steel" in prompt_lower:
+        objects.append(
+            {
+                "id": "steel_structure",
+                "type": "structure",
+                "material": "steel",
+                "color_hex": "#808080",
+                "dimensions": {"width": width, "length": length, "height": 4},
+            }
+        )
+
+    return {
+        "objects": objects,
+        "design_type": "commercial",
+        "style": "contemporary",
+        "dimensions": {"width": width, "length": length, "height": 4},
+        "estimated_cost": {"total": width * length * 30000, "currency": "INR"},
     }
 
 

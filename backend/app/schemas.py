@@ -10,7 +10,7 @@ class GenerateRequest(BaseModel):
 
     user_id: str = Field(..., description="User ID")
     prompt: str = Field(..., min_length=10, max_length=2048, description="Design description")
-    city: str = Field(default="Mumbai", description="City for compliance")
+    city: str = Field("Mumbai", description="City for compliance")
     project_id: Optional[str] = Field(None, description="Project grouping")
     context: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional context")
     constraints: Optional[Dict] = Field(default_factory=dict, description="Budget, area, etc.")

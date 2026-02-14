@@ -190,60 +190,67 @@ async def generate_design(request: GenerateRequest):
     start_time = time.time()
 
     # Add explicit logging
-    print(f"🎨 GENERATE REQUEST: user_id={request.user_id}, prompt='{request.prompt[:50]}...'")
-    logger.info(f"🎨 GENERATE REQUEST: user_id={request.user_id}, prompt='{request.prompt[:50]}...'")
+    logger.info(f"GENERATE REQUEST: user_id={request.user_id}, prompt='{request.prompt[:50]}...'")
 
     try:
         # 1. VALIDATE INPUT
-        print(f"✅ Validating input...")
+        logger.info("Validating input...")
         if not request.prompt or len(request.prompt) < 10:
             raise HTTPException(status_code=400, detail="Prompt must be at least 10 characters")
 
         if not request.user_id:
             raise HTTPException(status_code=400, detail="user_id is required")
 
-        print(f"✅ Input validation passed")
+        logger.info("Input validation passed")
 
         # 2. CALL LM
         try:
-            print(f"🤖 Calling LM with prompt: '{request.prompt[:30]}...'")
+            logger.info(f"Calling LM with prompt: '{request.prompt[:30]}...'")
+            # Use getattr to safely access city and style with defaults
+            req_city = getattr(request, "city", "Mumbai")
+            req_style = getattr(request, "style", "modern")
+            logger.info(f"[DEBUG] Request city: {req_city}, Request style: {req_style}")
             lm_params = request.context or {}
             lm_params.update(
                 {
                     "user_id": request.user_id,
-                    "city": getattr(request, "city", "Mumbai"),
-                    "style": getattr(request, "style", "modern"),
+                    "city": req_city,
+                    "style": req_style,
                 }
             )
+            logger.info(f"[DEBUG] lm_params passed to lm_run: {lm_params}")
 
             lm_result = await lm_run(request.prompt, lm_params)
             spec_json = lm_result.get("spec_json")
             lm_provider = lm_result.get("provider", "local")
 
-            print(f"✅ LM returned result from {lm_provider} provider")
+            logger.info(f"LM returned result from {lm_provider} provider")
 
             if not spec_json:
                 raise HTTPException(status_code=500, detail="LM returned empty spec")
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"LM call failed: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=503, detail="LM service unavailable")
+            raise HTTPException(status_code=503, detail=f"LM service unavailable: {str(e)[:100]}")
 
         # 3. CALCULATE COST AND ENHANCE SPEC
-        print(f"💰 Calculating cost for {len(spec_json.get('objects', []))} objects...")
+        logger.info(f"Calculating cost for {len(spec_json.get('objects', []))} objects...")
         estimated_cost = calculate_estimated_cost(spec_json)
-        print(f"✅ Estimated cost: ₹{estimated_cost:,.0f}")
+        logger.info(f"Estimated cost: Rs.{estimated_cost:,.0f}")
 
-        spec_json["metadata"] = spec_json.get("metadata", {})
-        spec_json["metadata"].update(
-            {
-                "estimated_cost": estimated_cost,
-                "currency": "INR",
-                "generation_provider": lm_provider,
-                "city": getattr(request, "city", "Mumbai"),
-                "style": getattr(request, "style", "modern"),
-            }
-        )
+        # Force correct city and style in metadata
+        req_city = getattr(request, "city", "Mumbai")
+        req_style = getattr(request, "style", "modern")
+        if "metadata" not in spec_json:
+            spec_json["metadata"] = {}
+        spec_json["metadata"]["estimated_cost"] = estimated_cost
+        spec_json["metadata"]["currency"] = "INR"
+        spec_json["metadata"]["generation_provider"] = lm_provider
+        spec_json["metadata"]["city"] = req_city
+        spec_json["metadata"]["style"] = req_style
+        logger.info(f"[DEBUG] Set metadata city to: {req_city}")
 
         # 4. CREATE SPEC ID AND GENERATE PREVIEW FIRST
         import uuid
@@ -259,35 +266,20 @@ async def generate_design(request: GenerateRequest):
 
             # Upload to Supabase storage
             preview_url = upload_geometry(spec_id, glb_content)
-            print(f"✅ Generated real preview file: {preview_url}")
+            logger.info(f"Generated real preview file: {preview_url}")
 
         except Exception as e:
-            print(f"⚠️ Preview generation failed, using local path: {e}")
+            logger.warning(f"Preview generation failed, using local path: {e}")
             # Fallback to local file path
             local_preview_path = f"data/geometry_outputs/{spec_id}.glb"
             create_local_preview_file(spec_json, local_preview_path)
             preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
 
-        # 6. SAVE TO STORAGE AND DATABASE
-        from app.spec_storage import save_spec
-
-        # Save complete spec data for iterate endpoint
-        complete_spec_data = {
-            "spec_id": spec_id,
-            "spec_json": spec_json,
-            "user_id": request.user_id,
-            "estimated_cost": estimated_cost,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "spec_version": 1,
-        }
-        save_spec(spec_id, complete_spec_data)
-        print(f"💾 Saved spec {spec_id} to in-memory storage")
-
-        # Save to database
+        # 6. SAVE TO DATABASE
         from app.database import SessionLocal
         from app.models import Spec, User
 
-        print(f"💾 Saving spec {spec_id} to database...")
+        logger.info(f"Saving spec {spec_id} to database...")
 
         db = SessionLocal()
         try:
@@ -305,28 +297,30 @@ async def generate_design(request: GenerateRequest):
                 )
                 db.add(user)
                 db.commit()
-                print(f"✅ Created user {request.user_id}")
+                logger.info(f"Created user {request.user_id}")
             else:
                 # Use the existing user's actual ID
                 request.user_id = user.id
-                print(f"✅ Using existing user {user.username} with id {user.id}")
+                logger.info(f"Using existing user {user.username} with id {user.id}")
 
             # Create spec with required fields
+            req_city = getattr(request, "city", "Mumbai")
             db_spec = Spec(
                 id=spec_id,
                 user_id=request.user_id,
                 prompt=request.prompt,
-                city="Mumbai",  # Required field
+                city=req_city,
                 spec_json=spec_json,
             )
+            logger.info(f"[DEBUG] Saving to DB with city: {req_city}")
 
             db.add(db_spec)
             db.commit()
             db.refresh(db_spec)
-            print(f"✅ Successfully saved spec {spec_id} to database")
+            logger.info(f"Successfully saved spec {spec_id} to database")
         except Exception as db_error:
             db.rollback()
-            print(f"❌ Database save FAILED: {db_error}")
+            logger.error(f"Database save FAILED: {db_error}")
             import traceback
 
             traceback.print_exc()
@@ -342,7 +336,6 @@ async def generate_design(request: GenerateRequest):
             spec_json["estimated_cost"]["total"] = estimated_cost
 
         generation_time = int((time.time() - start_time) * 1000)
-        print(f"🎉 Generated spec {spec_id} for user {request.user_id} in {generation_time}ms")
         logger.info(f"Generated spec {spec_id} for user {request.user_id} in {generation_time}ms")
 
         # 7. RETURN RESPONSE
@@ -356,7 +349,7 @@ async def generate_design(request: GenerateRequest):
             spec_version=1,
             user_id=request.user_id,
         )
-        print(f"📤 Returning response with spec_id: {spec_id}")
+        logger.info(f"Returning response with spec_id: {spec_id}")
         return response
 
     except HTTPException:
@@ -371,8 +364,7 @@ async def get_spec(spec_id: str):
     """
     Retrieve existing specification
     """
-    print(f"📄 GET SPEC REQUEST: spec_id={spec_id}")
-    logger.info(f"📄 GET SPEC REQUEST: spec_id={spec_id}")
+    logger.info(f"GET SPEC REQUEST: spec_id={spec_id}")
 
     # Try to get spec from database first
     try:
@@ -384,7 +376,7 @@ async def get_spec(spec_id: str):
             db_spec = db.query(Spec).filter(Spec.id == spec_id).first()
 
             if db_spec:
-                print(f"✅ Found spec {spec_id} in database")
+                logger.info(f"Found spec {spec_id} in database")
 
                 # Generate preview URL
                 try:
@@ -392,7 +384,7 @@ async def get_spec(spec_id: str):
 
                     preview_url = supabase.storage.from_("geometry").get_public_url(f"{spec_id}.glb")
                 except Exception as e:
-                    print(f"⚠️ Supabase URL generation failed: {e}")
+                    logger.warning(f"Supabase URL generation failed: {e}")
                     preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
 
                 response = GenerateResponse(
@@ -405,43 +397,16 @@ async def get_spec(spec_id: str):
                     spec_version=db_spec.version,
                     user_id=db_spec.user_id,
                 )
-                print(f"✅ Returning database spec for {spec_id}")
+                logger.info(f"Returning database spec for {spec_id}")
                 return response
         finally:
             db.close()
 
     except Exception as e:
-        print(f"⚠️ Database query failed: {e}")
         logger.error(f"Database query failed for spec {spec_id}: {e}")
 
-    # Fallback to in-memory storage
-    from app.spec_storage import get_spec as get_stored_spec
-
-    stored_spec = get_stored_spec(spec_id)
-
-    if stored_spec:
-        print(f"✅ Found spec {spec_id} in memory storage")
-        try:
-            from app.storage import supabase
-
-            preview_url = supabase.storage.from_("geometry").get_public_url(f"{spec_id}.glb")
-        except Exception as e:
-            preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
-
-        response = GenerateResponse(
-            spec_id=stored_spec["spec_id"],
-            spec_json=stored_spec["spec_json"],
-            preview_url=preview_url,
-            estimated_cost=stored_spec["estimated_cost"],
-            compliance_check_id=f"check_{spec_id}",
-            created_at=datetime.fromisoformat(stored_spec["created_at"].replace("Z", "+00:00")),
-            spec_version=stored_spec["spec_version"],
-            user_id=stored_spec["user_id"],
-        )
-        return response
-
     # Spec not found anywhere
-    print(f"❌ Spec {spec_id} not found in database or memory")
+    logger.warning(f"Spec {spec_id} not found in database")
     raise HTTPException(
         status_code=404,
         detail=f"Specification '{spec_id}' not found. Generate a design first using /api/v1/generate",

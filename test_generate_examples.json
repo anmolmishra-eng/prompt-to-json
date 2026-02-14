@@ -1,0 +1,106 @@
+{
+  "mumbai_examples": [
+    {
+      "user_id": "test_user_mumbai",
+      "prompt": "Design a modern 3BHK apartment with marble flooring and modular kitchen",
+      "city": "Mumbai",
+      "style": "modern"
+    },
+    {
+      "user_id": "test_user_mumbai",
+      "prompt": "Create a luxury penthouse with glass walls and wooden interiors",
+      "city": "Mumbai",
+      "style": "luxury"
+    },
+    {
+      "user_id": "test_user_mumbai",
+      "prompt": "Design a compact 2BHK flat with space-saving furniture",
+      "city": "Mumbai",
+      "style": "minimalist"
+    },
+    {
+      "user_id": "test_user_mumbai",
+      "prompt": "Build a commercial office space with open layout and conference rooms",
+      "city": "Mumbai",
+      "style": "contemporary"
+    }
+  ],
+  "pune_examples": [
+    {
+      "user_id": "test_user_pune",
+      "prompt": "Design a 4BHK villa with garden and granite countertops",
+      "city": "Pune",
+      "style": "traditional"
+    },
+    {
+      "user_id": "test_user_pune",
+      "prompt": "Create a duplex house with wooden staircase and terrace",
+      "city": "Pune",
+      "style": "modern"
+    },
+    {
+      "user_id": "test_user_pune",
+      "prompt": "Design a studio apartment with smart storage solutions",
+      "city": "Pune",
+      "style": "minimalist"
+    },
+    {
+      "user_id": "test_user_pune",
+      "prompt": "Build a farmhouse with brick walls and open kitchen",
+      "city": "Pune",
+      "style": "rustic"
+    }
+  ],
+  "nashik_examples": [
+    {
+      "user_id": "test_user_nashik",
+      "prompt": "Design a 3BHK independent house with concrete structure",
+      "city": "Nashik",
+      "style": "modern"
+    },
+    {
+      "user_id": "test_user_nashik",
+      "prompt": "Create a bungalow with garage and quartz kitchen counters",
+      "city": "Nashik",
+      "style": "contemporary"
+    },
+    {
+      "user_id": "test_user_nashik",
+      "prompt": "Design a row house with steel frame and glass windows",
+      "city": "Nashik",
+      "style": "industrial"
+    },
+    {
+      "user_id": "test_user_nashik",
+      "prompt": "Build a 2-story building with multiple bedrooms and bathrooms",
+      "city": "Nashik",
+      "style": "traditional"
+    }
+  ],
+  "ahmedabad_examples": [
+    {
+      "user_id": "test_user_ahmedabad",
+      "prompt": "Design a 3BHK apartment with marble flooring and modern kitchen",
+      "city": "Ahmedabad",
+      "style": "modern"
+    },
+    {
+      "user_id": "test_user_ahmedabad",
+      "prompt": "Create a townhouse with leather furniture and granite surfaces",
+      "city": "Ahmedabad",
+      "style": "luxury"
+    },
+    {
+      "user_id": "test_user_ahmedabad",
+      "prompt": "Design a commercial showroom with glass facade and steel structure",
+      "city": "Ahmedabad",
+      "style": "contemporary"
+    },
+    {
+      "user_id": "test_user_ahmedabad",
+      "prompt": "Build a residential complex with foundation and roof design",
+      "city": "Ahmedabad",
+      "style": "modern"
+    }
+  ]
+}
