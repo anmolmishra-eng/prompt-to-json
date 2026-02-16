@@ -378,25 +378,37 @@ async def generate_design(request: GenerateRequest):
 
         spec_id = f"spec_{uuid.uuid4().hex[:12]}"
 
-        # 5. GENERATE PREVIEW FILE WITH TRIPO AI
+        # 5. GENERATE PREVIEW FILE WITH MESHY AI
         try:
             from app.storage import upload_geometry
 
             glb_content = None
 
-            # Try Tripo AI (10 free/month, then paid)
-            if settings.TRIPO_API_KEY:
+            # Try Meshy AI first (realistic 3D)
+            if settings.MESHY_API_KEY:
+                try:
+                    from app.meshy_3d_generator import generate_3d_with_meshy
+
+                    logger.info("🎨 Trying Meshy AI (realistic 3D)...")
+                    glb_content = await generate_3d_with_meshy(request.prompt, spec_json["dimensions"])
+                    if glb_content:
+                        logger.info(f"✅ Meshy AI generated {len(glb_content)} bytes")
+                except Exception as meshy_error:
+                    logger.warning(f"Meshy AI failed: {meshy_error}")
+
+            # Fallback to Tripo AI
+            if not glb_content and settings.TRIPO_API_KEY:
                 try:
                     from app.tripo_3d_generator import generate_3d_with_tripo
 
-                    logger.info("🎨 Trying Tripo AI (realistic 3D)...")
+                    logger.info("🎨 Trying Tripo AI (fallback)...")
                     glb_content = await generate_3d_with_tripo(
                         request.prompt, spec_json["dimensions"], settings.TRIPO_API_KEY
                     )
                 except Exception as tripo_error:
                     logger.warning(f"Tripo AI failed: {tripo_error}")
 
-            # Fallback to basic GLB (instant, free, reliable)
+            # Final fallback to basic GLB (instant, free, reliable)
             if not glb_content:
                 logger.info("🎨 Using fallback geometry generator (instant, free)")
                 glb_content = generate_mock_glb(spec_json)

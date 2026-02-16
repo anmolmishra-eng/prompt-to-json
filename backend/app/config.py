@@ -164,6 +164,9 @@ class Settings(BaseSettings):
     # Tripo AI (3D Generation)
     TRIPO_API_KEY: Optional[str] = Field(default=None, description="Tripo AI API key for 3D model generation")
 
+    # Meshy AI (3D Generation)
+    MESHY_API_KEY: Optional[str] = Field(default=None, description="Meshy AI API key for 3D model generation")
+
     # Hugging Face (3D Generation)
     HUGGINGFACE_API_KEY: Optional[str] = Field(default=None, description="Hugging Face API token for 3D generation")
 

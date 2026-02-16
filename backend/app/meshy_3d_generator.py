@@ -10,11 +10,13 @@ logger = logging.getLogger(__name__)
 
 async def generate_3d_with_meshy(prompt: str, dimensions: dict) -> bytes:
     """Generate realistic 3D construction model using Meshy AI"""
-    MESHY_API_KEY = os.getenv("MESHY_API_KEY", getattr(settings, "MESHY_API_KEY", None))
+    MESHY_API_KEY = os.getenv("MESHY_API_KEY") or getattr(settings, "MESHY_API_KEY", None)
 
     if not MESHY_API_KEY:
         logger.warning("Meshy API key not configured")
         return None
+
+    logger.info(f"Using Meshy API key: {MESHY_API_KEY[:10]}...")
 
     width = dimensions.get("width", 10)
     length = dimensions.get("length", 10)
@@ -40,14 +42,16 @@ Detailed architectural visualization"""
                 },
             )
 
-            if response.status_code != 200:
-                logger.error(f"Meshy error: {response.status_code}")
+            if response.status_code not in [200, 202]:
+                logger.error(f"Meshy error: {response.status_code} - {response.text}")
                 return None
 
             task_id = response.json()["result"]
-            logger.info(f"Meshy task: {task_id}, waiting for completion...")
+            logger.info(f"Meshy task created: {task_id}, waiting for completion...")
+            print(f"Task ID: {task_id}")
+            print("Polling status every 2 seconds...")
 
-            for attempt in range(60):
+            for attempt in range(120):  # Increased to 120 attempts (4 minutes)
                 await asyncio.sleep(2)
                 status_resp = await client.get(
                     f"https://api.meshy.ai/v2/text-to-3d/{task_id}",
@@ -56,15 +60,24 @@ Detailed architectural visualization"""
 
                 if status_resp.status_code == 200:
                     result = status_resp.json()
-                    if result.get("status") == "SUCCEEDED":
+                    status = result.get("status")
+                    progress = result.get("progress", 0)
+                    print(f"Attempt {attempt + 1}/120: Status={status}, Progress={progress}%")
+
+                    if status == "SUCCEEDED":
                         glb_url = result.get("model_urls", {}).get("glb")
                         if glb_url:
+                            print(f"Downloading GLB from: {glb_url}")
                             glb_resp = await client.get(glb_url)
-                            logger.info(f"✅ Meshy 3D generated: {len(glb_resp.content)} bytes")
+                            logger.info(f"Meshy 3D generated: {len(glb_resp.content)} bytes")
                             return glb_resp.content
-                    elif result.get("status") == "FAILED":
-                        logger.error(f"Meshy failed: {result.get('error')}")
+                    elif status == "FAILED":
+                        error = result.get("error", "Unknown error")
+                        logger.error(f"Meshy failed: {error}")
+                        print(f"Task failed: {error}")
                         return None
+                else:
+                    print(f"Status check failed: HTTP {status_resp.status_code}")
 
             logger.warning("Meshy timeout")
             return None

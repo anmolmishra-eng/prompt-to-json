@@ -63,3 +63,8 @@ reports/
 *.temp
 .DS_Store
 Thumbs.db
+
+# Test output files
+test_meshy_output.glb
+test_output.glb
+*.glb
