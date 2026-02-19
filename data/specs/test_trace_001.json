@@ -1,0 +1,26 @@
+{
+  "spec_id": "test_trace_001",
+  "design_type": "apartment",
+  "dimensions": {
+    "width": 10.0,
+    "length": 8.0,
+    "height": 3.0
+  },
+  "stories": 2,
+  "objects": [
+    {
+      "type": "wall",
+      "subtype": "external_wall",
+      "count": 4
+    },
+    {
+      "type": "door",
+      "subtype": "main_door",
+      "count": 1
+    },
+    {
+      "type": "window",
+      "count": 4
+    }
+  ]
+}

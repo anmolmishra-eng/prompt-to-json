@@ -3,9 +3,12 @@ Real 3D Geometry Generator
 Converts design specs to actual 3D models
 """
 import json
+import logging
 import math
 import struct
 from typing import Dict, List, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_normals(
@@ -55,13 +58,39 @@ def generate_building_glb(spec_json: Dict) -> bytes:
     """Generate complete building structure with walls, roof, doors, windows"""
     dimensions = spec_json.get("dimensions", {})
     objects = spec_json.get("objects", [])
-    stories = spec_json.get("stories", 1)
-    design_type = spec_json.get("design_type", "")
 
-    width = dimensions.get("width", 10.0)
-    length = dimensions.get("length", 8.0)
-    total_height = dimensions.get("height", 3.0 * stories)
+    # Get floors/stories (check multiple keys)
+    stories = spec_json.get("floors") or spec_json.get("stories") or 1
+    design_type = spec_json.get("design_type", "")
+    units = spec_json.get("units", "meters")  # Default to meters
+
+    # Extract dimensions - support width/depth/length variations
+    width = dimensions.get("width") or dimensions.get("w")
+    depth = dimensions.get("depth") or dimensions.get("length") or dimensions.get("d")
+    height = dimensions.get("height") or dimensions.get("h")
+
+    # Validation with clear logging
+    if not width or not depth or not height:
+        logger.error(f"Missing critical dimensions: width={width}, depth={depth}, height={height}")
+        raise ValueError(f"Incomplete dimensions in spec: {dimensions}")
+
+    # Convert to float and apply unit conversion if needed
+    width = float(width)
+    depth = float(depth)
+    total_height = float(height)
+
+    # Unit conversion (if feet, convert to meters)
+    if units.lower() in ["feet", "ft", "foot"]:
+        width = width * 0.3048
+        depth = depth * 0.3048
+        total_height = total_height * 0.3048
+        logger.info(f"Converted from feet to meters: {width:.2f}m x {depth:.2f}m x {total_height:.2f}m")
+
+    # Use depth as length for building generation
+    length = depth
     height = total_height / stories if stories > 1 else total_height
+
+    logger.info(f"Building: {width:.2f}m(W) x {length:.2f}m(D) x {total_height:.2f}m(H), {stories} floors")
 
     vertices = []
     faces = []  # Store as list of triangles
@@ -242,15 +271,18 @@ def generate_building_glb(spec_json: Dict) -> bytes:
 
 
 def generate_real_glb(spec_json: Dict) -> bytes:
-    """Generate real GLB file with actual geometry"""
+    """Generate real GLB file with actual geometry from spec"""
 
-    # Extract objects from spec
-    objects = spec_json.get("objects", [])
+    # Log spec for debugging
     design_type = spec_json.get("design_type", "")
     dimensions = spec_json.get("dimensions", {})
+    floors = spec_json.get("floors") or spec_json.get("stories") or 1
+    units = spec_json.get("units", "meters")
+
+    logger.info(f"Generating GLB: type={design_type}, dims={dimensions}, floors={floors}, units={units}")
 
     # If it's a building/house, create a complete structure
-    if design_type in [
+    if design_type.lower() in [
         "house",
         "building",
         "apartment",
@@ -260,8 +292,12 @@ def generate_real_glb(spec_json: Dict) -> bytes:
         "townhouse",
         "duplex",
         "penthouse",
+        "flat",
     ]:
         return generate_building_glb(spec_json)
+
+    # Extract objects from spec
+    objects = spec_json.get("objects", [])
 
     # Generate vertices and faces for each object
     vertices = []

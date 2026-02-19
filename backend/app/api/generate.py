@@ -9,6 +9,7 @@ from typing import Any, Dict
 
 from app.config import settings
 from app.lm_adapter import lm_run
+from app.spec_validator import SpecValidationError, validate_spec_json, validate_with_warnings
 from fastapi import APIRouter, HTTPException, status
 
 router = APIRouter()
@@ -321,7 +322,20 @@ async def generate_design(request: GenerateRequest):
             logger.error(f"LM call failed: {str(e)}", exc_info=True)
             raise HTTPException(status_code=503, detail=f"LM service unavailable: {str(e)[:100]}")
 
-        # 3. CALCULATE COST AND ENHANCE SPEC
+        # 3. VALIDATE SPEC BEFORE PROCEEDING
+        logger.info("Validating spec_json completeness...")
+        try:
+            validate_spec_json(spec_json)
+            warnings = validate_with_warnings(spec_json)
+            if warnings:
+                logger.info(f"Spec warnings: {len(warnings)} non-critical issues")
+        except SpecValidationError as e:
+            logger.error(f"Spec validation failed: {e}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid specification from LM: {str(e)}. Please try rephrasing your prompt."
+            )
+
+        # 4. CALCULATE COST AND ENHANCE SPEC
         logger.info(f"Calculating cost for {len(spec_json.get('objects', []))} objects...")
 
         # Calculate realistic cost based on actual dimensions and city
@@ -373,12 +387,12 @@ async def generate_design(request: GenerateRequest):
 
         logger.info(f"[DEBUG] Set metadata city to: {req_city}")
 
-        # 4. CREATE SPEC ID AND GENERATE PREVIEW FIRST
+        # 5. CREATE SPEC ID AND GENERATE PREVIEW FIRST
         import uuid
 
         spec_id = f"spec_{uuid.uuid4().hex[:12]}"
 
-        # 5. GENERATE PREVIEW FILE WITH MESHY AI
+        # 6. GENERATE PREVIEW FILE WITH MESHY AI
         try:
             from app.storage import upload_geometry
 
@@ -424,7 +438,7 @@ async def generate_design(request: GenerateRequest):
             create_local_preview_file(spec_json, local_preview_path)
             preview_url = f"http://localhost:8000/static/geometry/{spec_id}.glb"
 
-        # 6. SAVE TO DATABASE
+        # 7. SAVE TO DATABASE
         from app.database import SessionLocal
         from app.models import Spec, User
 
@@ -487,7 +501,7 @@ async def generate_design(request: GenerateRequest):
         generation_time = int((time.time() - start_time) * 1000)
         logger.info(f"Generated spec {spec_id} for user {request.user_id} in {generation_time}ms")
 
-        # 7. RETURN RESPONSE
+        # 8. RETURN RESPONSE
         response = GenerateResponse(
             spec_id=spec_id,
             spec_json=spec_json,
